@@ -29,6 +29,9 @@ else
 	git checkout -b $MAJOR_BRANCH
 fi
 
+VERSIONS_FILENAME="VERSIONS.md"
+echo "* Version ${VERSION}: ${URL}\n$(cat $VERSIONS_FILENAME)" > $VERSIONS_FILENAME
+
 wget $URL
 unzip $ZIP_FILENAME
 rm $ZIP_FILENAME
