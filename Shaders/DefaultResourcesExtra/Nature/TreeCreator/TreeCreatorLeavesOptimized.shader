@@ -69,7 +69,6 @@ ENDCG
 		#pragma fragment frag_surf
 		#pragma exclude_renderers noshadows flash
 		#pragma glsl_no_auto_normalization
-		#pragma fragmentoption ARB_precision_hint_fastest
 		#pragma multi_compile_shadowcaster
 		#include "HLSLSupport.cginc"
 		#include "UnityCG.cginc"
@@ -119,7 +118,6 @@ ENDCG
 		#pragma vertex vert_surf
 		#pragma fragment frag_surf
 		#pragma exclude_renderers noshadows flash
-		#pragma fragmentoption ARB_precision_hint_fastest
 		#pragma multi_compile_shadowcollector
 		#pragma glsl_no_auto_normalization
 		#include "HLSLSupport.cginc"
@@ -225,26 +223,5 @@ SubShader {
 		} 
 	}
 }
-
-SubShader {
-	Tags { "RenderType"="TreeLeaf" }
-	Pass {
-		ColorMask RGB
-		
-		Material {
-			Diffuse (1,1,1,1)
-			Ambient (1,1,1,1)
-		}
-		Lighting On
-		
-		AlphaTest Greater [_Cutoff]
-		SetTexture [_MainTex] { Combine texture * primary DOUBLE, texture }
-		SetTexture [_MainTex] {
-			ConstantColor [_Color]
-			Combine previous * constant, previous
-		} 
-	}
-} 
-
 Dependency "BillboardShader" = "Hidden/Nature/Tree Creator Leaves Rendertex"
 }

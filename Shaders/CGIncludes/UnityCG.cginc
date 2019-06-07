@@ -415,6 +415,20 @@ inline float4 ComputeGrabScreenPos (float4 pos) {
 	return o;
 }
 
+// snaps post-transformed position to screen pixels
+inline float4 UnityPixelSnap (float4 pos)
+{
+	float2 hpc = _ScreenParams.xy * 0.5;
+	#ifdef UNITY_HALF_TEXEL_OFFSET
+	float2 hpcO = float2(-0.5,0.5);
+	#else
+	float2 hpcO = float2(0,0);
+	#endif	
+	float2 pixelPos = floor ((pos.xy / pos.w) * hpc + 0.5);
+	pos.xy = (pixelPos + hpcO) / hpc * pos.w;
+	return pos;
+}
+
 
 inline float2 TransformViewToProjection (float2 v) {
 	return float2(v.x*UNITY_MATRIX_P[0][0], v.y*UNITY_MATRIX_P[1][1]);

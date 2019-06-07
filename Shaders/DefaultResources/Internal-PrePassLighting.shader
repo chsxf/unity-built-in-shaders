@@ -19,6 +19,8 @@ struct v2f {
 	float3 ray : TEXCOORD1;
 };
 
+float _LightAsQuad;
+
 v2f vert (appdata v)
 {
 	v2f o;
@@ -26,10 +28,10 @@ v2f vert (appdata v)
 	o.uv = ComputeScreenPos (o.pos);
 	o.ray = mul (UNITY_MATRIX_MV, v.vertex).xyz * float3(-1,-1,1);
 	
-	// v.texcoord is equal to 0 when we are drawing 3D light shapes and
-	// contains a ray pointing from the camera to one of near plane's
+	// v.normal contains a ray pointing from the camera to one of near plane's
 	// corners in camera space when we are drawing a full screen quad.
-	o.ray = lerp(o.ray, v.normal, v.normal.z != 0);
+	// Otherwise, when rendering 3D shapes, use the ray calculated here.
+	o.ray = lerp(o.ray, v.normal, _LightAsQuad);
 	
 	return o;
 }

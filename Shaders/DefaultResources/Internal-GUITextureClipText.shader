@@ -17,7 +17,6 @@ Shader "Hidden/Internal-GUITextureClipText"
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma fragmentoption ARB_precision_hint_fastest
 
 			#include "UnityCG.cginc"
 
@@ -60,60 +59,5 @@ Shader "Hidden/Internal-GUITextureClipText"
 			}
 			ENDCG 
 		}
-	}
- 
-	SubShader { 
-		Tags { "ForceSupported" = "True" }
-
-		Lighting Off 
-		Blend SrcAlpha OneMinusSrcAlpha 
-		Cull Off 
-		ZWrite Off 
-		Fog { Mode Off } 
-		ZTest Always
-		BindChannels {
-			Bind "Color", color
-			Bind "Vertex", vertex
-			Bind "TexCoord", texcoord
-		}
-		
-		Pass {
-			SetTexture [_MainTex] { 
-				ConstantColor [_Color] combine constant * primary, primary * texture alpha
-			}
-			SetTexture [_GUIClipTexture] { // clipping texture - Gets bound to the clipping matrix from code
-				combine previous, previous * texture alpha 
-			}  
-		}
-	}
-	
-	// Really ancient sub shader for single-texture cards
-	SubShader { 
-		Lighting Off 
-		Cull Off 
-		ZWrite Off 
-		Fog { Mode Off } 
-		ZTest Always
-		Tags { "ForceSupported" = "True" }
-		
-		Pass { // Get the base alpha in
-			ColorMask A 
-			SetTexture [_MainTex] { 
-				ConstantColor [_Color] combine constant * texture alpha, constant * texture alpha
-			} 
-		} 
-		Pass { // Multiply in the clip alpha
-			ColorMask A 
-			Blend DstAlpha Zero 
-			SetTexture [_GUIClipTexture] { 
-				combine previous, previous * texture alpha 
-			} 
-		}
-		Pass { // Get color
-			ColorMask RGB 
-			Blend DstAlpha OneMinusDstAlpha 
-			SetTexture [_MainTex] { 
-				ConstantColor [_Color] combine constant * texture alpha} 
-		} 
 	}
 }

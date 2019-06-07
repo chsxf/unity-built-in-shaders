@@ -8,7 +8,6 @@ Properties {
 	_Cutoff ("Alpha cutoff", Range(0,1)) = 0.5
 }
 
-// 2/3 texture stage GPUs
 SubShader {
 	Tags {"Queue"="AlphaTest" "IgnoreProjector"="True" "RenderType"="TransparentCutout"}
 	LOD 100
@@ -97,7 +96,6 @@ CGPROGRAM
 #pragma vertex vert
 #pragma fragment frag
 #pragma multi_compile_shadowcaster
-#pragma fragmentoption ARB_precision_hint_fastest
 #include "UnityCG.cginc"
 
 struct v2f { 
@@ -141,7 +139,6 @@ ENDCG
 CGPROGRAM
 #pragma vertex vert
 #pragma fragment frag
-#pragma fragmentoption ARB_precision_hint_fastest
 #pragma multi_compile_shadowcollector
 
 #define SHADOW_COLLECTOR_PASS
@@ -178,28 +175,4 @@ ENDCG
 	}
 }
 
-// 1 texture stage GPUs
-SubShader {
-	Tags {"IgnoreProjector"="True" "RenderType"="TransparentCutout"}
-	LOD 100
-	
-	Pass {
-		Tags { "LightMode" = "Always" }
-		Alphatest Greater [_Cutoff]
-		AlphaToMask True
-		ColorMask RGB
-		Material {
-			Diffuse [_Color]
-			Ambient [_Color]
-			Shininess [_Shininess]
-			Specular [_SpecColor]
-			Emission [_Emission]	
-		}
-		Lighting On
-		SeparateSpecular On
-		SetTexture [_MainTex] {
-			Combine texture * primary DOUBLE, texture * primary 
-		} 
-	}	
-}
 }

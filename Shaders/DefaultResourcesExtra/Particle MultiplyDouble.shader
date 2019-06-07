@@ -9,20 +9,13 @@ Category {
 	Blend DstColor SrcColor
 	ColorMask RGB
 	Cull Off Lighting Off ZWrite Off Fog { Color (0.5,0.5,0.5,0.5) }
-	BindChannels {
-		Bind "Color", color
-		Bind "Vertex", vertex
-		Bind "TexCoord", texcoord
-	}
 	
-	// ---- Fragment program cards
 	SubShader {
 		Pass {
 		
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma fragmentoption ARB_precision_hint_fastest
 			#pragma multi_compile_particles
 
 			#include "UnityCG.cginc"
@@ -79,29 +72,6 @@ Category {
 				return lerp(fixed4(0.5f,0.5f,0.5f,0.5f), col, col.a);
 			}
 			ENDCG 
-		}
-	} 	
-	
-	// ---- Dual texture cards
-	SubShader {
-		Pass {
-			SetTexture [_MainTex] {
-				combine  texture * primary DOUBLE, primary * texture
-			}
-			SetTexture [_MainTex] {
-				constantColor (.5,.5,.5,.5)
-				combine previous lerp (previous) constant
-			}
-		}
-	}
-	
-	// ---- Single texture cards (does not do particle colors)
-	SubShader {
-		Pass {
-			SetTexture [_MainTex] {
-				constantColor (.5,.5,.5,.5)
-				combine texture lerp(texture) constant
-			}
 		}
 	}
 }

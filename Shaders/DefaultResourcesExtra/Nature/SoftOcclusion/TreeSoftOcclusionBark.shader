@@ -48,7 +48,6 @@ Shader "Nature/Tree Soft Occlusion Bark" {
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma glsl_no_auto_normalization
-			#pragma fragmentoption ARB_precision_hint_fastest
 			#pragma multi_compile_shadowcaster
 			#include "UnityCG.cginc"
 			#include "TerrainEngine.cginc"
@@ -75,41 +74,6 @@ Shader "Nature/Tree Soft Occlusion Bark" {
 			}
 			ENDCG	
 		}
-	}
-	
-	SubShader {
-		Tags {
-			"IgnoreProjector"="True"
-			"RenderType" = "TreeOpaque"
-		}
-
-		Pass {
-			CGPROGRAM
-			#pragma exclude_renderers shaderonly
-			#pragma vertex bark
-			#include "SH_Vertex.cginc"
-			ENDCG
-			
-			Lighting On
-						
-			SetTexture [_MainTex] { combine primary * texture DOUBLE, constant }
-		}
-	}
-	
-	SubShader {
-		Tags {
-			"IgnoreProjector"="True"
-			"RenderType" = "Opaque"
-		}
-		Pass {
-			Tags { "LightMode" = "Vertex" }
-			Lighting On
-			Material {
-				Diffuse [_Color]
-				Ambient [_Color]
-			}
-			SetTexture [_MainTex] { combine primary * texture DOUBLE, constant }
-		}		
 	}
 	
 	Dependency "BillboardShader" = "Hidden/Nature/Tree Soft Occlusion Bark Rendertex"

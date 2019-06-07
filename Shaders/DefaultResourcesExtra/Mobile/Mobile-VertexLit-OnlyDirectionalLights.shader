@@ -19,7 +19,6 @@ Shader "Mobile/VertexLit (Only Directional Lights)" {
 CGPROGRAM
 #pragma vertex vert_surf
 #pragma fragment frag_surf
-#pragma fragmentoption ARB_precision_hint_fastest
 #pragma multi_compile_fwdbase
 #include "HLSLSupport.cginc"
 #define UNITY_PASS_FORWARDBASE

@@ -11,7 +11,6 @@ CGPROGRAM
 #pragma vertex vert_img
 #pragma fragment frag
 #pragma exclude_renderers noshadows
-#pragma fragmentoption ARB_precision_hint_fastest
 #pragma target 3.0
 #include "UnityCG.cginc"
 

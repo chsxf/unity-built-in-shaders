@@ -19,7 +19,6 @@ Category {
 		Bind "TexCoord", texcoord
 	}
 	
-	// ---- Dual texture cards
 	SubShader {
 		Pass {
 			SetTexture [_MainTex] {
@@ -28,16 +27,6 @@ Category {
 			SetTexture [_MainTex] {
 				constantColor (1,1,1,1)
 				combine previous lerp (previous) constant
-			}
-		}
-	}
-	
-	// ---- Single texture cards (does not do particle colors)
-	SubShader {
-		Pass {
-			SetTexture [_MainTex] {
-				constantColor (1,1,1,1)
-				combine texture lerp(texture) constant
 			}
 		}
 	}

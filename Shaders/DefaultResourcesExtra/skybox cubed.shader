@@ -13,7 +13,6 @@ SubShader {
 		CGPROGRAM
 		#pragma vertex vert
 		#pragma fragment frag
-		#pragma fragmentoption ARB_precision_hint_fastest
 
 		#include "UnityCG.cginc"
 
@@ -50,15 +49,6 @@ SubShader {
 	}
 } 	
 
-
-SubShader {
-	Tags { "Queue"="Background" "RenderType"="Background" }
-	Cull Off ZWrite Off Fog { Mode Off }
-	Color [_Tint]
-	Pass {
-		SetTexture [_Tex] { combine texture +- primary, texture * primary }
-	}
-}
 
 Fallback Off
 

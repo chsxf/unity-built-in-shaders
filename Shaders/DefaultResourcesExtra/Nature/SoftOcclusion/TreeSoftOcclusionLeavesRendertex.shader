@@ -43,33 +43,6 @@ Shader "Hidden/Nature/Tree Soft Occlusion Leaves Rendertex" {
 			ENDCG
 		}
 	}
-	SubShader {
-		Tags { "Queue" = "Transparent-99" }
-		Cull Off
-		Fog { Mode Off}
-		
-		Pass {
-			CGPROGRAM
-			#pragma exclude_renderers shaderonly
-			#pragma vertex leaves
-			#define USE_CUSTOM_LIGHT_DIR 1
-			#include "SH_Vertex.cginc"
-			ENDCG
-			
-			Lighting On
-			ZWrite On
-			
-			// We want to do alpha testing on cutoff, but at the same
-			// time write 1.0 into alpha. So we multiply alpha by 0.25/cutoff
-			// and alpha test on alpha being greater or equal to 1.0.
-			// That will work for cutoff values in range [0.25;1].
-			// Remember that color gets clamped to [0;1].
-			AlphaTest GEqual 1.0
-			SetTexture [_MainTex] {
-				combine primary * texture double, primary * texture QUAD
-			}
-		}
-	}
 	
 	Fallback Off
 }

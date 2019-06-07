@@ -10,20 +10,13 @@ Category {
 	Blend One OneMinusSrcAlpha
 	ColorMask RGB
 	Cull Off Lighting Off ZWrite Off Fog { Color (0,0,0,1) }
-	BindChannels {
-		Bind "Color", color
-		Bind "Vertex", vertex
-		Bind "TexCoord", texcoord
-	}
 	
-	// ---- Fragment program cards
 	SubShader {
 		Pass {
 		
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma fragmentoption ARB_precision_hint_fastest
 			#pragma multi_compile_particles
 
 			#include "UnityCG.cginc"
@@ -83,26 +76,5 @@ Category {
 		}
 	} 	
 
-	// ---- Dual texture cards
-	SubShader {
-		Pass {
-			SetTexture [_MainTex] {
-				constantColor [_TintColor]
-				combine constant * texture, constant * primary DOUBLE
-			}
-			SetTexture [_MainTex] {
-				combine previous * primary DOUBLE, one - texture * previous
-			}
-		}
-	}
-	
-	// ---- Single texture cards (does not do color tint)
-	SubShader {
-		Pass {
-			SetTexture [_MainTex] {
-				combine texture * primary DOUBLE, one - texture * primary
-			}
-		}
-	}
 }
 }

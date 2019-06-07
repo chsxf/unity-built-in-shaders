@@ -45,23 +45,5 @@ void surf (Input IN, inout SurfaceOutput o) {
 ENDCG
 }
 
-SubShader {
-	Tags { "RenderType"="TreeBark" }
-	Pass {		
-		Material {
-			Diffuse (1,1,1,1)
-			Ambient (1,1,1,1)
-		} 
-		Lighting On
-		SetTexture [_MainTex] {
-			Combine texture * primary DOUBLE, texture * primary
-		}
-		SetTexture [_MainTex] {
-			ConstantColor [_Color]
-			Combine previous * constant, previous
-		} 
-	}
-}
-
 Dependency "BillboardShader" = "Hidden/Nature/Tree Creator Bark Rendertex"
 }
