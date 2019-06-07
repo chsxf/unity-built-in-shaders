@@ -47,15 +47,15 @@ Shader "Hidden/Internal-GUITextureClipText"
 				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
 				float4 texgen = mul(UNITY_MATRIX_MV, v.vertex);
 				o.texgencoord = mul(_GUIClipTextureMatrix, texgen);
-				o.color = v.color;
+				o.color = v.color * _Color;
 				o.texcoord = TRANSFORM_TEX(v.texcoord,_MainTex);
 				return o;
 			}
 
 			fixed4 frag (v2f i) : COLOR
 			{
-				fixed4 col = _Color;
-				col.a *= tex2D(_MainTex, i.texcoord).a * tex2D(_GUIClipTexture, i.texgencoord).a;
+				fixed4 col = i.color;
+				col.a *= UNITY_SAMPLE_1CHANNEL(_MainTex, i.texcoord) * UNITY_SAMPLE_1CHANNEL(_GUIClipTexture, i.texgencoord);
 				return col;
 			}
 			ENDCG 
@@ -71,10 +71,15 @@ Shader "Hidden/Internal-GUITextureClipText"
 		ZWrite Off 
 		Fog { Mode Off } 
 		ZTest Always
+		BindChannels {
+			Bind "Color", color
+			Bind "Vertex", vertex
+			Bind "TexCoord", texcoord
+		}
 		
-		Pass { 
+		Pass {
 			SetTexture [_MainTex] { 
-				ConstantColor [_Color] combine constant, constant * texture alpha
+				ConstantColor [_Color] combine constant * primary, constant * texture alpha
 			}
 			SetTexture [_GUIClipTexture] { // clipping texture - Gets bound to the clipping matrix from code
 				combine previous, previous * texture alpha 

@@ -39,7 +39,7 @@ void surf (Input IN, inout LeafSurfaceOutput o) {
 	fixed4 c = tex2D(_MainTex, IN.uv_MainTex);
 	o.Albedo = c.rgb * _Color.rgb * IN.color.a;
 	o.Translucency = tex2D(_TranslucencyMap, IN.uv_MainTex).rgb;
-	o.Gloss = tex2D(_GlossMap, IN.uv_MainTex).a;
+	o.Gloss = UNITY_SAMPLE_1CHANNEL(_GlossMap, IN.uv_MainTex);
 	o.Alpha = c.a;
 	o.Specular = _Shininess;
 	o.Normal = UnpackNormal(tex2D(_BumpMap, IN.uv_MainTex));

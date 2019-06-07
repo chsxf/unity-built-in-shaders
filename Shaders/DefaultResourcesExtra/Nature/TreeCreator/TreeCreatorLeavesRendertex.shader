@@ -30,8 +30,10 @@ struct v2f {
 	float3 nh : TEXCOORD4;
 };
 
-float3 _TerrainTreeLightDirections[4];
-float4 _TerrainTreeLightColors[4];
+CBUFFER_START(UnityTerrainImposter)
+	float3 _TerrainTreeLightDirections[4];
+	float4 _TerrainTreeLightColors[4];
+CBUFFER_END
 
 v2f vert (appdata_full v) {	
 	v2f o;
@@ -121,8 +123,10 @@ SubShader {
 			float2 uv : TEXCOORD0;
 		};
 
-		float3 _TerrainTreeLightDirections[4];
-		float4 _TerrainTreeLightColors[4];
+		CBUFFER_START(UnityTerrainImposter)
+			float3 _TerrainTreeLightDirections[4];
+			float4 _TerrainTreeLightColors[4];
+		CBUFFER_END
 		float _HalfOverCutoff;
 
 		v2f vert (appdata_full v) {

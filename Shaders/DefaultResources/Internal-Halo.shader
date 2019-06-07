@@ -33,7 +33,7 @@ Shader "Hidden/Internal-Halo" {
 			}
 			fixed4 frag (v2f i) : COLOR
 			{
-				half a = tex2D(_HaloFalloff, i.texcoord).a;
+				half a = UNITY_SAMPLE_1CHANNEL(_HaloFalloff, i.texcoord);
 				return half4 (i.color.rgb * a, a);
 			}
 			ENDCG  

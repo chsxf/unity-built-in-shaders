@@ -4,17 +4,25 @@
 
 float _Occlusion, _AO, _BaseLight;
 fixed4 _Color;
-float3 _TerrainTreeLightDirections[4];
-float4 _TerrainTreeLightColors[4];
+
+#ifdef USE_CUSTOM_LIGHT_DIR
+CBUFFER_START(UnityTerrainImposter)
+	float3 _TerrainTreeLightDirections[4];
+	float4 _TerrainTreeLightColors[4];
+CBUFFER_END
+#endif
+
+CBUFFER_START(UnityPerCamera2)
+float4x4 _CameraToWorld;
+CBUFFER_END
+
+float _HalfOverCutoff;
 
 struct v2f {
 	float4 pos : POSITION;
 	float4 uv : TEXCOORD0;
 	fixed4 color : COLOR0;
 };
-
-float4x4 _CameraToWorld;
-float _HalfOverCutoff;
 
 v2f leaves(appdata_tree v)
 {

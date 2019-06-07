@@ -20,11 +20,13 @@ Shader "GUI/Text Shader" {
 
 			struct appdata_t {
 				float4 vertex : POSITION;
+				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
 			};
 
 			struct v2f {
 				float4 vertex : POSITION;
+				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
 			};
 
@@ -36,14 +38,15 @@ Shader "GUI/Text Shader" {
 			{
 				v2f o;
 				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+				o.color = v.color * _Color;
 				o.texcoord = TRANSFORM_TEX(v.texcoord,_MainTex);
 				return o;
 			}
 
 			fixed4 frag (v2f i) : COLOR
 			{
-				fixed4 col = _Color;
-				col.a *= tex2D(_MainTex, i.texcoord).a;
+				fixed4 col = i.color;
+				col.a *= UNITY_SAMPLE_1CHANNEL(_MainTex, i.texcoord);
 				return col;
 			}
 			ENDCG 
@@ -54,10 +57,14 @@ Shader "GUI/Text Shader" {
 		Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
 		Lighting Off Cull Off ZTest Always ZWrite Off Fog { Mode Off }
 		Blend SrcAlpha OneMinusSrcAlpha
+		BindChannels {
+			Bind "Color", color
+			Bind "Vertex", vertex
+			Bind "TexCoord", texcoord
+		}
 		Pass {
-			Color [_Color]
-			SetTexture [_MainTex] {
-				combine primary, texture * primary
+			SetTexture [_MainTex] { 
+				constantColor [_Color] combine constant * primary, constant * texture
 			}
 		}
 	}

@@ -38,9 +38,6 @@ CGPROGRAM
 			return _LightColor0.rgb * (diff * 2);
 		}
 
-		#pragma debug
-		//#pragma surface surf Lambert
-
 		sampler2D _MainTex;
 
 		struct Input {
@@ -105,6 +102,8 @@ fixed4 frag_surf (v2f_surf IN) : COLOR {
 	o.Gloss = 0.0;
 	#ifdef LIGHTMAP_OFF
 	o.Normal = IN.normal;
+	#else
+	o.Normal = 0;
 	#endif
 	surf (surfIN, o);
 	fixed atten = LIGHT_ATTENUATION(IN);

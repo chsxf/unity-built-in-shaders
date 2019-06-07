@@ -25,8 +25,10 @@ struct v2f {
 	float2 params[3]: TEXCOORD2;
 };
 
-float3 _TerrainTreeLightDirections[4];
-float4 _TerrainTreeLightColors[4];
+CBUFFER_START(UnityTerrainImposter)
+	float3 _TerrainTreeLightDirections[4];
+	float4 _TerrainTreeLightColors[4];
+CBUFFER_END
 
 v2f vert (appdata_full v) {
 	v2f o;
@@ -58,7 +60,7 @@ fixed4 _SpecColor;
 fixed4 frag (v2f i) : COLOR
 {
 	fixed3 albedo = tex2D (_MainTex, i.uv).rgb * i.color;
-	half gloss = tex2D (_TranslucencyMap, i.uv).a;
+	half gloss = UNITY_SAMPLE_1CHANNEL (_TranslucencyMap, i.uv);
 	half specular = tex2D (_BumpSpecMap, i.uv).r * 128.0;
 	
 	half3 light = UNITY_LIGHTMODEL_AMBIENT * albedo;
@@ -99,8 +101,10 @@ SubShader {
 			float2 uv : TEXCOORD0;
 		};
 
-		float3 _TerrainTreeLightDirections[4];
-		float4 _TerrainTreeLightColors[4];
+		CBUFFER_START(UnityTerrainImposter)
+			float3 _TerrainTreeLightDirections[4];
+			float4 _TerrainTreeLightColors[4];
+		CBUFFER_END
 
 		v2f vert (appdata_full v) {
 			v2f o;
