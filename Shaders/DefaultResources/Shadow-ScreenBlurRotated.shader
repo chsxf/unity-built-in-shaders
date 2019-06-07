@@ -15,6 +15,16 @@ CGPROGRAM
 #pragma target 3.0
 #include "UnityCG.cginc"
 
+
+#if SHADER_API_PS3
+#	define shadowPrecission float
+#	define shadowPrecission4 float4
+#else
+#	define shadowPrecission half
+#	define shadowPrecission4 half4
+#endif
+
+
 uniform sampler2D _MainTex;
 uniform sampler2D unity_RandomRotation16;
 
@@ -39,9 +49,9 @@ inline float2 GetRotatedTexCoord(float2 offsets, float4 rotation)
 
 float4 unity_ShadowBlurParams;
 #define LOOP_ITERATION(i) { 	\
-	half4 sample = tex2D( _MainTex, coord + radius * GetRotatedTexCoord(_BlurOffsets##i.xy, rotation) ); \
-	half sampleDist = sample.b + sample.a / 255.0; \
-	half diff = dist - sampleDist; \
+	shadowPrecission4 sample = tex2D( _MainTex, coord + radius * GetRotatedTexCoord(_BlurOffsets##i.xy, rotation) ); \
+	shadowPrecission sampleDist = sample.b + sample.a / 255.0; \
+	shadowPrecission diff = dist - sampleDist; \
 	diff = saturate( diffTolerance - abs(diff) ); \
 	mask.xy += diff * sample.xy; }
 
@@ -50,12 +60,12 @@ fixed4 frag (v2f_img i) : COLOR
 	float4 coord = float4(i.uv,0,0);
 	const float randomRotationTextureSize = 16.0f;
 	
-	half4 rotation = 2.0 * tex2D( unity_RandomRotation16, (coord.xy * _ScreenParams.xy) / randomRotationTextureSize ) - 1.0;
-	half4 mask = tex2D( _MainTex, coord.xy );
-	half dist = mask.b + mask.a / 255.0;
-	half radius = saturate(unity_ShadowBlurParams.y / (1.0-dist));
+	shadowPrecission4 rotation = 2.0 * tex2D( unity_RandomRotation16, (coord.xy * _ScreenParams.xy) / randomRotationTextureSize ) - 1.0;
+	shadowPrecission4 mask = tex2D( _MainTex, coord.xy );
+	shadowPrecission dist = mask.b + mask.a / 255.0;
+	shadowPrecission radius = saturate(unity_ShadowBlurParams.y / (1.0-dist));
 	
-	half diffTolerance = unity_ShadowBlurParams.x;
+	shadowPrecission diffTolerance = unity_ShadowBlurParams.x;
 	
 	mask.xy *= diffTolerance;
 
@@ -74,7 +84,7 @@ fixed4 frag (v2f_img i) : COLOR
 	LOOP_ITERATION (6);
 	LOOP_ITERATION (7);
 
-	half shadow = mask.x / mask.y;
+	shadowPrecission shadow = mask.x / mask.y;
 	return shadow;
 }
 ENDCG
