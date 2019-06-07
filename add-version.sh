@@ -35,8 +35,10 @@ fi
 VERSIONS_FILENAME="VERSIONS.md"
 echo "* Version ${VERSION}: ${URL}\n$(cat $VERSIONS_FILENAME)" > $VERSIONS_FILENAME
 
-wget $URL
-unzip $ZIP_FILENAME
+rm -Rf Shaders
+
+curl $URL -o $ZIP_FILENAME
+unzip $ZIP_FILENAME -d Shaders
 rm $ZIP_FILENAME
 
 COMMIT_MESSAGE="Version ${VERSION}"
