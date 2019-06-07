@@ -1,6 +1,16 @@
 #ifndef HLSL_SUPPORT_INCLUDED
 #define HLSL_SUPPORT_INCLUDED
 
+
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11_9X)
+#define UNITY_COMPILER_HLSL
+#elif defined(SHADER_TARGET_GLSL)
+#define UNITY_COMPILER_HLSL2GLSL
+#else
+#define UNITY_COMPILER_CG
+#endif
+
+
 #if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11_9X)
 #pragma warning (disable : 3205) // conversion of larger type to smaller
 #pragma warning (disable : 3568) // unknown pragma ignored
@@ -54,12 +64,14 @@
 #define texRECTbias tex2Dbias
 #define texRECTproj tex2Dproj
 
-#if (defined(SHADER_API_D3D9) || defined(SHADER_API_OPENGL) || defined(SHADER_API_PS3)) && !defined(SHADER_TARGET_GLSL)
+#if defined(UNITY_COMPILER_CG)
 // Cg seems to use WPOS instead of VPOS semantic?
 #define VPOS WPOS
 // Cg does not have tex2Dgrad and friends, but has tex2D overload that
 // can take the derivatives
-half4 tex2Dgrad (in sampler2D s, in float2 t, in float2 dx, in float2 dy) { return tex2D (s, t, dx, dy); }
+#define tex2Dgrad tex2D
+#define texCUBEgrad texCUBE
+#define tex3Dgrad tex3D
 #endif
 
 #if !defined(SHADER_API_XBOX360) && !defined(SHADER_API_PS3) && !defined(SHADER_API_GLES) && !defined(SHADER_API_GLES3) && !defined(SHADER_TARGET_GLSL) && !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X)
@@ -126,15 +138,6 @@ float4 tex2Dproj(in sampler2D s, in float3 t)
 #define UNITY_PROJ_COORD(a) (a).xyw
 #else
 #define UNITY_PROJ_COORD(a) a
-#endif
-
-
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11_9X)
-#define UNITY_COMPILER_HLSL
-#elif defined(SHADER_TARGET_GLSL)
-#define UNITY_COMPILER_HLSL2GLSL
-#else
-#define UNITY_COMPILER_CG
 #endif
 
 

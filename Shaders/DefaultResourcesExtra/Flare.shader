@@ -3,7 +3,12 @@ Properties {
 	_MainTex ("Particle Texture", 2D) = "black" {}
 }
 SubShader {
-	Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
+	Tags {
+		"Queue"="Transparent"
+		"IgnoreProjector"="True"
+		"RenderType"="Transparent"
+		"PreviewType"="Plane"
+	}
 	Cull Off Lighting Off ZWrite Off Ztest Always Fog { Mode Off }
 	Blend One One
 
@@ -11,7 +16,6 @@ SubShader {
 		CGPROGRAM
 		#pragma vertex vert
 		#pragma fragment frag
-		#pragma fragmentoption ARB_precision_hint_fastest
 
 		#include "UnityCG.cginc"
 
@@ -53,13 +57,4 @@ SubShader {
 	}
 } 	
 
-SubShader {
-	Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
-	Cull Off Lighting Off ZWrite Off Ztest Always Fog { Mode Off }
-	Blend One One
-	Color (1,1,1,1)
-	Pass {
-		SetTexture [_MainTex] { combine texture * primary, texture }
-	}
-}
 }

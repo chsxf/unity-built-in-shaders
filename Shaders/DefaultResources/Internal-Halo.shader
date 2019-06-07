@@ -38,23 +38,5 @@ Shader "Hidden/Internal-Halo" {
 			}
 			ENDCG  
 		}  
-	}  
-	SubShader {  
-		Tags {"RenderType"="Overlay"}  
-		ZWrite off Cull off  	// NOTE: 'Cull off' is important as the halo meshes flip handedness each time... BUG: #1220
-		Fog { Color (0,0,0,0) }   
-		Blend OneMinusDstColor One  
-		AlphaTest Greater 0  
-		ColorMask RGB  
-		Pass {
-			BindChannels {
-				Bind "Vertex", vertex
-				Bind "Color", color
-				// caveat: because _HaloFalloff is a global texture prop,
-				// can't bind to texcoord; need explicit texcoord0
-				Bind "TexCoord", texcoord0
-			}
-			SetTexture [_HaloFalloff] { combine primary * texture alpha, texture alpha }
-		}
 	}
 }

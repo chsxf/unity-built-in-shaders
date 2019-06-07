@@ -8,20 +8,13 @@ Category {
 	Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
 	Blend Zero SrcColor
 	Cull Off Lighting Off ZWrite Off Fog { Color (1,1,1,1) }
-	BindChannels {
-		Bind "Color", color
-		Bind "Vertex", vertex
-		Bind "TexCoord", texcoord
-	}
 	
-	// ---- Fragment program cards
 	SubShader {
 		Pass {
 		
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma fragmentoption ARB_precision_hint_fastest
 			#pragma multi_compile_particles
 
 			#include "UnityCG.cginc"
@@ -75,29 +68,6 @@ Category {
 				return lerp(half4(1,1,1,1), prev, prev.a);
 			}
 			ENDCG 
-		}
-	} 	
-
-	// ---- Dual texture cards
-	SubShader {
-		Pass {
-			SetTexture [_MainTex] {
-				combine texture * primary
-			}
-			SetTexture [_MainTex] {
-				constantColor (1,1,1,1)
-				combine previous lerp (previous) constant
-			}
-		}
-	}
-	
-	// ---- Single texture cards (does not do particle colors)
-	SubShader {
-		Pass {
-			SetTexture [_MainTex] {
-				constantColor (1,1,1,1)
-				combine texture lerp(texture) constant
-			}
 		}
 	}
 }

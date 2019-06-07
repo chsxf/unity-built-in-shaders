@@ -7,7 +7,6 @@ Properties {
 	_MainTex ("Base (RGB) Trans (A)", 2D) = "white" {}
 }
 
-// 2/3 texture stage GPUs
 SubShader {
 	Tags {"Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent"}
 	LOD 100
@@ -80,30 +79,4 @@ SubShader {
 	}
 }
 
-// 1 texture stage GPUs
-SubShader {
-	Tags {"Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent"}
-	LOD 100
-	
-	Alphatest Greater 0
-	ZWrite Off
-	Blend SrcAlpha OneMinusSrcAlpha 
-	ColorMask RGB
-		
-	Pass {
-		Tags { "LightMode" = "Always" }
-		Material {
-			Diffuse [_Color]
-			Ambient [_Color]
-			Shininess [_Shininess]
-			Specular [_SpecColor]
-			Emission [_Emission]	
-		}
-		Lighting On
-		SeparateSpecular On
-		SetTexture [_MainTex] {
-			Combine texture * primary DOUBLE, texture * primary
-		} 
-	}	
-}
 }

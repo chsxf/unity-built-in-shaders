@@ -35,24 +35,5 @@ Shader "Hidden/Nature/Tree Soft Occlusion Bark Rendertex" {
 		}
 	}
 	
-	SubShader {
-		Fog { Mode Off }
-		Pass {
-			Lighting On
-			
-			CGPROGRAM
-			#pragma exclude_renderers shaderonly
-			#pragma vertex bark
-			#define WRITE_ALPHA_1 1
-			#define USE_CUSTOM_LIGHT_DIR 1
-			#include "SH_Vertex.cginc"
-			ENDCG
-			
-			SetTexture [_MainTex] {
-				combine primary * texture double, primary
-			}
-		}
-	}
-	
 	Fallback Off
 }

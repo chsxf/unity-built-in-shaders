@@ -14,7 +14,6 @@ Shader "Hidden/Internal-Flare"
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma fragmentoption ARB_precision_hint_fastest
 
 			#include "UnityCG.cginc"
 
@@ -48,21 +47,6 @@ Shader "Hidden/Internal-Flare"
 				return tex2D(_FlareTexture, i.texcoord) * i.color;
 			}
 			ENDCG 
-		}
-	} 	
-
-	SubShader {
-		Tags {"RenderType"="Overlay"}
-		ZWrite Off ZTest Always
-		Fog {Mode Off}
-		Cull Off
-		Blend One One
-		ColorMask RGB
-		BindChannels { 
-			Bind "vertex", vertex Bind "color", color Bind "texcoord", texcoord0 
-		}
-		Pass { 
-			SetTexture [_FlareTexture] { combine previous * texture } 
 		}
 	}
 }

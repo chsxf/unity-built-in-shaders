@@ -47,7 +47,6 @@ SubShader {
 		CGPROGRAM
 		#pragma vertex vert
 		#pragma fragment frag
-		#pragma fragmentoption ARB_precision_hint_fastest
 		sampler2D _FrontTex;
 		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_FrontTex); }
 		ENDCG 
@@ -56,7 +55,6 @@ SubShader {
 		CGPROGRAM
 		#pragma vertex vert
 		#pragma fragment frag
-		#pragma fragmentoption ARB_precision_hint_fastest
 		sampler2D _BackTex;
 		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_BackTex); }
 		ENDCG 
@@ -65,7 +63,6 @@ SubShader {
 		CGPROGRAM
 		#pragma vertex vert
 		#pragma fragment frag
-		#pragma fragmentoption ARB_precision_hint_fastest
 		sampler2D _LeftTex;
 		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_LeftTex); }
 		ENDCG
@@ -74,7 +71,6 @@ SubShader {
 		CGPROGRAM
 		#pragma vertex vert
 		#pragma fragment frag
-		#pragma fragmentoption ARB_precision_hint_fastest
 		sampler2D _RightTex;
 		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_RightTex); }
 		ENDCG
@@ -83,7 +79,6 @@ SubShader {
 		CGPROGRAM
 		#pragma vertex vert
 		#pragma fragment frag
-		#pragma fragmentoption ARB_precision_hint_fastest
 		sampler2D _UpTex;
 		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_UpTex); }
 		ENDCG
@@ -92,34 +87,9 @@ SubShader {
 		CGPROGRAM
 		#pragma vertex vert
 		#pragma fragment frag
-		#pragma fragmentoption ARB_precision_hint_fastest
 		sampler2D _DownTex;
 		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_DownTex); }
 		ENDCG
-	}
-}	
-
-SubShader {
-	Tags { "Queue"="Background" "RenderType"="Background" }
-	Cull Off ZWrite Off Fog { Mode Off }
-	Color [_Tint]
-	Pass {
-		SetTexture [_FrontTex] { combine texture +- primary, texture * primary }
-	}
-	Pass {
-		SetTexture [_BackTex]  { combine texture +- primary, texture * primary }
-	}
-	Pass {
-		SetTexture [_LeftTex]  { combine texture +- primary, texture * primary }
-	}
-	Pass {
-		SetTexture [_RightTex] { combine texture +- primary, texture * primary }
-	}
-	Pass {
-		SetTexture [_UpTex]    { combine texture +- primary, texture * primary }
-	}
-	Pass {
-		SetTexture [_DownTex]  { combine texture +- primary, texture * primary }
 	}
 }
 }

@@ -17,7 +17,6 @@ Shader "Hidden/Internal-GUITextureBlit"
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma fragmentoption ARB_precision_hint_fastest
 
 			#include "UnityCG.cginc"
 
@@ -61,38 +60,6 @@ Shader "Hidden/Internal-GUITextureBlit"
 			}
 			ENDCG
 		}
-	} 	
+	}
 
-	 SubShader 
-	 { 
-		Tags { "ForceSupported" = "True" }
-		Lighting Off 
-		Cull Off 
-		ZWrite Off 
-		Fog { Mode Off } 
-		ZTest Always 
-		Blend SrcAlpha OneMinusSrcAlpha
-		
-		BindChannels { 
-			Bind "vertex", vertex 
-			Bind "color", color 
-			Bind "TexCoord", texcoord 
-		}
-		Pass { 
-			SetTexture [_MainTex] { 
-				combine primary * texture, primary 
-			}
-			SetTexture [_GUIClipTexture] { 
-				combine previous, previous * texture alpha 
-			} 
-		}
-	}
-	
-	// Really ancient subshader for single-texture cards...
-	SubShader { Lighting Off Cull Off ZWrite Off Fog { Mode Off } ZTest Always
-	 Tags { "ForceSupported" = "True" }
-	 BindChannels { Bind "vertex", vertex Bind "color", color Bind "TexCoord", texcoord }
-	 Pass { ColorMask A  SetTexture [_GUIClipTexture] { combine texture, texture alpha } } 							// write clip alpha to A
-	 Pass { ColorMask RGB Blend DstAlpha OneMinusDstAlpha SetTexture [_MainTex] { combine primary * texture } } 	// Get in main texture
-	}
 }

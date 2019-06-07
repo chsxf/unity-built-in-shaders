@@ -8,9 +8,6 @@ Properties {
 	_EmissionLM ("Emission (Lightmapper)", Float) = 0
 }
 
-// ------------------------------------------------------------------
-// Dual texture cards
-
 SubShader {
 	LOD 100
 	Tags { "RenderType"="Opaque" }

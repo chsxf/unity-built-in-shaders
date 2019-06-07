@@ -18,7 +18,6 @@ Shader "Hidden/Internal-GUITexture"
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma fragmentoption ARB_precision_hint_fastest
 
 			#include "UnityCG.cginc"
 
@@ -53,32 +52,7 @@ Shader "Hidden/Internal-GUITexture"
 			}
 			ENDCG 
 		}
-	} 	
- 
-	
-	SubShader { 
-
-		Tags { "ForceSupported" = "True" "RenderType"="Overlay" } 
-
-		Lighting Off 
-		Blend SrcAlpha OneMinusSrcAlpha 
-		Cull Off 
-		ZWrite Off 
-		Fog { Mode Off } 
-		ZTest Always 
-		
-		BindChannels { 
-			Bind "vertex", vertex 
-			Bind "color", color 
-			Bind "TexCoord", texcoord 
-		} 
-		
-		Pass { 
-			SetTexture [_MainTex] {
-				combine primary * texture DOUBLE, primary * texture DOUBLE
-			} 
-		} 
 	} 
-
+	
 	Fallback off 
 }

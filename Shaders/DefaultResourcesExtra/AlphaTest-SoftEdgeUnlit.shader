@@ -120,41 +120,4 @@ SubShader {
 	}
 }
 
-SubShader {
-	Tags { "IgnoreProjector"="True" "RenderType"="TransparentCutout" }
-	Lighting off
-	
-	// Render both front and back facing polygons.
-	Cull Off
-	
-	// first pass:
-	//   render any pixels that are more than [_Cutoff] opaque
-	Pass {  
-		AlphaTest Greater [_Cutoff]
-		SetTexture [_MainTex] {
-			constantColor [_Color]
-			combine texture * constant, texture * constant 
-		}
-	}
-
-	// Second pass:
-	//   render the semitransparent details.
-	Pass {
-		Tags { "RequireOption" = "SoftVegetation" }
-		
-		// Dont write to the depth buffer
-		ZWrite off
-		
-		// Only render pixels less or equal to the value
-		AlphaTest LEqual [_Cutoff]
-		
-		// Set up alpha blending
-		Blend SrcAlpha OneMinusSrcAlpha
-		
-		SetTexture [_MainTex] {
-			constantColor [_Color]
-			Combine texture * constant, texture * constant 
-		}
-	}
-}
 }

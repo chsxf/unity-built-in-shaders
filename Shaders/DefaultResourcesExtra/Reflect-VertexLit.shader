@@ -11,9 +11,6 @@ Properties {
 Category {
 	Tags { "RenderType"="Opaque" }
 	LOD 150
-
-	// ------------------------------------------------------------------
-	// Pixel shader cards
 	
 	SubShader {
 	
@@ -25,7 +22,6 @@ CGPROGRAM
 #pragma exclude_renderers gles xbox360 ps3 gles3
 #pragma vertex vert
 #pragma fragment frag
-#pragma fragmentoption ARB_precision_hint_fastest
 #include "UnityCG.cginc"
 
 struct v2f {
@@ -79,7 +75,6 @@ ENDCG
 CGPROGRAM
 #pragma exclude_renderers shaderonly
 #pragma fragment frag
-#pragma fragmentoption ARB_precision_hint_fastest
 
 #include "UnityCG.cginc"
 
@@ -155,9 +150,7 @@ ENDCG
 			}
 		}
 	}
-	
-	// ------------------------------------------------------------------
-	// Old cards
+
 	
 	SubShader {
 		Pass { 

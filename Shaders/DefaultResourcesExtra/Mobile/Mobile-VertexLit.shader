@@ -8,7 +8,6 @@ Properties {
 	_MainTex ("Base (RGB)", 2D) = "white" {}
 }
 
-// ---- Dual texture cards
 SubShader {
 	Tags { "RenderType"="Opaque" }
 	LOD 80
@@ -66,52 +65,6 @@ SubShader {
 			combine texture * previous QUAD, texture * primary
 		}
 	}	
-}
-
-// ---- Single texture cards (requires 2 passes for lightmapped)
-SubShader {
-	Tags { "RenderType"="Opaque" }
-	LOD 100
-
-	// Non-lightmapped
-	Pass {
-		Tags { "LightMode" = "Vertex" }
-		
-		Material {
-			Diffuse (1,1,1,1)
-			Ambient (1,1,1,1)
-		} 
-		Lighting On
-		SetTexture [_MainTex] {
-			Combine texture * primary DOUBLE, texture * primary
-		} 
-	}	
-	// Lightmapped, encoded as dLDR
-	Pass {
-		// 1st pass - sample Lightmap
-		Tags { "LightMode" = "VertexLM" }
-
-		BindChannels {
-			Bind "Vertex", vertex
-			Bind "texcoord1", texcoord0 // lightmap uses 2nd uv
-		}		
-		SetTexture [unity_Lightmap] {
-			matrix [unity_LightmapMatrix]
-			combine texture
-		}
-	}
-	
-	Pass 
-	{
-		// 2nd pass - multiply with _MainTex
-		Tags { "LightMode" = "VertexLM" }
-		ZWrite Off
-		Fog {Mode Off}
-		Blend DstColor Zero
-		SetTexture [_MainTex] {
-			combine texture
-		}
-	}
 	
 	// Pass to render object as a shadow caster
 	Pass 
@@ -127,7 +80,6 @@ SubShader {
 		#pragma vertex vert
 		#pragma fragment frag
 		#pragma multi_compile_shadowcaster
-		#pragma fragmentoption ARB_precision_hint_fastest
 		#include "UnityCG.cginc"
 
 		struct v2f { 
@@ -161,7 +113,6 @@ SubShader {
 		CGPROGRAM
 		#pragma vertex vert
 		#pragma fragment frag
-		#pragma fragmentoption ARB_precision_hint_fastest
 		#pragma multi_compile_shadowcollector
 
 		#define SHADOW_COLLECTOR_PASS

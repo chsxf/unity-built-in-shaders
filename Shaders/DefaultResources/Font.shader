@@ -6,7 +6,12 @@ Shader "GUI/Text Shader" {
 
 	SubShader {
 
-		Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
+		Tags {
+			"Queue"="Transparent"
+			"IgnoreProjector"="True"
+			"RenderType"="Transparent"
+			"PreviewType"="Plane"
+		}
 		Lighting Off Cull Off ZTest Always ZWrite Off Fog { Mode Off }
 		Blend SrcAlpha OneMinusSrcAlpha
 
@@ -14,7 +19,6 @@ Shader "GUI/Text Shader" {
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma fragmentoption ARB_precision_hint_fastest
 
 			#include "UnityCG.cginc"
 
@@ -50,22 +54,6 @@ Shader "GUI/Text Shader" {
 				return col;
 			}
 			ENDCG 
-		}
-	} 	
-
-	SubShader {
-		Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
-		Lighting Off Cull Off ZTest Always ZWrite Off Fog { Mode Off }
-		Blend SrcAlpha OneMinusSrcAlpha
-		BindChannels {
-			Bind "Color", color
-			Bind "Vertex", vertex
-			Bind "TexCoord", texcoord
-		}
-		Pass {
-			SetTexture [_MainTex] { 
-				constantColor [_Color] combine constant * primary, constant * texture
-			}
 		}
 	}
 }

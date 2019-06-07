@@ -60,13 +60,14 @@ CBUFFER_START(UnityLighting)
 	float4 unity_4LightPosZ0;
 	float4 unity_4LightAtten0;
 
-	float4 unity_LightColor[4];
-	float4 unity_LightPosition[4];
+	float4 unity_LightColor[8];
+	float4 unity_LightPosition[8];
 	// x = -1
 	// y = 1
 	// z = quadratic attenuation
 	// w = range^2
-	float4 unity_LightAtten[4];
+	float4 unity_LightAtten[8];
+	float4 unity_SpotDirection[8];
 
 	// SH lighting environment
 	float4 unity_SHAr;

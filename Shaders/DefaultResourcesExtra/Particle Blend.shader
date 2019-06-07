@@ -9,11 +9,6 @@ Category {
 	Blend DstColor One
 	ColorMask RGB
 	Cull Off Lighting Off ZWrite Off Fog { Color (0,0,0,0) }
-	BindChannels {
-		Bind "Color", color
-		Bind "Vertex", vertex
-		Bind "TexCoord", texcoord
-	}
 
 	SubShader {
 		Pass {
@@ -21,7 +16,6 @@ Category {
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma fragmentoption ARB_precision_hint_fastest
 			#pragma multi_compile_particles
 
 			#include "UnityCG.cginc"
@@ -74,12 +68,6 @@ Category {
 				return i.color * tex2D(_MainTex, i.texcoord);
 			}
 			ENDCG 
-		}
-	} 	
-
-	SubShader {
-		Pass {
-			SetTexture [_MainTex] { combine texture * primary }
 		}
 	}
 }

@@ -57,7 +57,6 @@ Shader "Nature/Tree Soft Occlusion Leaves" {
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma glsl_no_auto_normalization
-			#pragma fragmentoption ARB_precision_hint_fastest
 			#pragma multi_compile_shadowcaster
 			#include "UnityCG.cginc"
 			#include "TerrainEngine.cginc"
@@ -94,30 +93,12 @@ Shader "Nature/Tree Soft Occlusion Leaves" {
 		}
 	}
 	
-	SubShader {
-		Tags {
-			"Queue" = "Transparent-99"
-			"IgnoreProjector"="True"
-			"RenderType" = "TreeTransparentCutout"
-		}
-		Cull Off
-		ColorMask RGB
-		
-		Pass {
-			CGPROGRAM
-			#pragma exclude_renderers shaderonly
-			#pragma vertex leaves
-			#include "SH_Vertex.cginc"
-			ENDCG
-
-			Lighting On
-			AlphaTest GEqual [_Cutoff]
-			ZWrite On
-			
-			SetTexture [_MainTex] { combine primary * texture DOUBLE, texture }
-		}
-	}
-	
+	// This subshader is never actually used, but is only kept so
+	// that the tree mesh still assumes that normals are needed
+	// at build time (due to Lighting On in the pass). The subshader
+	// above does not actually use normals, so they are stripped out.
+	// We want to keep normals for backwards compatibility with Unity 4.2
+	// and earlier.
 	SubShader {
 		Tags {
 			"Queue" = "Transparent-99"

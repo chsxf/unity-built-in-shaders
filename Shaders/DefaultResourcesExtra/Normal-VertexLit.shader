@@ -7,7 +7,6 @@ Properties {
 	_MainTex ("Base (RGB)", 2D) = "white" {}
 }
 
-// 2/3 texture stage GPUs
 SubShader {
 	Tags { "RenderType"="Opaque" }
 	LOD 100
@@ -89,7 +88,6 @@ CGPROGRAM
 #pragma vertex vert
 #pragma fragment frag
 #pragma multi_compile_shadowcaster
-#pragma fragmentoption ARB_precision_hint_fastest
 #include "UnityCG.cginc"
 
 struct v2f { 
@@ -122,7 +120,6 @@ ENDCG
 CGPROGRAM
 #pragma vertex vert
 #pragma fragment frag
-#pragma fragmentoption ARB_precision_hint_fastest
 #pragma multi_compile_shadowcollector 
 
 #define SHADOW_COLLECTOR_PASS
@@ -152,52 +149,4 @@ ENDCG
 	}
 }
 
-// 1 texture stage GPUs
-SubShader {
-	Tags { "RenderType"="Opaque" }
-	LOD 100
-
-	// Non-lightmapped
-	Pass {
-		Tags { "LightMode" = "Vertex" }
-		
-		Material {
-			Diffuse [_Color]
-			Ambient [_Color]
-			Shininess [_Shininess]
-			Specular [_SpecColor]
-			Emission [_Emission]
-		} 
-		Lighting On
-		SeparateSpecular On
-		SetTexture [_MainTex] {
-			Combine texture * primary DOUBLE, texture * primary
-		} 
-	}	
-	// Lightmapped, encoded as dLDR
-	Pass {
-		// 1st pass - sample Lightmap
-		Tags { "LightMode" = "VertexLM" }
-
-		BindChannels {
-			Bind "Vertex", vertex
-			Bind "texcoord1", texcoord0 // lightmap uses 2nd uv
-		}		
-		SetTexture [unity_Lightmap] {
-			matrix [unity_LightmapMatrix]
-			constantColor [_Color]
-			combine texture * constant
-		}
-	}
-	Pass {
-		// 2nd pass - multiply with _MainTex
-		Tags { "LightMode" = "VertexLM" }
-		ZWrite Off
-		Fog {Mode Off}
-		Blend DstColor Zero
-		SetTexture [_MainTex] {
-			combine texture
-		}
-	}
-}
 }

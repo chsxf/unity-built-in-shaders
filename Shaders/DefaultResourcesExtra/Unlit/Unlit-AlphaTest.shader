@@ -53,14 +53,4 @@ SubShader {
 	}
 }
 
-SubShader {
-	Tags {"Queue"="AlphaTest" "IgnoreProjector"="True" "RenderType"="TransparentCutout"}
-	LOD 100
-	
-	Pass {
-		Lighting Off
-		Alphatest Greater [_Cutoff]
-		SetTexture [_MainTex] { combine texture } 
-	}
-}
 }

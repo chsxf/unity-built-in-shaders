@@ -22,7 +22,6 @@ Category {
 CGPROGRAM
 #pragma vertex vert
 #pragma fragment frag
-#pragma fragmentoption ARB_precision_hint_fastest
 
 #include "UnityCG.cginc"
 
