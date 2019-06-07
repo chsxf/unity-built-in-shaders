@@ -4,6 +4,9 @@ if [ "$#" -ne 1 ]; then
 fi
 
 URL=$1
+if [[ $URL =~ ^([^\?]+)(\?.+)?$ ]]; then
+	URL=${BASH_REMATCH[1]}
+fi
 
 if [[ $URL =~ builtin_shaders-(.+)\.zip$ ]]; then
 	VERSION=${BASH_REMATCH[1]}
