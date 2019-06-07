@@ -38,7 +38,7 @@ void surf (Input IN, inout SurfaceOutput o) {
 	
 	fixed4 c = tex2D(_MainTex, IN.uv_MainTex) * _Color;
 	o.Albedo = c.rgb;
-	o.Emission = c.rgb * tex2D(_Illum, IN.uv_Illum).a;
+	o.Emission = c.rgb * UNITY_SAMPLE_1CHANNEL(_Illum, IN.uv_Illum);
 	o.Alpha = c.a;
 	o.Normal = UnpackNormal(tex2D(_BumpMap, IN.uv_BumpMap));
 }

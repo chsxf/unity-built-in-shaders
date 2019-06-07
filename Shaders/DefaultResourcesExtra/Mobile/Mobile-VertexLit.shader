@@ -147,13 +147,14 @@ SubShader {
 		}
 		ENDCG
 	}
-		
+	
 	// Pass to render object as a shadow collector
-	Pass 
+	// note: editor needs this pass as it has a collector pass.
+	Pass
 	{
 		Name "ShadowCollector"
 		Tags { "LightMode" = "ShadowCollector" }
-			
+		
 		Fog {Mode Off}
 		ZWrite On ZTest LEqual
 

@@ -13,6 +13,7 @@ SubShader {
 	
 CGPROGRAM
 #pragma surface surf Lambert
+#pragma exclude_renderers d3d11_9x
 
 sampler2D _MainTex;
 sampler2D _BumpMap;

@@ -38,16 +38,11 @@ v2f vert (appdata v)
 sampler2D _CameraDepthTexture;
 float4 unity_LightmapFade;
 
+CBUFFER_START(UnityPerCamera2)
 float4x4 _CameraToWorld;
-float4x4 unity_World2Shadow[4];
-float4 _LightSplitsNear;
-float4 _LightSplitsFar;
-float4 unity_ShadowSplitSpheres[4];
-float4 unity_ShadowSplitSqRadii;
-float4 unity_ShadowFadeCenterAndType;
+CBUFFER_END
 
-float4 _LightShadowData;
-sampler2D _ShadowMapTexture;
+UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 
 inline float SquareLength(float3 vec)
 {
@@ -77,7 +72,7 @@ inline half unitySampleShadow (float4 wpos, float z)
 	
 	float4 coord = float4(sc0 * weights[0] + sc1 * weights[1] + sc2 * weights[2] + sc3 * weights[3], 1);
 #if defined (SHADOWS_NATIVE) && !defined (SHADER_API_OPENGL)
-	half shadow = tex2Dproj (_ShadowMapTexture, UNITY_PROJ_COORD(coord)).r;
+	half shadow = UNITY_SAMPLE_SHADOW(_ShadowMapTexture,coord);
 	shadow = lerp(_LightShadowData.r, 1.0, shadow);
 #else
 	half shadow = UNITY_SAMPLE_DEPTH(tex2D (_ShadowMapTexture, coord.xy)) < coord.z ? _LightShadowData.r : 1.0;

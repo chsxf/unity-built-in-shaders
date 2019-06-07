@@ -38,10 +38,10 @@ sampler2D _CameraDepthTexture;
 float4 _LightDir;
 float4 _LightPos;
 float4 _LightColor;
-float4 _LightShadowData;
 float4 unity_LightmapFade;
-float4 unity_ShadowFadeCenterAndType;
+CBUFFER_START(UnityPerCamera2)
 float4x4 _CameraToWorld;
+CBUFFER_END
 float4x4 _LightMatrix0;
 sampler2D _LightTextureB0;
 
@@ -55,8 +55,7 @@ sampler2D _LightTexture0;
 
 #if defined (SHADOWS_DEPTH)
 #if defined (SPOT)
-sampler2D _ShadowMapTexture;
-float4x4 unity_World2Shadow;
+UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 #if defined (SHADOWS_SOFT)
 uniform float4 _ShadowOffsets[4];
 #endif
@@ -69,10 +68,10 @@ inline half unitySampleShadow (float4 shadowCoord)
 	float3 coord = shadowCoord.xyz / shadowCoord.w;
 	#if defined (SHADOWS_NATIVE) && !defined (SHADER_API_OPENGL)
 	half4 shadows;
-	shadows.x = tex2D( _ShadowMapTexture, coord + _ShadowOffsets[0] ).r;
-	shadows.y = tex2D( _ShadowMapTexture, coord + _ShadowOffsets[1] ).r;
-	shadows.z = tex2D( _ShadowMapTexture, coord + _ShadowOffsets[2] ).r;
-	shadows.w = tex2D( _ShadowMapTexture, coord + _ShadowOffsets[3] ).r;	
+	shadows.x = UNITY_SAMPLE_SHADOW(_ShadowMapTexture, coord + _ShadowOffsets[0]);
+	shadows.y = UNITY_SAMPLE_SHADOW(_ShadowMapTexture, coord + _ShadowOffsets[1]);
+	shadows.z = UNITY_SAMPLE_SHADOW(_ShadowMapTexture, coord + _ShadowOffsets[2]);
+	shadows.w = UNITY_SAMPLE_SHADOW(_ShadowMapTexture, coord + _ShadowOffsets[3]);	
 	shadows = _LightShadowData.rrrr + shadows * (1-_LightShadowData.rrrr);
 	#else
 	float4 shadowVals;
@@ -92,7 +91,7 @@ inline half unitySampleShadow (float4 shadowCoord)
 	
 	// Native sampling of depth textures is broken on Intel 10.4.8, and does not exist on PPC. So sample manually :(
 	#if defined (SHADOWS_NATIVE) && !defined (SHADER_API_OPENGL)
-	half shadow = tex2Dproj (_ShadowMapTexture, UNITY_PROJ_COORD(shadowCoord)).r;
+	half shadow = UNITY_SAMPLE_SHADOW_PROJ(_ShadowMapTexture,shadowCoord);
 	shadow = _LightShadowData.r + shadow * (1-_LightShadowData.r);
 	#else
 	half shadow = UNITY_SAMPLE_DEPTH(tex2Dproj (_ShadowMapTexture, UNITY_PROJ_COORD(shadowCoord))) < (shadowCoord.z / shadowCoord.w) ? _LightShadowData.r : 1.0;
@@ -110,7 +109,6 @@ inline half unitySampleShadow (float4 shadowCoord)
 #if defined (SHADOWS_CUBE)
 #if defined (POINT) || defined (POINT_COOKIE)
 samplerCUBE _ShadowMapTexture;
-float4x4 unity_World2Shadow;
 inline float SampleCubeDistance (float3 vec)
 {
 	float4 packDist = texCUBE (_ShadowMapTexture, vec);
@@ -155,7 +153,7 @@ half ComputeShadow(float3 vec, float fadeDist, float2 uv)
 	
 	#if defined(SPOT)
 	#if defined(SHADOWS_DEPTH)
-	float4 shadowCoord = mul (unity_World2Shadow, float4(vec,1));
+	float4 shadowCoord = mul (unity_World2Shadow[0], float4(vec,1));
 	return saturate(unitySampleShadow (shadowCoord) + fade);
 	#endif //SHADOWS_DEPTH
 	#endif

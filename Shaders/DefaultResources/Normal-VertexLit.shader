@@ -90,6 +90,7 @@ CGPROGRAM
 #pragma fragment frag
 #pragma multi_compile_shadowcaster
 #pragma fragmentoption ARB_precision_hint_fastest
+#pragma exclude_renderers d3d11_9x
 #include "UnityCG.cginc"
 
 struct v2f { 
@@ -123,6 +124,7 @@ CGPROGRAM
 #pragma vertex vert
 #pragma fragment frag
 #pragma fragmentoption ARB_precision_hint_fastest
+#pragma exclude_renderers d3d11_9x
 #pragma multi_compile_shadowcollector
 
 #define SHADOW_COLLECTOR_PASS

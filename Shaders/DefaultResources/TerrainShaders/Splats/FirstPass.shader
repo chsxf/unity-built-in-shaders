@@ -1,13 +1,13 @@
-Shader "Hidden/TerrainEngine/Splatmap/Lightmap-FirstPass" {
+Shader "Nature/Terrain/Diffuse" {
 Properties {
-	_Control ("Control (RGBA)", 2D) = "red" {}
-	_Splat3 ("Layer 3 (A)", 2D) = "white" {}
-	_Splat2 ("Layer 2 (B)", 2D) = "white" {}
-	_Splat1 ("Layer 1 (G)", 2D) = "white" {}
-	_Splat0 ("Layer 0 (R)", 2D) = "white" {}
-	// used in fallback on old cards
-	_MainTex ("BaseMap (RGB)", 2D) = "white" {}
-	_Color ("Main Color", Color) = (1,1,1,1)
+	[HideInInspector] _Control ("Control (RGBA)", 2D) = "red" {}
+	[HideInInspector] _Splat3 ("Layer 3 (A)", 2D) = "white" {}
+	[HideInInspector] _Splat2 ("Layer 2 (B)", 2D) = "white" {}
+	[HideInInspector] _Splat1 ("Layer 1 (G)", 2D) = "white" {}
+	[HideInInspector] _Splat0 ("Layer 0 (R)", 2D) = "white" {}
+	// used in fallback on old cards & base map
+	[HideInInspector] _MainTex ("BaseMap (RGB)", 2D) = "white" {}
+	[HideInInspector] _Color ("Main Color", Color) = (1,1,1,1)
 }
 	
 SubShader {
@@ -41,6 +41,9 @@ void surf (Input IN, inout SurfaceOutput o) {
 }
 ENDCG  
 }
+
+Dependency "AddPassShader" = "Hidden/TerrainEngine/Splatmap/Lightmap-AddPass"
+Dependency "BaseMapShader" = "Diffuse"
 
 // Fallback to Diffuse
 Fallback "Diffuse"
