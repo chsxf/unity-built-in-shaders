@@ -1,8 +1,6 @@
-Shader "Self-Illumin/Bumped Specular" {
+Shader "Self-Illumin/Bumped Diffuse" {
 Properties {
 	_Color ("Main Color", Color) = (1,1,1,1)
-	_SpecColor ("Specular Color", Color) = (0.5, 0.5, 0.5, 1)
-	_Shininess ("Shininess", Range (0.01, 1)) = 0.078125
 	_MainTex ("Base (RGB) Gloss (A)", 2D) = "white" {}
 	_Illum ("Illumin (A)", 2D) = "white" {}
 	_BumpMap ("Normalmap", 2D) = "bump" {}
@@ -10,15 +8,15 @@ Properties {
 }
 SubShader {
 	Tags { "RenderType"="Opaque" }
-	LOD 400
+	LOD 300
+
 CGPROGRAM
-#pragma surface surf BlinnPhong
+#pragma surface surf Lambert
 
 sampler2D _MainTex;
 sampler2D _BumpMap;
 sampler2D _Illum;
 fixed4 _Color;
-half _Shininess;
 
 struct Input {
 	float2 uv_MainTex;
@@ -30,13 +28,11 @@ void surf (Input IN, inout SurfaceOutput o) {
 	fixed4 tex = tex2D(_MainTex, IN.uv_MainTex);
 	fixed4 c = tex * _Color;
 	o.Albedo = c.rgb;
-	o.Emission = c.rgb * UNITY_SAMPLE_1CHANNEL(_Illum, IN.uv_Illum);
-	o.Gloss = tex.a;
+	o.Emission = c.rgb * tex2D(_Illum, IN.uv_Illum).a;
 	o.Alpha = c.a;
-	o.Specular = _Shininess;
 	o.Normal = UnpackNormal(tex2D(_BumpMap, IN.uv_BumpMap));
 }
 ENDCG
-}
-FallBack "Self-Illumin/Specular"
+} 
+FallBack "Self-Illumin/Diffuse"
 }

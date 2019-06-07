@@ -227,7 +227,7 @@ inline fixed Luminance( fixed3 c )
 // - RGBM encoded with range [0;8] on other platforms using surface shaders
 inline fixed3 DecodeLightmap( fixed4 color )
 {
-#if defined(SHADER_API_GLES) && defined(SHADER_API_MOBILE)
+#if (defined(SHADER_API_GLES) || defined(SHADER_API_GLES3)) && defined(SHADER_API_MOBILE)
 	return 2.0 * color.rgb;
 #else
 	// potentially faster to do the scalar multiplication
@@ -336,19 +336,21 @@ inline fixed3 UnpackNormalDXT5nm (fixed4 packednormal)
 {
 	fixed3 normal;
 	normal.xy = packednormal.wy * 2 - 1;
-	normal.z = sqrt(1 - normal.x*normal.x - normal.y * normal.y);
+#if defined(SHADER_API_FLASH)
+	// Flash does not have efficient saturate(), and dot() seems to require an extra register.
+	normal.z = sqrt(1 - normal.x*normal.x - normal.y*normal.y);
+#else
+	normal.z = sqrt(1 - saturate(dot(normal.xy, normal.xy)));
+#endif
 	return normal;
 }
 
 inline fixed3 UnpackNormal(fixed4 packednormal)
 {
-#if defined(SHADER_API_GLES) && defined(SHADER_API_MOBILE)
+#if (defined(SHADER_API_GLES) || defined(SHADER_API_GLES3)) && defined(SHADER_API_MOBILE)
 	return packednormal.xyz * 2 - 1;
 #else
-	fixed3 normal;
-	normal.xy = packednormal.wy * 2 - 1;
-	normal.z = sqrt(1 - normal.x*normal.x - normal.y * normal.y);
-	return normal;
+	return UnpackNormalDXT5nm(packednormal);
 #endif
 }
 
@@ -431,7 +433,7 @@ inline float3 TransformViewToProjection (float3 v) {
 #ifdef SHADOWS_CUBE
 	#define V2F_SHADOW_CASTER float4 pos : SV_POSITION; float3 vec : TEXCOORD0
 	#define TRANSFER_SHADOW_CASTER(o) o.vec = mul( _Object2World, v.vertex ).xyz - _LightPositionRange.xyz; o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
-	#define SHADOW_CASTER_FRAGMENT(i) return EncodeFloatRGBA( length(i.vec) * _LightPositionRange.w );
+	#define SHADOW_CASTER_FRAGMENT(i) return EncodeFloatRGBA( min(length(i.vec) * _LightPositionRange.w, 0.999) );
 #else
 	#if defined(UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE)
 	#define V2F_SHADOW_CASTER float4 pos : SV_POSITION; float4 hpos : TEXCOORD0

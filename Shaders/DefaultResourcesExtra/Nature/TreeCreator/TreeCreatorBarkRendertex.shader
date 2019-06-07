@@ -60,7 +60,7 @@ fixed4 _SpecColor;
 fixed4 frag (v2f i) : COLOR
 {
 	fixed3 albedo = tex2D (_MainTex, i.uv).rgb * i.color;
-	half gloss = UNITY_SAMPLE_1CHANNEL (_TranslucencyMap, i.uv);
+	half gloss = tex2D(_TranslucencyMap, i.uv).a;
 	half specular = tex2D (_BumpSpecMap, i.uv).r * 128.0;
 	
 	half3 light = UNITY_LIGHTMODEL_AMBIENT * albedo;

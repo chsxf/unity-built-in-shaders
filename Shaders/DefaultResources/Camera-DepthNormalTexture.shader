@@ -125,7 +125,7 @@ v2f vert( appdata_full v ) {
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
 fixed4 frag( v2f i ) : COLOR {
-	half alpha = UNITY_SAMPLE_1CHANNEL( _MainTex, i.uv );
+	half alpha = tex2D(_MainTex, i.uv).a;
 
 	clip (alpha - _Cutoff);
 	return EncodeDepthNormal (i.nz.w, i.nz.xyz);
@@ -199,7 +199,7 @@ v2f vert( appdata v ) {
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
 fixed4 frag(v2f i) : COLOR {
-	half alpha = UNITY_SAMPLE_1CHANNEL( _MainTex, i.uv );
+	half alpha = tex2D(_MainTex, i.uv).a;
 
 	clip (alpha - _Cutoff);
 	return EncodeDepthNormal (i.nz.w, i.nz.xyz);

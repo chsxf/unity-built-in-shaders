@@ -164,7 +164,7 @@ ENDCG
 		fixed _Cutoff;
 		
 		half4 frag_surf (v2f_surf IN) : COLOR {
-			half alpha = UNITY_SAMPLE_1CHANNEL(_MainTex, IN.hip_pack0.xy);
+			half alpha = tex2D(_MainTex, IN.hip_pack0.xy).a;
 
 			float3 shadowOffset = _ShadowOffsetScale * IN.normal * tex2D (_BumpSpecMap, IN.hip_pack0.xy).b;
 			clip (alpha - _Cutoff);

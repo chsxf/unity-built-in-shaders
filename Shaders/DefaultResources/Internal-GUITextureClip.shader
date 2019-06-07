@@ -56,7 +56,7 @@ Shader "Hidden/Internal-GUITextureClip"
 			fixed4 frag (v2f i) : COLOR
 			{
 				fixed4 col = tex2D(_MainTex, i.texcoord) * i.color;
-				col.a *= UNITY_SAMPLE_1CHANNEL(_GUIClipTexture, i.texgencoord);
+				col.a *= tex2D(_GUIClipTexture, i.texgencoord).a;
 				return col;
 			}
 			ENDCG 

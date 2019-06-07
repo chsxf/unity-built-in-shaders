@@ -19,7 +19,7 @@ uniform sampler2D _ShadowMapTexture;
 
 #define SHADOW_COORDS(idx1) float4 _ShadowCoord : TEXCOORD##idx1;
 
-#if defined(SHADER_API_GLES) && defined(SHADER_API_MOBILE)
+#if (defined(SHADER_API_GLES) || defined(SHADER_API_GLES3)) && defined(SHADER_API_MOBILE)
 #define TRANSFER_SHADOW(a) a._ShadowCoord = mul( unity_World2Shadow[0], mul( _Object2World, v.vertex ) );
 
 inline fixed unitySampleShadow (float4 shadowCoord)
@@ -42,9 +42,9 @@ inline fixed unitySampleShadow (float4 shadowCoord)
 	#endif
 }
 
-#else // !(defined(SHADER_API_GLES) && defined(SHADER_API_MOBILE))
+#else // !((defined(SHADER_API_GLES) || defined(SHADER_API_GLES3)) && defined(SHADER_API_MOBILE))
 
-#define TRANSFER_SHADOW(a) a._ShadowCoord = ComputeScreenPos(o.pos);
+#define TRANSFER_SHADOW(a) a._ShadowCoord = ComputeScreenPos(a.pos);
 
 inline fixed unitySampleShadow (float4 shadowCoord)
 {
