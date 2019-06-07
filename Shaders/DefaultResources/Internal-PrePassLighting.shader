@@ -66,7 +66,7 @@ inline half unitySampleShadow (float4 shadowCoord)
 	// 4-tap shadows
 	
 	float3 coord = shadowCoord.xyz / shadowCoord.w;
-	#if defined (SHADOWS_NATIVE) && !defined (SHADER_API_OPENGL)
+	#if defined (SHADOWS_NATIVE)
 	half4 shadows;
 	shadows.x = UNITY_SAMPLE_SHADOW(_ShadowMapTexture, coord + _ShadowOffsets[0]);
 	shadows.y = UNITY_SAMPLE_SHADOW(_ShadowMapTexture, coord + _ShadowOffsets[1]);
@@ -89,8 +89,7 @@ inline half unitySampleShadow (float4 shadowCoord)
 	
 	// 1-tap shadows
 	
-	// Native sampling of depth textures is broken on Intel 10.4.8, and does not exist on PPC. So sample manually :(
-	#if defined (SHADOWS_NATIVE) && !defined (SHADER_API_OPENGL)
+	#if defined (SHADOWS_NATIVE)
 	half shadow = UNITY_SAMPLE_SHADOW_PROJ(_ShadowMapTexture,shadowCoord);
 	shadow = _LightShadowData.r + shadow * (1-_LightShadowData.r);
 	#else

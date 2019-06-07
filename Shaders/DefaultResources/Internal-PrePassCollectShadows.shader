@@ -71,7 +71,7 @@ inline half unitySampleShadow (float4 wpos, float z)
 #endif
 	
 	float4 coord = float4(sc0 * weights[0] + sc1 * weights[1] + sc2 * weights[2] + sc3 * weights[3], 1);
-#if defined (SHADOWS_NATIVE) && !defined (SHADER_API_OPENGL)
+#if defined (SHADOWS_NATIVE)
 	half shadow = UNITY_SAMPLE_SHADOW(_ShadowMapTexture,coord);
 	shadow = lerp(_LightShadowData.r, 1.0, shadow);
 #else
