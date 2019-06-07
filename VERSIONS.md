@@ -1,2 +1,2 @@
+* Version 3.4.1: https://download.unity3d.com/download_unity/builtin_shaders-3.4.1.zip
 * Version 3.4.0: https://download.unity3d.com/download_unity/builtin_shaders-3.4.0.zip
-
