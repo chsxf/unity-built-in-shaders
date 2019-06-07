@@ -46,7 +46,7 @@ Shader "GUI/Text Shader" {
 			fixed4 frag (v2f i) : COLOR
 			{
 				fixed4 col = i.color;
-				col.a *= UNITY_SAMPLE_1CHANNEL(_MainTex, i.texcoord);
+				col.a *= tex2D(_MainTex, i.texcoord).a;
 				return col;
 			}
 			ENDCG 

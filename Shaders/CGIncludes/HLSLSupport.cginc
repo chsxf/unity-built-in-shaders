@@ -34,15 +34,16 @@
 	#define UNITY_DECLARE_SHADOWMAP(tex) Texture2D tex; SamplerComparisonState sampler##tex
 	#define UNITY_SAMPLE_SHADOW(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy,(coord).z)
 	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
-#elif defined(SHADOWS_NATIVE) && defined(SHADER_TARGET_GLSL) && defined(SHADER_API_GLES)
+#elif defined(SHADOWS_NATIVE) && defined(SHADER_TARGET_GLSL)
 	// hlsl2glsl syntax for shadow maps
 	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2DShadow tex
 	#define UNITY_SAMPLE_SHADOW(tex,coord) shadow2D (tex,(coord).xyz)
 	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) shadow2Dproj (tex,coord)
 #else
+	// Cg syntax for shadow maps
 	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D tex
 	#define UNITY_SAMPLE_SHADOW(tex,coord) tex2D (tex,(coord).xyz).r
-	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex2Dproj (tex,UNITY_PROJ_COORD(coord)).r
+	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex2Dproj (tex,coord).r
 #endif
 
 
@@ -61,7 +62,7 @@
 half4 tex2Dgrad (in sampler2D s, in float2 t, in float2 dx, in float2 dy) { return tex2D (s, t, dx, dy); }
 #endif
 
-#if !defined(SHADER_API_XBOX360) && !defined(SHADER_API_PS3) && !defined(SHADER_API_GLES) && !defined(SHADER_TARGET_GLSL) && !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X)
+#if !defined(SHADER_API_XBOX360) && !defined(SHADER_API_PS3) && !defined(SHADER_API_GLES) && !defined(SHADER_API_GLES3) && !defined(SHADER_TARGET_GLSL) && !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X)
 #define UNITY_HAS_LIGHT_PARAMETERS 1
 #endif
 
@@ -143,16 +144,15 @@ float4 tex2Dproj(in sampler2D s, in float3 t)
 #define UNITY_INITIALIZE_OUTPUT(type,name)
 #endif
 
-#if defined(SHADER_API_D3D11_9X)
-#define UNITY_SAMPLE_1CHANNEL(x,y) tex2D(x,y).r
-#define UNITY_ALPHA_CHANNEL r
-#else
-#define UNITY_SAMPLE_1CHANNEL(x,y) tex2D(x,y).a
-#define UNITY_ALPHA_CHANNEL a
-#endif
 #if defined(SHADER_API_D3D11)
 #define UNITY_CAN_COMPILE_TESSELLATION 1
 #endif
+
+
+// Not really needed anymore, but did ship in Unity 4.0; with D3D11_9X remapping them to .r channel.
+// Now that's not used.
+#define UNITY_SAMPLE_1CHANNEL(x,y) tex2D(x,y).a
+#define UNITY_ALPHA_CHANNEL a
 
 
 #endif

@@ -55,12 +55,12 @@ Shader "Hidden/Internal-GUITextureClipText"
 			fixed4 frag (v2f i) : COLOR
 			{
 				fixed4 col = i.color;
-				col.a *= UNITY_SAMPLE_1CHANNEL(_MainTex, i.texcoord) * UNITY_SAMPLE_1CHANNEL(_GUIClipTexture, i.texgencoord);
+				col.a *= tex2D(_MainTex, i.texcoord).a * tex2D(_GUIClipTexture, i.texgencoord).a;
 				return col;
 			}
 			ENDCG 
 		}
-	} 	
+	}
  
 	SubShader { 
 		Tags { "ForceSupported" = "True" }
@@ -79,7 +79,7 @@ Shader "Hidden/Internal-GUITextureClipText"
 		
 		Pass {
 			SetTexture [_MainTex] { 
-				ConstantColor [_Color] combine constant * primary, constant * texture alpha
+				ConstantColor [_Color] combine constant * primary, primary * texture alpha
 			}
 			SetTexture [_GUIClipTexture] { // clipping texture - Gets bound to the clipping matrix from code
 				combine previous, previous * texture alpha 

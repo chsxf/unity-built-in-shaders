@@ -56,7 +56,7 @@ Shader "Hidden/Internal-GUITextureBlit"
 			{
 				fixed4 col;
 				col.rgb = tex2D (_MainTex, i.texcoord).rgb * i.color.rgb;
-				col.a = i.color.a * UNITY_SAMPLE_1CHANNEL(_GUIClipTexture, i.texgencoord);
+				col.a = i.color.a * tex2D(_GUIClipTexture, i.texgencoord).a;
 				return col;
 			}
 			ENDCG
