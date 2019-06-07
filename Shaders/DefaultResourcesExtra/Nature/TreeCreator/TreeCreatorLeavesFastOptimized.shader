@@ -30,7 +30,7 @@ SubShader {
 
 		#pragma vertex VertexLeaf
 		#pragma fragment FragmentLeaf
-		#pragma exclude_renderers molehill
+		#pragma exclude_renderers flash
 		#pragma multi_compile_fwdbase nolightmap
 		
 		sampler2D _MainTex;
@@ -108,7 +108,7 @@ SubShader {
 		Tags { "LightMode" = "ShadowCaster" }
 		
 		Fog {Mode Off}
-		ZWrite On ZTest Less
+		ZWrite On ZTest LEqual
 		Offset 1, 1
 
 	CGPROGRAM
@@ -161,7 +161,7 @@ SubShader {
 		Tags { "LightMode" = "ShadowCollector" }
 		
 		Fog {Mode Off}
-		ZWrite On ZTest Less
+		ZWrite On ZTest LEqual
 
 	CGPROGRAM
 		#pragma vertex vert

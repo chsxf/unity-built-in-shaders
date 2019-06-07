@@ -10,7 +10,7 @@ Pass {
 CGPROGRAM
 #pragma vertex vert
 #pragma fragment frag
-#pragma exclude_renderers noshadows
+#pragma exclude_renderers noshadows flash
 #pragma glsl_no_auto_normalization
 #pragma multi_compile_shadowcollector
 
@@ -80,7 +80,7 @@ inline half unitySampleShadow (float4 wpos, float z)
 	half shadow = tex2Dproj (_ShadowMapTexture, UNITY_PROJ_COORD(coord)).r;
 	shadow = lerp(_LightShadowData.r, 1.0, shadow);
 #else
-	half shadow = tex2D (_ShadowMapTexture, coord.xy).r < coord.z ? _LightShadowData.r : 1.0;
+	half shadow = UNITY_SAMPLE_DEPTH(tex2D (_ShadowMapTexture, coord.xy)) < coord.z ? _LightShadowData.r : 1.0;
 #endif
 	//shadow = dot(weights, float4(0,0.33,0.66,1)*0.33);
 	return shadow;

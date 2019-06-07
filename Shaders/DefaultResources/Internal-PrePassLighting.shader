@@ -5,18 +5,8 @@ Properties {
 	_ShadowMapTexture ("", any) = "" {}
 }
 SubShader {
-Pass {
-	ZWrite Off Fog { Mode Off }
-	Blend DstColor Zero
-	
-CGPROGRAM
-#pragma target 3.0
-#pragma vertex vert
-#pragma fragment frag
-#pragma exclude_renderers noprepass
-#pragma glsl_no_auto_normalization
-#pragma multi_compile_lightpass
 
+CGINCLUDE
 #include "UnityCG.cginc"
 struct appdata {
 	float4 vertex : POSITION;
@@ -86,10 +76,10 @@ inline half unitySampleShadow (float4 shadowCoord)
 	shadows = _LightShadowData.rrrr + shadows * (1-_LightShadowData.rrrr);
 	#else
 	float4 shadowVals;
-	shadowVals.x = tex2D( _ShadowMapTexture, coord + _ShadowOffsets[0].xy ).r;
-	shadowVals.y = tex2D( _ShadowMapTexture, coord + _ShadowOffsets[1].xy ).r;
-	shadowVals.z = tex2D( _ShadowMapTexture, coord + _ShadowOffsets[2].xy ).r;
-	shadowVals.w = tex2D( _ShadowMapTexture, coord + _ShadowOffsets[3].xy ).r;
+	shadowVals.x = UNITY_SAMPLE_DEPTH(tex2D( _ShadowMapTexture, coord + _ShadowOffsets[0].xy ));
+	shadowVals.y = UNITY_SAMPLE_DEPTH(tex2D( _ShadowMapTexture, coord + _ShadowOffsets[1].xy ));
+	shadowVals.z = UNITY_SAMPLE_DEPTH(tex2D( _ShadowMapTexture, coord + _ShadowOffsets[2].xy ));
+	shadowVals.w = UNITY_SAMPLE_DEPTH(tex2D( _ShadowMapTexture, coord + _ShadowOffsets[3].xy ));
 	half4 shadows = (shadowVals < coord.zzzz) ? _LightShadowData.rrrr : 1.0f;
 	#endif
 	
@@ -105,7 +95,7 @@ inline half unitySampleShadow (float4 shadowCoord)
 	half shadow = tex2Dproj (_ShadowMapTexture, UNITY_PROJ_COORD(shadowCoord)).r;
 	shadow = _LightShadowData.r + shadow * (1-_LightShadowData.r);
 	#else
-	half shadow = tex2Dproj (_ShadowMapTexture, UNITY_PROJ_COORD(shadowCoord)).r < (shadowCoord.z / shadowCoord.w) ? _LightShadowData.r : 1.0;
+	half shadow = UNITY_SAMPLE_DEPTH(tex2Dproj (_ShadowMapTexture, UNITY_PROJ_COORD(shadowCoord))) < (shadowCoord.z / shadowCoord.w) ? _LightShadowData.r : 1.0;
 	#endif
 	
 	#endif
@@ -187,7 +177,7 @@ half ComputeShadow(float3 vec, float fadeDist, float2 uv)
 	return 1.0;
 }
 
-fixed4 frag (v2f i) : COLOR
+half4 CalculateLight (v2f i)
 {
 	i.ray = i.ray * (_ProjectionParams.z / i.ray.z);
 	float2 uv = i.uv.xy / i.uv.w;
@@ -260,7 +250,68 @@ fixed4 frag (v2f i) : COLOR
 	float fade = fadeDist * unity_LightmapFade.z + unity_LightmapFade.w;
 	res *= saturate(1.0-fade);
 	
-	return exp2(-res);
+	return res;
+}
+ENDCG
+
+/*Pass 1: LDR Pass - Lighting encoded into a subtractive ARGB8 buffer*/
+Pass {
+	ZWrite Off Fog { Mode Off }
+	Blend DstColor Zero
+	
+CGPROGRAM
+#pragma target 3.0
+#pragma vertex vert
+#pragma fragment frag
+#pragma exclude_renderers noprepass
+#pragma glsl_no_auto_normalization
+#pragma multi_compile_lightpass
+
+fixed4 frag (v2f i) : COLOR
+{
+	return exp2(-CalculateLight(i));
+}
+
+ENDCG
+}
+
+/*Pass 2: HDR Pass - Lighting additively blended into floating point buffer*/
+Pass {
+	ZWrite Off Fog { Mode Off }
+	Blend One One
+	
+CGPROGRAM
+#pragma target 3.0
+#pragma vertex vert
+#pragma fragment frag
+#pragma exclude_renderers noprepass
+#pragma glsl_no_auto_normalization
+#pragma multi_compile_lightpass
+
+fixed4 frag (v2f i) : COLOR
+{
+	return CalculateLight(i);
+}
+
+ENDCG
+}
+
+/*Pass 3: Xenon HDR Specular Pass - 10-10-10-2 buffer means we need seperate specular buffer*/
+Pass {
+	ZWrite Off Fog { Mode Off }
+	Blend One One
+	
+CGPROGRAM
+#pragma target 3.0
+#pragma vertex vert
+#pragma fragment frag
+#pragma exclude_renderers noprepass
+#pragma glsl_no_auto_normalization
+#pragma multi_compile_lightpass
+
+fixed4 frag (v2f i) : COLOR
+{
+	return CalculateLight(i).argb;
 }
 
 ENDCG

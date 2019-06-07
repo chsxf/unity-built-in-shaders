@@ -42,7 +42,7 @@ SubShader {
 		{
 			fixed4 tex = texCUBE (_Tex, i.texcoord);
 			fixed4 col;
-			col.rgb = tex.rgb + _Tint.rgb - 0.5;
+			col.rgb = tex.rgb + _Tint.rgb - unity_ColorSpaceGrey;
 			col.a = tex.a * _Tint.a;
 			return col;
 		}

@@ -8,11 +8,23 @@ SubShader {
 		Fog { Mode off }
 		
 CGPROGRAM
-#pragma vertex vert_img
+#pragma vertex vert
 #pragma fragment frag
 #pragma exclude_renderers noshadows
 #pragma fragmentoption ARB_precision_hint_fastest
 #include "UnityCG.cginc"
+
+v2f_img vert (appdata_img v)
+{
+	v2f_img o;
+	o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
+	o.uv = v.texcoord.xy;
+	#if SHADER_API_FLASH
+	o.uv.xy *= unity_NPOTScale.xy;
+	#endif
+	return o;
+}
+
 
 uniform sampler2D _MainTex;
 
@@ -28,21 +40,23 @@ uniform float4 _BlurOffsets7;
 
 float4 unity_ShadowBlurParams;
 
+
+
 #define LOOP_ITERATION(i) { 	\
-	half4 sample = tex2D( _MainTex, (coord + radius * _BlurOffsets##i).xy ); \
-	half sampleDist = sample.b + sample.a / 255.0; \
-	half diff = dist - sampleDist; \
+	float4 sample = tex2D( _MainTex, (coord + radius * _BlurOffsets##i).xy ); \
+	float sampleDist = sample.b + sample.a / 255.0; \
+	float diff = dist - sampleDist; \
 	diff = saturate( diffTolerance - abs(diff) ); \
 	mask.xy += diff * sample.xy; }
 
 fixed4 frag (v2f_img i) : COLOR
 {
 	float4 coord = float4(i.uv,0,0);
-	half4 mask = tex2D( _MainTex, coord.xy );
-	half dist = mask.b + mask.a / 255.0;
-	half radius = saturate(unity_ShadowBlurParams.y / (1.0-dist));
+	float4 mask = tex2D( _MainTex, coord.xy );
+	float dist = mask.b + mask.a / 255.0;
+	float radius = saturate(unity_ShadowBlurParams.y / (1.0-dist));
 	
-	half diffTolerance = unity_ShadowBlurParams.x;
+	float diffTolerance = unity_ShadowBlurParams.x;
 	
 	mask.xy *= diffTolerance;
 
@@ -56,12 +70,16 @@ fixed4 frag (v2f_img i) : COLOR
 	LOOP_ITERATION (1);
 	LOOP_ITERATION (2);
 	LOOP_ITERATION (3);
+	
+	// In Flash, due to very limited register count we can't do more samples :(
+	#ifndef SHADER_API_FLASH
 	LOOP_ITERATION (4);
 	LOOP_ITERATION (5);
 	LOOP_ITERATION (6);
 	LOOP_ITERATION (7);
+	#endif
 
-	half shadow = mask.x / mask.y;
+	float shadow = mask.x / mask.y;
 	return shadow;
 }
 ENDCG
@@ -69,4 +87,4 @@ ENDCG
 }
 
 Fallback Off
-}
+} 

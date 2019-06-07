@@ -91,7 +91,7 @@ SubShader {
 		Offset 1, 1
 		
 		Fog {Mode Off}
-		ZWrite On ZTest Less Cull Off
+		ZWrite On ZTest LEqual Cull Off
 
 CGPROGRAM
 #pragma vertex vert
@@ -136,7 +136,7 @@ ENDCG
 		Tags { "LightMode" = "ShadowCollector" }
 		
 		Fog {Mode Off}
-		ZWrite On ZTest Less
+		ZWrite On ZTest LEqual
 
 CGPROGRAM
 #pragma vertex vert

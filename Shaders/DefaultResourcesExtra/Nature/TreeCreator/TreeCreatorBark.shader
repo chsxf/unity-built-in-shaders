@@ -18,6 +18,7 @@ SubShader {
 		
 CGPROGRAM
 #pragma surface surf BlinnPhong vertex:TreeVertBark addshadow nolightmap
+#pragma exclude_renderers flash
 #pragma glsl_no_auto_normalization
 #include "Tree.cginc"
 
