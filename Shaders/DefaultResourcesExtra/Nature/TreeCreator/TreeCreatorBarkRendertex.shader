@@ -41,7 +41,7 @@ v2f vert (appdata_full v) {
 		float3 lightDir = _TerrainTreeLightDirections[j];
 	
 		half nl = dot (v.normal, lightDir);
-		o.params[j].r = nl;
+		o.params[j].r = max (0, nl);
 		
 		half3 h = normalize (lightDir + viewDir);
 		float nh = max (0, dot (v.normal, h));
