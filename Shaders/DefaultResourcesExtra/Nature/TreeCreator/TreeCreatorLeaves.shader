@@ -20,7 +20,7 @@ SubShader {
 		
 CGPROGRAM
 #pragma surface surf TreeLeaf alphatest:_Cutoff vertex:TreeVertLeaf addshadow nolightmap
-#pragma exclude_renderers molehill
+#pragma exclude_renderers flash
 #pragma glsl_no_auto_normalization
 #include "Tree.cginc"
 

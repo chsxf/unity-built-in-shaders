@@ -16,6 +16,7 @@ SubShader {
 	
 CGPROGRAM
 #pragma surface surf BlinnPhong
+#pragma target 3.0
 
 sampler2D _MainTex;
 sampler2D _BumpMap;

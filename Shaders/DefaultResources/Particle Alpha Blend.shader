@@ -10,7 +10,7 @@ Category {
 	Blend SrcAlpha OneMinusSrcAlpha
 	AlphaTest Greater .01
 	ColorMask RGB
-	Cull Off Lighting Off ZWrite Off Fog { Color (0,0,0,0) }
+	Cull Off Lighting Off ZWrite Off
 	BindChannels {
 		Bind "Color", color
 		Bind "Vertex", vertex

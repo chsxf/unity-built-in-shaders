@@ -41,7 +41,7 @@ ENDCG
 				
 CGPROGRAM
 #pragma surface surf Lambert vertex:WavingGrassBillboardVert addshadow
-#pragma exclude_renderers molehill
+#pragma exclude_renderers flash
 			
 sampler2D _MainTex;
 fixed _Cutoff;

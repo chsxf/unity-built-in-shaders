@@ -41,7 +41,7 @@ Shader "Nature/Tree Soft Occlusion Bark" {
 			Tags { "LightMode" = "ShadowCaster" }
 			
 			Fog {Mode Off}
-			ZWrite On ZTest Less Cull Off
+			ZWrite On ZTest LEqual Cull Off
 			Offset 1, 1
 	
 			CGPROGRAM

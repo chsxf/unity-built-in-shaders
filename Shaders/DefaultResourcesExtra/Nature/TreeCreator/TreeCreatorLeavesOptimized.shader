@@ -26,7 +26,7 @@ SubShader {
 	
 CGPROGRAM
 #pragma surface surf TreeLeaf alphatest:_Cutoff vertex:TreeVertLeaf nolightmap
-#pragma exclude_renderers molehill
+#pragma exclude_renderers flash
 #pragma glsl_no_auto_normalization
 #include "Tree.cginc"
 
@@ -60,13 +60,13 @@ ENDCG
 		Tags { "LightMode" = "ShadowCaster" }
 		
 		Fog {Mode Off}
-		ZWrite On ZTest Less Cull Off
+		ZWrite On ZTest LEqual Cull Off
 		Offset 1, 1
 
 		CGPROGRAM
 		#pragma vertex vert_surf
 		#pragma fragment frag_surf
-		#pragma exclude_renderers noshadows
+		#pragma exclude_renderers noshadows flash
 		#pragma glsl_no_auto_normalization
 		#pragma fragmentoption ARB_precision_hint_fastest
 		#pragma multi_compile_shadowcaster
@@ -112,12 +112,12 @@ ENDCG
 		Tags { "LightMode" = "ShadowCollector" }
 		
 		Fog {Mode Off}
-		ZWrite On ZTest Less
+		ZWrite On ZTest LEqual
 
 		CGPROGRAM
 		#pragma vertex vert_surf
 		#pragma fragment frag_surf
-		#pragma exclude_renderers noshadows
+		#pragma exclude_renderers noshadows flash
 		#pragma fragmentoption ARB_precision_hint_fastest
 		#pragma multi_compile_shadowcollector
 		#pragma glsl_no_auto_normalization

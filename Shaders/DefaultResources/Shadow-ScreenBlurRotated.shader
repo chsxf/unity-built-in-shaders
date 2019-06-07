@@ -1,4 +1,4 @@
-Shader "Hidden/Shadow-ScreenBlur" {
+Shader "Hidden/Shadow-ScreenBlurRotated" {
 Properties {
 	_MainTex ("Base", 2D) = "white" {}
 }
@@ -8,25 +8,15 @@ SubShader {
 		Fog { Mode off }
 		
 CGPROGRAM
-#pragma vertex vert
+#pragma vertex vert_img
 #pragma fragment frag
 #pragma exclude_renderers noshadows
 #pragma fragmentoption ARB_precision_hint_fastest
+#pragma target 3.0
 #include "UnityCG.cginc"
 
-v2f_img vert (appdata_img v)
-{
-	v2f_img o;
-	o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
-	o.uv = v.texcoord.xy;
-	#if SHADER_API_FLASH
-	o.uv.xy *= unity_NPOTScale.xy;
-	#endif
-	return o;
-}
-
-
 uniform sampler2D _MainTex;
+uniform sampler2D unity_RandomRotation16;
 
 // x,y of each - sample offset for blur
 uniform float4 _BlurOffsets0;
@@ -38,25 +28,34 @@ uniform float4 _BlurOffsets5;
 uniform float4 _BlurOffsets6;
 uniform float4 _BlurOffsets7;
 
+// @TODO: Should be possible to calc offset and scale in the dot products here. Should be faster on platforms with free swizzles (like.. not PS3)
+inline float2 GetRotatedTexCoord(float2 offsets, float4 rotation)
+{
+	float2 offset;
+	offset.x = dot( offsets.xy, rotation.rg );
+	offset.y = dot( offsets.xy, rotation.ba );
+	return offset;
+}
+
 float4 unity_ShadowBlurParams;
-
-
-
 #define LOOP_ITERATION(i) { 	\
-	float4 sample = tex2D( _MainTex, (coord + radius * _BlurOffsets##i).xy ); \
-	float sampleDist = sample.b + sample.a / 255.0; \
-	float diff = dist - sampleDist; \
+	half4 sample = tex2D( _MainTex, coord + radius * GetRotatedTexCoord(_BlurOffsets##i.xy, rotation) ); \
+	half sampleDist = sample.b + sample.a / 255.0; \
+	half diff = dist - sampleDist; \
 	diff = saturate( diffTolerance - abs(diff) ); \
 	mask.xy += diff * sample.xy; }
 
 fixed4 frag (v2f_img i) : COLOR
 {
 	float4 coord = float4(i.uv,0,0);
-	float4 mask = tex2D( _MainTex, coord.xy );
-	float dist = mask.b + mask.a / 255.0;
-	float radius = saturate(unity_ShadowBlurParams.y / (1.0-dist));
+	const float randomRotationTextureSize = 16.0f;
 	
-	float diffTolerance = unity_ShadowBlurParams.x;
+	half4 rotation = 2.0 * tex2D( unity_RandomRotation16, (coord.xy * _ScreenParams.xy) / randomRotationTextureSize ) - 1.0;
+	half4 mask = tex2D( _MainTex, coord.xy );
+	half dist = mask.b + mask.a / 255.0;
+	half radius = saturate(unity_ShadowBlurParams.y / (1.0-dist));
+	
+	half diffTolerance = unity_ShadowBlurParams.x;
 	
 	mask.xy *= diffTolerance;
 
@@ -70,16 +69,12 @@ fixed4 frag (v2f_img i) : COLOR
 	LOOP_ITERATION (1);
 	LOOP_ITERATION (2);
 	LOOP_ITERATION (3);
-	
-	// In Flash, due to very limited register count we can't do more samples :(
-	#ifndef SHADER_API_FLASH
 	LOOP_ITERATION (4);
 	LOOP_ITERATION (5);
 	LOOP_ITERATION (6);
 	LOOP_ITERATION (7);
-	#endif
 
-	float shadow = mask.x / mask.y;
+	half shadow = mask.x / mask.y;
 	return shadow;
 }
 ENDCG
@@ -87,4 +82,4 @@ ENDCG
 }
 
 Fallback Off
-} 
+}

@@ -14,6 +14,7 @@ SubShader {
 	
 CGPROGRAM
 #pragma surface surf BlinnPhong alphatest:_Cutoff
+#pragma exclude_renderers flash
 
 sampler2D _MainTex;
 sampler2D _BumpMap;
