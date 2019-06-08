@@ -10,47 +10,6 @@
 		_BumpMap ("Normalmap", 2D) = "bump" {}
 		_Cutoff ("Alpha cutoff", Range(0,1)) = 0.5
 		[MaterialEnum(None,0,Fastest,1)] _WindQuality ("Wind Quality", Range(0,1)) = 0
-
-		[HideInInspector] _TreeInfo0 ("TreeInfo0", Vector) = (0,0,0,0)
-		[HideInInspector] _TreeInfo1 ("TreeInfo1", Vector) = (0,0,0,0)
-		[HideInInspector] _TreeInfo2 ("TreeInfo2", Vector) = (0,0,0,0)
-		[HideInInspector] _TreeInfo3 ("TreeInfo3", Vector) = (0,0,0,0)
-		[HideInInspector] _TreeSize0 ("TreeSize0", Vector) = (0,0,0,0)
-		[HideInInspector] _TreeSize1 ("TreeSize1", Vector) = (0,0,0,0)
-		[HideInInspector] _TreeSize2 ("TreeSize2", Vector) = (0,0,0,0)
-		[HideInInspector] _TreeSize3 ("TreeSize3", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords0 ("ImageTexCoords0", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords1 ("ImageTexCoords1", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords2 ("ImageTexCoords2", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords3 ("ImageTexCoords3", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords4 ("ImageTexCoords4", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords5 ("ImageTexCoords5", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords6 ("ImageTexCoords6", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords7 ("ImageTexCoords7", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords8 ("ImageTexCoords8", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords9 ("ImageTexCoords9", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords10 ("ImageTexCoords10", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords11 ("ImageTexCoords11", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords12 ("ImageTexCoords12", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords13 ("ImageTexCoords13", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords14 ("ImageTexCoords14", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords15 ("ImageTexCoords15", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords16 ("ImageTexCoords16", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords17 ("ImageTexCoords17", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords18 ("ImageTexCoords18", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords19 ("ImageTexCoords19", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords20 ("ImageTexCoords20", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords21 ("ImageTexCoords21", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords22 ("ImageTexCoords22", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords23 ("ImageTexCoords23", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords24 ("ImageTexCoords24", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords25 ("ImageTexCoords25", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords26 ("ImageTexCoords26", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords27 ("ImageTexCoords27", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords28 ("ImageTexCoords28", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords29 ("ImageTexCoords29", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords30 ("ImageTexCoords30", Vector) = (0,0,0,0)
-		[HideInInspector] _ImageTexCoords31 ("ImageTexCoords31", Vector) = (0,0,0,0)
 	}
 	
 	// targeting SM3.0+
@@ -67,7 +26,7 @@
 		Cull Off
 
 		CGPROGRAM
-			#pragma surface surf Lambert vertex:SpeedTreeBillboardVert nolightmap
+			#pragma surface surf Lambert vertex:SpeedTreeBillboardVert nolightmap addshadow
 			#pragma target 3.0
 			#pragma multi_compile __ LOD_FADE_CROSSFADE
 			#pragma multi_compile __ BILLBOARD_FACE_CAMERA_POS

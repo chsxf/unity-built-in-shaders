@@ -14,7 +14,7 @@ SubShader {
 	LOD 600
 	
 CGPROGRAM
-#pragma surface surf BlinnPhong alpha:blend
+#pragma surface surf BlinnPhong alpha:fade
 #pragma target 3.0
 
 sampler2D _MainTex;

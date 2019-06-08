@@ -179,6 +179,13 @@ internal class StandardShaderGUI : ShaderGUI
 
 	public override void AssignNewShaderToMaterial (Material material, Shader oldShader, Shader newShader)
 	{
+        // _Emission property is lost after assigning Standard shader to the material
+        // thus transfer it before assigning the new shader
+        if (material.HasProperty("_Emission"))
+        {
+            material.SetColor("_EmissionColor", material.GetColor("_Emission"));
+        }
+
 		base.AssignNewShaderToMaterial(material, oldShader, newShader);
 
 		if (oldShader == null || !oldShader.name.Contains("Legacy Shaders/"))

@@ -1,3 +1,4 @@
+* Version 5.3.0f4: https://download.unity3d.com/download_unity/2524e04062b4/builtin_shaders-5.3.0f4.zip
 * Version 5.2.5f1: https://download.unity3d.com/download_unity/ad2d0368e248/builtin_shaders-5.2.5f1.zip
 * Version 5.2.4f1: https://download.unity3d.com/download_unity/98095704e6fe/builtin_shaders-5.2.4f1.zip
 * Version 5.2.3f1: https://download.unity3d.com/download_unity/f3d16a1fa2dd/builtin_shaders-5.2.3f1.zip

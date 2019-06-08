@@ -20,7 +20,6 @@ Shader "Nature/Terrain/Specular" {
 
 	SubShader {
 		Tags {
-			"SplatCount" = "4"
 			"Queue" = "Geometry-100"
 			"RenderType" = "Opaque"
 		}

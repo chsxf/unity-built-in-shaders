@@ -29,7 +29,6 @@ Shader "Sprites/Default"
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile _ PIXELSNAP_ON
-			#pragma multi_compile _ UNITY_ETC1_EXTERNAL_ALPHA
 			#include "UnityCG.cginc"
 			
 			struct appdata_t
@@ -43,7 +42,7 @@ Shader "Sprites/Default"
 			{
 				float4 vertex   : SV_POSITION;
 				fixed4 color    : COLOR;
-				half2 texcoord  : TEXCOORD0;
+				float2 texcoord  : TEXCOORD0;
 			};
 			
 			fixed4 _Color;
@@ -69,10 +68,10 @@ Shader "Sprites/Default"
 			{
 				fixed4 color = tex2D (_MainTex, uv);
 
-#if UNITY_ETC1_EXTERNAL_ALPHA
+#if UNITY_TEXTURE_ALPHASPLIT_ALLOWED
 				if (_AlphaSplitEnabled)
 					color.a = tex2D (_AlphaTex, uv).r;
-#endif //UNITY_ETC1_EXTERNAL_ALPHA
+#endif //UNITY_TEXTURE_ALPHASPLIT_ALLOWED
 
 				return color;
 			}

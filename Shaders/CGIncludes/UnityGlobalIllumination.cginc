@@ -87,19 +87,9 @@ inline UnityGI UnityGI_Base(UnityGIInput data, half occlusion, half3 normalWorld
 		o_gi.light.color *= data.atten;
 	#endif
 
-
 	#if UNITY_SHOULD_SAMPLE_SH
-		#if UNITY_SAMPLE_FULL_SH_PER_PIXEL
-			half3 sh = ShadeSH9(half4(normalWorld, 1.0));
-		#elif (SHADER_TARGET >= 30) && !UNITY_STANDARD_SIMPLE
-			half3 sh = data.ambient + ShadeSH12Order(half4(normalWorld, 1.0));
-		#else
-			half3 sh = data.ambient;
-		#endif
-
-		o_gi.indirect.diffuse = sh;
+		o_gi.indirect.diffuse = ShadeSHPerPixel (normalWorld, data.ambient);
 	#endif
-
 
 	#if defined(LIGHTMAP_ON)
 		// Baked lightmaps

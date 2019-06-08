@@ -75,11 +75,10 @@ Shader "Standard"
 			
 			#pragma multi_compile_fwdbase
 			#pragma multi_compile_fog
-				
-			#pragma vertex vertForwardBase
-			#pragma fragment fragForwardBase
 
-			#include "UnityStandardCore.cginc"
+			#pragma vertex vertBase
+			#pragma fragment fragBase
+			#include "UnityStandardCoreForward.cginc"
 
 			ENDCG
 		}
@@ -110,11 +109,10 @@ Shader "Standard"
 			
 			#pragma multi_compile_fwdadd_fullshadows
 			#pragma multi_compile_fog
-			
-			#pragma vertex vertForwardAdd
-			#pragma fragment fragForwardAdd
 
-			#include "UnityStandardCore.cginc"
+			#pragma vertex vertAdd
+			#pragma fragment fragAdd
+			#include "UnityStandardCoreForward.cginc"
 
 			ENDCG
 		}
@@ -231,11 +229,10 @@ Shader "Standard"
 
 			#pragma multi_compile_fwdbase
 			#pragma multi_compile_fog
-	
-			#pragma vertex vertForwardBase
-			#pragma fragment fragForwardBase
 
-			#include "UnityStandardCore.cginc"
+			#pragma vertex vertBase
+			#pragma fragment fragBase
+			#include "UnityStandardCoreForward.cginc"
 
 			ENDCG
 		}
@@ -263,10 +260,9 @@ Shader "Standard"
 			#pragma multi_compile_fwdadd_fullshadows
 			#pragma multi_compile_fog
 			
-			#pragma vertex vertForwardAdd
-			#pragma fragment fragForwardAdd
-
-			#include "UnityStandardCore.cginc"
+			#pragma vertex vertAdd
+			#pragma fragment fragAdd
+			#include "UnityStandardCoreForward.cginc"
 
 			ENDCG
 		}

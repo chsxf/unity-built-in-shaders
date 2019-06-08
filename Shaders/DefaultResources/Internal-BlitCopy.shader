@@ -11,7 +11,8 @@ Shader "Hidden/BlitCopy" {
 			#include "UnityCG.cginc"
 
 			sampler2D _MainTex;
-			
+			uniform float4 _MainTex_ST;
+
 			struct appdata_t {
 				float4 vertex : POSITION;
 				float2 texcoord : TEXCOORD0;
@@ -26,7 +27,7 @@ Shader "Hidden/BlitCopy" {
 			{
 				v2f o;
 				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
-				o.texcoord = v.texcoord.xy;
+				o.texcoord = TRANSFORM_TEX(v.texcoord.xy, _MainTex);
 				return o;
 			}
 

@@ -4,7 +4,7 @@ Properties {
 	_MainTex ("Base (RGB)", 2D) = "white" {}
 	_Illum ("Illumin (A)", 2D) = "white" {}
 	_BumpMap ("Normalmap", 2D) = "bump" {}
-	_Emission ("Emission (Lightmapper)", Range (0.0, 8.0)) = 1.0
+	_Emission ("Emission (Lightmapper)", Float) = 1.0
 }
 
 CGINCLUDE

@@ -5,7 +5,7 @@ Properties {
 	_Shininess ("Shininess", Range (0.01, 1)) = 0.078125
 	_MainTex ("Base (RGB) Gloss (A)", 2D) = "white" {}
 	_Illum ("Illumin (A)", 2D) = "white" {}
-	_Emission ("Emission (Lightmapper)", Range (0.0, 8.0)) = 1.0
+	_Emission ("Emission (Lightmapper)", Float) = 1.0
 }
 SubShader {
 	Tags { "RenderType"="Opaque" }

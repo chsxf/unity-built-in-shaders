@@ -458,21 +458,19 @@
 
 
 // "platform caps" defines that were moved to editor, so they are set automatically when compiling shader
-// UNITY_NO_DXT5nm
-// UNITY_NO_RGBM
-// UNITY_NO_SCREENSPACE_SHADOWS
-// UNITY_NO_LINEAR_COLORSPACE
+// UNITY_NO_DXT5nm				- no DXT5NM support, so normal maps will encoded in rgb
+// UNITY_NO_RGBM				- no RGBM support, so doubleLDR
+// UNITY_NO_SCREENSPACE_SHADOWS	- no screenspace cascaded shadowmaps
+// UNITY_NO_LINEAR_COLORSPACE	- no linear color space support
+// UNITY_FRAMEBUFFER_FETCH_AVAILABLE	- framebuffer fetch
+// UNITY_ENABLE_REFLECTION_BUFFERS - render reflection probes in deferred way, when using deferred shading
+
 
 #if defined(SHADER_API_PSP2)
 // To get acceptable precision from the SGX interpolators when decoding RGBM type
 // textures we have to disable sRGB reads and then convert to gamma space in the shader
 // explicitly.
 #define UNITY_FORCE_LINEAR_READ_FOR_RGBM
-#endif
-
-// Platforms which can support "framebuffer fetch" on some devices
-#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL)
-#define UNITY_FRAMEBUFFER_FETCH_AVAILABLE
 #endif
 
 
@@ -572,8 +570,6 @@
 	#define UNITY_LOOP
 	#define UNITY_FASTOPT
 #endif
-
-//#define USE_INCONSISTENT_LIGHTING_FOR_BACKWARDS_COMPATIBILITY 0
 
 
 // Unity 4.x had HDR_LIGHT_PREPASS_ON keyword in deferred lighting; 5.0 renamed it to UNITY_HDR_ON.

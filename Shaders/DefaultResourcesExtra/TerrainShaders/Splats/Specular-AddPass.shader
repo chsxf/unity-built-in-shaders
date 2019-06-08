@@ -17,7 +17,6 @@ Shader "Hidden/TerrainEngine/Splatmap/Specular-AddPass" {
 
 	SubShader {
 		Tags {
-			"SplatCount" = "4"
 			"Queue" = "Geometry-99"
 			"IgnoreProjector"="True"
 			"RenderType" = "Opaque"
