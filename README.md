@@ -7,6 +7,19 @@ It is useful to compare changes between versions and keep up to date versions of
 
 Only fully released versions of Unity are taken into account. Releases from the Alpha, Beta or Patch channels are not considered.
 
-## License
+# Repository Navigation
+
+You can access shader code through:
+
+* Branches to access all minor releases inside a major versions and stay up-to-date (ie. 2017.2)
+* Tags to access a specific version (ie. v2019.1.5f1)
+
+## Master branch
+
+Master will always be synced with the latest main stream release. 
+
+Please note that LTS releases are never merged with master.
+
+# License
 
 See [license.txt](license.txt)
