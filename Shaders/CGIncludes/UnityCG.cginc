@@ -402,7 +402,11 @@ inline half3 DecodeLightmap( fixed4 color )
 
 half4 unity_DynamicLightmap_HDR;
 
-// Decodes RGBM encoded lightmaps
+// Decodes Enlighten RGBM encoded lightmaps
+// NOTE: Enlighten dynamic texture RGBM format is _different_ from standard Unity HDR textures
+// (such as Baked Lightmaps, Reflection Probes and IBL images)
+// Instead Enlighten provides RGBM texture in _Linear_ color space with _different_ exponent.
+// WARNING: 3 pow operations, might be very expensive for mobiles!
 inline half3 DecodeRealtimeLightmap( fixed4 color )
 {
 	//@TODO: Temporary until Geomerics gives us an API to convert lightmaps to RGBM in gamma space on the enlighten thread before we upload the textures.
