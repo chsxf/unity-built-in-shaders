@@ -8,6 +8,8 @@
 
 
 #include "UnityCG.cginc"
+#include "UnityShaderVariables.cginc"
+#include "UnityInstancing.cginc"
 #include "UnityStandardConfig.cginc"
 #include "UnityStandardUtils.cginc"
 
@@ -142,11 +144,9 @@ void vertShadowCaster (VertexInput v,
 
 half4 fragShadowCaster (
 #ifdef UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT
-    VertexOutputShadowCaster i
+    VertexOutputShadowCaster i,
 #endif
-#ifdef UNITY_STANDARD_USE_DITHER_MASK
-    , UNITY_VPOS_TYPE vpos : VPOS
-#endif
+    UNITY_POSITION(vpos)
     ) : SV_Target
 {
     #if defined(UNITY_STANDARD_USE_SHADOW_UVS)
@@ -171,6 +171,10 @@ half4 fragShadowCaster (
             #if defined(UNITY_STANDARD_USE_DITHER_MASK)
                 // Use dither mask for alpha blended shadows, based on pixel position xy
                 // and alpha level. Our dither texture is 4x4x16.
+                #ifdef LOD_FADE_CROSSFADE
+                    #define _LOD_FADE_ON_ALPHA
+                    alpha *= unity_LODFade.y;
+                #endif
                 half alphaRef = tex3D(_DitherMaskLOD, float3(vpos.xy*0.25,alpha*0.9375)).a;
                 clip (alphaRef - 0.01);
             #else
@@ -178,6 +182,14 @@ half4 fragShadowCaster (
             #endif
         #endif
     #endif // #if defined(UNITY_STANDARD_USE_SHADOW_UVS)
+
+    #ifdef LOD_FADE_CROSSFADE
+        #ifdef _LOD_FADE_ON_ALPHA
+            #undef _LOD_FADE_ON_ALPHA
+        #else
+            UnityApplyDitherCrossFade(vpos.xy);
+        #endif
+    #endif
 
     SHADOW_CASTER_FRAGMENT(i)
 }

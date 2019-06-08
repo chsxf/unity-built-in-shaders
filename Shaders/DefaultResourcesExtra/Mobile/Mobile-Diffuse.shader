@@ -6,11 +6,11 @@
 
 Shader "Mobile/Diffuse" {
 Properties {
-	_MainTex ("Base (RGB)", 2D) = "white" {}
+    _MainTex ("Base (RGB)", 2D) = "white" {}
 }
 SubShader {
-	Tags { "RenderType"="Opaque" }
-	LOD 150
+    Tags { "RenderType"="Opaque" }
+    LOD 150
 
 CGPROGRAM
 #pragma surface surf Lambert noforwardadd
@@ -18,13 +18,13 @@ CGPROGRAM
 sampler2D _MainTex;
 
 struct Input {
-	float2 uv_MainTex;
+    float2 uv_MainTex;
 };
 
 void surf (Input IN, inout SurfaceOutput o) {
-	fixed4 c = tex2D(_MainTex, IN.uv_MainTex);
-	o.Albedo = c.rgb;
-	o.Alpha = c.a;
+    fixed4 c = tex2D(_MainTex, IN.uv_MainTex);
+    o.Albedo = c.rgb;
+    o.Alpha = c.a;
 }
 ENDCG
 }

@@ -44,12 +44,12 @@ float4 _LightPos;
 float4 _LightColor;
 float4 unity_LightmapFade;
 float4x4 unity_WorldToLight;
-sampler2D _LightTextureB0;
+sampler2D_float _LightTextureB0;
 
 #if defined (POINT_COOKIE)
-samplerCUBE _LightTexture0;
+samplerCUBE_float _LightTexture0;
 #else
-sampler2D _LightTexture0;
+sampler2D_float _LightTexture0;
 #endif
 
 #if defined (SHADOWS_SCREEN)
@@ -63,7 +63,14 @@ sampler2D _CameraGBufferTexture4;
 // --------------------------------------------------------
 // Shadow/fade helpers
 
+// Receiver plane depth bias create artifacts when depth is retrieved from
+// the depth buffer. see UnityGetReceiverPlaneDepthBias in UnityShadowLibrary.cginc
+#ifdef UNITY_USE_RECEIVER_PLANE_BIAS
+    #undef UNITY_USE_RECEIVER_PLANE_BIAS
+#endif
+
 #include "UnityShadowLibrary.cginc"
+
 
 //Note :
 // SHADOWS_SHADOWMASK + LIGHTMAP_SHADOW_MIXING -> ShadowMask mode
@@ -118,14 +125,6 @@ half UnityDeferredSampleRealtimeShadow(half fade, float3 vec, float2 uv)
     #endif
 
     return shadowAttenuation;
-}
-
-// --------------------------------------------------------
-// For backward compatibility only has UnityDeferredComputeFadeDistance
-// has been renamed to UnityComputeShadowFadeDistance in Unity 5.6
-float UnityDeferredComputeFadeDistance(float3 wpos, float z)
-{
-    return UnityComputeShadowFadeDistance(wpos, z);
 }
 
 // --------------------------------------------------------

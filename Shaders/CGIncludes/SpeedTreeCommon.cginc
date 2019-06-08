@@ -22,7 +22,6 @@ struct Input
     #ifdef GEOM_TYPE_BRANCH_DETAIL
         half3 interpolator2;
     #endif
-    UNITY_DITHER_CROSSFADE_COORDS
 };
 
 // Define uniforms
@@ -77,8 +76,6 @@ void SpeedTreeVert(inout SpeedTreeVB IN, out Input OUT)
     #endif
 
     OffsetSpeedTreeVertex(IN, unity_LODFade.x);
-
-    UNITY_TRANSFER_DITHER_CROSSFADE(OUT, IN.vertex)
 }
 
 // Fragment processing
@@ -111,8 +108,6 @@ void SpeedTreeFrag(Input IN, out SpeedTreeFragOut OUT)
     #ifdef SPEEDTREE_ALPHATEST
         clip(OUT.Alpha - _Cutoff);
     #endif
-
-    UNITY_APPLY_DITHER_CROSSFADE(IN)
 
     #ifdef GEOM_TYPE_BRANCH_DETAIL
         half4 detailColor = tex2D(_DetailTex, IN.Detail.xy);

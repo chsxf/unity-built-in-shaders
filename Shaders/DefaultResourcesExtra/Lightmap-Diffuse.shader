@@ -2,14 +2,14 @@
 
 Shader "Legacy Shaders/Lightmapped/Diffuse" {
 Properties {
-	_Color ("Main Color", Color) = (1,1,1,1)
-	_MainTex ("Base (RGB)", 2D) = "white" {}
-	_LightMap ("Lightmap (RGB)", 2D) = "black" {}
+    _Color ("Main Color", Color) = (1,1,1,1)
+    _MainTex ("Base (RGB)", 2D) = "white" {}
+    _LightMap ("Lightmap (RGB)", 2D) = "black" {}
 }
 
 SubShader {
-	LOD 200
-	Tags { "RenderType" = "Opaque" }
+    LOD 200
+    Tags { "RenderType" = "Opaque" }
 CGPROGRAM
 #pragma surface surf Lambert nodynlightmap
 struct Input {

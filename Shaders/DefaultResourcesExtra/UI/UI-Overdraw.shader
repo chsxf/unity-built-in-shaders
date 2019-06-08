@@ -1,11 +1,10 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
-Shader "UI/DefaultETC1"
+Shader "Hidden/UI/Overdraw"
 {
     Properties
     {
         [PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
-        [PerRendererData] _AlphaTex("Sprite Alpha Texture", 2D) = "white" {}
         _Color ("Tint", Color) = (1,1,1,1)
 
         _StencilComp ("Stencil Comparison", Float) = 8
@@ -42,8 +41,8 @@ Shader "UI/DefaultETC1"
         Cull Off
         Lighting Off
         ZWrite Off
-        ZTest [unity_GUIZTestMode]
-        Blend SrcAlpha OneMinusSrcAlpha
+        ZTest Always
+        Blend One One
         ColorMask [_ColorMask]
 
         Pass
@@ -63,14 +62,12 @@ Shader "UI/DefaultETC1"
             {
                 float4 vertex   : POSITION;
                 float4 color    : COLOR;
-                float2 texcoord : TEXCOORD0;
             };
 
             struct v2f
             {
                 float4 vertex   : SV_POSITION;
                 fixed4 color    : COLOR;
-                float2 texcoord  : TEXCOORD0;
                 float4 worldPosition : TEXCOORD1;
             };
 
@@ -84,22 +81,14 @@ Shader "UI/DefaultETC1"
                 OUT.worldPosition = IN.vertex;
                 OUT.vertex = UnityObjectToClipPos(OUT.worldPosition);
 
-                OUT.texcoord = IN.texcoord;
-
-                #ifdef UNITY_HALF_TEXEL_OFFSET
-                OUT.vertex.xy += (_ScreenParams.zw-1.0) * float2(-1,1) * OUT.vertex.w;
-                #endif
-
-                OUT.color = IN.color * _Color;
+                OUT.color = float4(0.1, 0.04, 0.02, 1);
                 return OUT;
             }
 
-            sampler2D _MainTex;
-            sampler2D _AlphaTex;
 
             fixed4 frag(v2f IN) : SV_Target
             {
-                fixed4 color = UnityGetUIDiffuseColor(IN.texcoord, _MainTex, _AlphaTex, _TextureSampleAdd) * IN.color;
+                half4 color = IN.color;
 
                 color.a *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
 

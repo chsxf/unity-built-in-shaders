@@ -91,8 +91,6 @@ void SpeedTreeBillboardVert(inout SpeedTreeBillboardData IN, out Input OUT)
     float hueVariationAmount = frac(worldPos.x + worldPos.y + worldPos.z);
     OUT.HueVariationAmount = saturate(hueVariationAmount * _HueVariation.a);
 #endif
-
-    UNITY_TRANSFER_DITHER_CROSSFADE(OUT, IN.vertex)
 }
 
 #endif // SPEEDTREE_BILLBOARD_COMMON_INCLUDED

@@ -402,7 +402,7 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
     return half4(color, 1);
 }
 
-sampler2D unity_NHxRoughness;
+sampler2D_float unity_NHxRoughness;
 half3 BRDF3_Direct(half3 diffColor, half3 specColor, half rlPow4, half smoothness)
 {
     half LUT_RANGE = 16.0; // must match range in NHxRoughness() function in GeneratedTextures.cpp

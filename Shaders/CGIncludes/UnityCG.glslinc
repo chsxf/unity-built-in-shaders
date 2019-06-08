@@ -100,7 +100,11 @@ vec3 ObjSpaceViewDir( vec4 v )
 
 
 // Transforms float2 UV by scale/bias property (new method)
-#define TRANSFORM_TEX(tex,name) (tex.xy * name##_ST.xy + name##_ST.zw)
+// GLSL ES does not support ## concat operator so we also provide macro that expects xxx_ST
+#define TRANSFORM_TEX_ST(tex,namest) (tex.xy * namest.xy + namest.zw)
+#ifndef GL_ES
+    #define TRANSFORM_TEX(tex,name) TRANSFORM_TEX_ST(tex, name##_ST)
+#endif
 
 // Deprecated. Used to transform 4D UV by a fixed function texture matrix. Now just returns the passed UV.
 #define TRANSFORM_UV(idx) (gl_TexCoord[0].xy)
