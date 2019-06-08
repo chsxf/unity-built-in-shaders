@@ -71,7 +71,7 @@ Shader "Particles/Standard Surface"
             Cull Off
 
             CGPROGRAM
-            #pragma target 3.5
+            #pragma target 3.0
 
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON _ALPHAMODULATE_ON
             #pragma shader_feature _METALLICGLOSSMAP
@@ -98,7 +98,7 @@ Shader "Particles/Standard Surface"
             Cull Off
 
             CGPROGRAM
-            #pragma target 3.5
+            #pragma target 3.0
 
             #pragma shader_feature _ _ALPHATEST_ON
             #pragma shader_feature _REQUIRE_UV2
@@ -123,7 +123,7 @@ Shader "Particles/Standard Surface"
             Cull Off
 
             CGPROGRAM
-            #pragma target 3.5
+            #pragma target 3.0
 
             #pragma shader_feature _ _ALPHATEST_ON
             #pragma shader_feature _REQUIRE_UV2
@@ -142,7 +142,7 @@ Shader "Particles/Standard Surface"
         #pragma multi_compile __ SOFTPARTICLES_ON
         #pragma multi_compile_instancing
         #pragma instancing_options procedural:vertInstancingSetup
-        #pragma target 3.5
+        #pragma target 3.0
 
         #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON _ALPHAMODULATE_ON
         #pragma shader_feature _METALLICGLOSSMAP
