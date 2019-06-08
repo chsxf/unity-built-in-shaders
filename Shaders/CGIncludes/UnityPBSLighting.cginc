@@ -4,6 +4,7 @@
 #include "UnityShaderVariables.cginc"
 #include "UnityStandardConfig.cginc"
 #include "UnityLightingCommon.cginc"
+#include "UnityGBuffer.cginc"
 #include "UnityGlobalIllumination.cginc"
 
 //-------------------------------------------------------------------------------------
@@ -43,7 +44,7 @@
 //-------------------------------------------------------------------------------------
 
 
-inline half3 BRDF_Unity_Indirect (half3 baseColor, half3 specColor, half oneMinusReflectivity, half oneMinusRoughness, half3 normal, half3 viewDir, half occlusion, UnityGI gi)
+inline half3 BRDF_Unity_Indirect (half3 baseColor, half3 specColor, half oneMinusReflectivity, half smoothness, half3 normal, half3 viewDir, half occlusion, UnityGI gi)
 {
 	half3 c = 0;
 	#if defined(DIRLIGHTMAP_SEPARATE)
@@ -51,10 +52,10 @@ inline half3 BRDF_Unity_Indirect (half3 baseColor, half3 specColor, half oneMinu
 		gi.indirect.specular = 0;
 
 		#ifdef LIGHTMAP_ON
-			c += UNITY_BRDF_PBS_LIGHTMAP_INDIRECT (baseColor, specColor, oneMinusReflectivity, oneMinusRoughness, normal, viewDir, gi.light2, gi.indirect).rgb * occlusion;
+			c += UNITY_BRDF_PBS_LIGHTMAP_INDIRECT (baseColor, specColor, oneMinusReflectivity, smoothness, normal, viewDir, gi.light2, gi.indirect).rgb * occlusion;
 		#endif
 		#ifdef DYNAMICLIGHTMAP_ON
-			c += UNITY_BRDF_PBS_LIGHTMAP_INDIRECT (baseColor, specColor, oneMinusReflectivity, oneMinusRoughness, normal, viewDir, gi.light3, gi.indirect).rgb * occlusion;
+			c += UNITY_BRDF_PBS_LIGHTMAP_INDIRECT (baseColor, specColor, oneMinusReflectivity, smoothness, normal, viewDir, gi.light3, gi.indirect).rgb * occlusion;
 		#endif
 	#endif
 	return c;
@@ -63,11 +64,12 @@ inline half3 BRDF_Unity_Indirect (half3 baseColor, half3 specColor, half oneMinu
 //-------------------------------------------------------------------------------------
 
 // little helpers for GI calculation
+// CAUTION: This is deprecated and not use in Untiy shader code, but some asset store plugin still use it, so let here for compatibility
 
 #define UNITY_GLOSSY_ENV_FROM_SURFACE(x, s, data)				\
 	Unity_GlossyEnvironmentData g;								\
-	g.roughness		= 1 - s.Smoothness;							\
-	g.reflUVW		= reflect(-data.worldViewDir, s.Normal);	\
+	g.roughness /* perceptualRoughness */ 	= SmoothnessToPerceptualRoughness(s.Smoothness); \
+	g.reflUVW = reflect(-data.worldViewDir, s.Normal);	\
 
 
 #if defined(UNITY_PASS_DEFERRED) && UNITY_ENABLE_REFLECTION_BUFFERS
@@ -77,9 +79,6 @@ inline half3 BRDF_Unity_Indirect (half3 baseColor, half3 specColor, half oneMinu
 		UNITY_GLOSSY_ENV_FROM_SURFACE(g, s, data);				\
 		x = UnityGlobalIllumination (data, s.Occlusion, s.Normal, g);
 #endif
-
-
-//-------------------------------------------------------------------------------------
 
 
 // Surface shader output structure to be used with physically
@@ -94,6 +93,8 @@ struct SurfaceOutputStandard
 	fixed3 Normal;		// tangent space normal, if written
 	half3 Emission;
 	half Metallic;		// 0=non-metal, 1=metal
+	// Smoothness is the user facing name, it should be perceptual smoothness but user should not have to deal with it.
+	// Everywhere in the code you meet smoothness it is perceptual smoothness
 	half Smoothness;	// 0=rough, 1=smooth
 	half Occlusion;		// occlusion (default 1)
 	fixed Alpha;		// alpha for transparencies
@@ -118,7 +119,7 @@ inline half4 LightingStandard (SurfaceOutputStandard s, half3 viewDir, UnityGI g
 	return c;
 }
 
-inline half4 LightingStandard_Deferred (SurfaceOutputStandard s, half3 viewDir, UnityGI gi, out half4 outDiffuseOcclusion, out half4 outSpecSmoothness, out half4 outNormal)
+inline half4 LightingStandard_Deferred (SurfaceOutputStandard s, half3 viewDir, UnityGI gi, out half4 outGBuffer0, out half4 outGBuffer1, out half4 outGBuffer2)
 {
 	half oneMinusReflectivity;
 	half3 specColor;
@@ -127,9 +128,15 @@ inline half4 LightingStandard_Deferred (SurfaceOutputStandard s, half3 viewDir, 
 	half4 c = UNITY_BRDF_PBS (s.Albedo, specColor, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, gi.light, gi.indirect);
 	c.rgb += UNITY_BRDF_GI (s.Albedo, specColor, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, s.Occlusion, gi);
 
-	outDiffuseOcclusion = half4(s.Albedo, s.Occlusion);
-	outSpecSmoothness = half4(specColor, s.Smoothness);
-	outNormal = half4(s.Normal * 0.5 + 0.5, 1);
+	UnityStandardData data;
+	data.diffuseColor	= s.Albedo;
+	data.occlusion		= s.Occlusion;		
+	data.specularColor	= specColor;
+	data.smoothness		= s.Smoothness;	
+	data.normalWorld	= s.Normal;
+
+	UnityStandardDataToGbuffer(data, outGBuffer0, outGBuffer1, outGBuffer2);
+
 	half4 emission = half4(s.Emission + c.rgb, 1);
 	return emission;
 }
@@ -139,7 +146,12 @@ inline void LightingStandard_GI (
 	UnityGIInput data,
 	inout UnityGI gi)
 {
-	UNITY_GI(gi, s, data);
+#if defined(UNITY_PASS_DEFERRED) && UNITY_ENABLE_REFLECTION_BUFFERS
+	gi = UnityGlobalIllumination(data, s.Occlusion, s.Normal);
+#else
+	Unity_GlossyEnvironmentData g = UnityGlossyEnvironmentSetup(s.Smoothness, data.worldViewDir, s.Normal, lerp(unity_ColorSpaceDielectricSpec.rgb, s.Albedo, s.Metallic));
+	gi = UnityGlobalIllumination(data, s.Occlusion, s.Normal, g);
+#endif
 }
 
 //-------------------------------------------------------------------------------------
@@ -175,7 +187,7 @@ inline half4 LightingStandardSpecular (SurfaceOutputStandardSpecular s, half3 vi
 	return c;
 }
 
-inline half4 LightingStandardSpecular_Deferred (SurfaceOutputStandardSpecular s, half3 viewDir, UnityGI gi, out half4 outDiffuseOcclusion, out half4 outSpecSmoothness, out half4 outNormal)
+inline half4 LightingStandardSpecular_Deferred (SurfaceOutputStandardSpecular s, half3 viewDir, UnityGI gi, out half4 outGBuffer0, out half4 outGBuffer1, out half4 outGBuffer2)
 {
 	// energy conservation
 	half oneMinusReflectivity;
@@ -184,9 +196,15 @@ inline half4 LightingStandardSpecular_Deferred (SurfaceOutputStandardSpecular s,
 	half4 c = UNITY_BRDF_PBS (s.Albedo, s.Specular, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, gi.light, gi.indirect);
 	c.rgb += UNITY_BRDF_GI (s.Albedo, s.Specular, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, s.Occlusion, gi);
 
-	outDiffuseOcclusion = half4(s.Albedo, s.Occlusion);
-	outSpecSmoothness = half4(s.Specular, s.Smoothness);
-	outNormal = half4(s.Normal * 0.5 + 0.5, 1);
+	UnityStandardData data;
+	data.diffuseColor	= s.Albedo;
+	data.occlusion		= s.Occlusion;		
+	data.specularColor	= s.Specular;
+	data.smoothness		= s.Smoothness;	
+	data.normalWorld	= s.Normal;
+
+	UnityStandardDataToGbuffer(data, outGBuffer0, outGBuffer1, outGBuffer2);
+
 	half4 emission = half4(s.Emission + c.rgb, 1);
 	return emission;
 }
@@ -196,7 +214,12 @@ inline void LightingStandardSpecular_GI (
 	UnityGIInput data,
 	inout UnityGI gi)
 {
-	UNITY_GI(gi, s, data);
+#if defined(UNITY_PASS_DEFERRED) && UNITY_ENABLE_REFLECTION_BUFFERS
+	gi = UnityGlobalIllumination(data, s.Occlusion, s.Normal);
+#else
+	Unity_GlossyEnvironmentData g = UnityGlossyEnvironmentSetup(s.Smoothness, data.worldViewDir, s.Normal, s.Specular);
+	gi = UnityGlobalIllumination(data, s.Occlusion, s.Normal, g);
+#endif
 }
 
 #endif // UNITY_PBS_LIGHTING_INCLUDED

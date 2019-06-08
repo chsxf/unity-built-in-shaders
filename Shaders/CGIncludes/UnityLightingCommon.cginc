@@ -8,7 +8,7 @@ struct UnityLight
 {
 	half3 color;
 	half3 dir;
-	half  ndotl;
+	half  ndotl; // Deprecated: Ndotl is now calculated on the fly and is no longer stored. Do not used it.
 };
 
 struct UnityIndirect
@@ -45,9 +45,14 @@ struct UnityGIInput
 	// also be full float precision to avoid data loss before sampling a texture. 
 	float4 lightmapUV; // .xy = static lightmap UV, .zw = dynamic lightmap UV
 
-	float4 boxMax[2];
+	#if UNITY_SPECCUBE_BLENDING || UNITY_SPECCUBE_BOX_PROJECTION
 	float4 boxMin[2];
+	#endif
+	#if UNITY_SPECCUBE_BOX_PROJECTION
+	float4 boxMax[2];	
 	float4 probePosition[2];
+	#endif
+	// HDR cubemap properties, use to decompress HDR texture
 	float4 probeHDR[2];
 };
 

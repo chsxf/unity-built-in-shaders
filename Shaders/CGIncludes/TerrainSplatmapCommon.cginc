@@ -91,11 +91,9 @@ void SplatmapFinalPrepass(Input IN, TERRAIN_SURFACE_OUTPUT o, inout fixed4 norma
 	normalSpec *= o.Alpha;
 }
 
-void SplatmapFinalGBuffer(Input IN, TERRAIN_SURFACE_OUTPUT o, inout half4 diffuse, inout half4 specSmoothness, inout half4 normal, inout half4 emission)
+void SplatmapFinalGBuffer(Input IN, TERRAIN_SURFACE_OUTPUT o, inout half4 outGBuffer0, inout half4 outGBuffer1, inout half4 outGBuffer2, inout half4 emission)
 {
-	diffuse.rgb *= o.Alpha;
-	specSmoothness *= o.Alpha;
-	normal.rgb *= o.Alpha;
+	UnityStandardDataApplyWeightToGbuffer(outGBuffer0, outGBuffer1, outGBuffer2, o.Alpha);
 	emission *= o.Alpha;
 }
 

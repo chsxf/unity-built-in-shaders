@@ -10,6 +10,7 @@ Shader "Hidden/Internal-MotionVectors"
 		float4x4 _PreviousVP;
 		float4x4 _PreviousM;
 		bool _HasLastPositionData;
+		bool _ForceNoMotion;
 		float _MotionVectorDepthBias;
 
 		struct MotionVectorData
@@ -17,17 +18,21 @@ Shader "Hidden/Internal-MotionVectors"
 			float4 transferPos : TEXCOORD0;
 			float4 transferPosOld : TEXCOORD1;
 			float4 pos : SV_POSITION;
+			UNITY_VERTEX_OUTPUT_STEREO
 		};
 
 		struct MotionVertexInput
 		{
 			float4 vertex : POSITION;
 			float3 oldPos : NORMAL;
+			UNITY_VERTEX_INPUT_INSTANCE_ID
 		};
 
 		MotionVectorData VertMotionVectors(MotionVertexInput v)
 		{
 			MotionVectorData o;
+			UNITY_SETUP_INSTANCE_ID(v);
+			UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 			o.pos = UnityObjectToClipPos(v.vertex);
 
 			// this works around an issue with dynamic batching
@@ -56,7 +61,7 @@ Shader "Hidden/Internal-MotionVectors"
 			vPosOld.y = 1.0 - vPosOld.y;
 #endif
 			half2 uvDiff = vPos - vPosOld;
-			return half4(uvDiff, 0, 1);
+			return lerp(half4(uvDiff, 0, 1), 0, (half)_ForceNoMotion);
 		}
 
 		//Camera rendering things
@@ -67,12 +72,22 @@ Shader "Hidden/Internal-MotionVectors"
 			float4 pos : SV_POSITION;
 			float2 uv : TEXCOORD0;
 			float3 ray : TEXCOORD1;
+			UNITY_VERTEX_OUTPUT_STEREO
 		};
 
-		CamMotionVectors VertMotionVectorsCamera(float4 vertex : POSITION, float3 normal : NORMAL)
+		struct CamMotionVectorsInput
+		{
+			float4 vertex : POSITION;
+			float3 normal : NORMAL;
+			UNITY_VERTEX_INPUT_INSTANCE_ID
+		};
+
+		CamMotionVectors VertMotionVectorsCamera(CamMotionVectorsInput v)
 		{
 			CamMotionVectors o;
-			o.pos = UnityObjectToClipPos(vertex);
+			UNITY_SETUP_INSTANCE_ID(v);
+			UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+			o.pos = UnityObjectToClipPos(v.vertex);
 
 #ifdef UNITY_HALF_TEXEL_OFFSET
 			o.pos.xy += (_ScreenParams.zw - 1.0) * float2(-1, 1) * o.pos.w;
@@ -80,7 +95,7 @@ Shader "Hidden/Internal-MotionVectors"
 			o.uv = ComputeScreenPos(o.pos);
 			// we know we are rendering a quad,
 			// and the normal passed from C++ is the raw ray.
-			o.ray = normal;
+			o.ray = v.normal;
 			return o;
 		}
 		

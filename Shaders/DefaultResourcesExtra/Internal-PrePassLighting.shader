@@ -80,25 +80,6 @@ fixed4 frag (unity_v2f_deferred i) : SV_Target
 ENDCG
 }
 
-/*Pass 3: Xenon HDR Specular Pass - 10-10-10-2 buffer means we need separate specular buffer*/
-Pass {
-	ZWrite Off
-	Blend One One
-	
-CGPROGRAM
-#pragma target 3.0
-#pragma vertex vert_deferred
-#pragma fragment frag
-#pragma multi_compile_lightpass
-
-fixed4 frag (unity_v2f_deferred i) : SV_Target
-{
-	return CalculateLight(i).argb;
-}
-
-ENDCG
-}
-
 }
 Fallback Off
 }

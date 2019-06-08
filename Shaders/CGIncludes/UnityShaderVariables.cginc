@@ -7,13 +7,13 @@
 #define USING_DIRECTIONAL_LIGHT
 #endif
 
-#if defined (INSTANCING_ON) || defined (UNITY_SINGLE_PASS_STEREO) || defined (UNITY_FORCE_CONCATENATE_MATRICES)
+#if defined (INSTANCING_ON) || defined (UNITY_SINGLE_PASS_STEREO) || defined(UNITY_FORCE_CONCATENATE_MATRICES) || defined (STEREO_INSTANCING_ON)
 // Use separate matrices in this case.
 #else
 #define UNITY_USE_PREMULTIPLIED_MATRICES
 #endif
 
-#ifdef UNITY_SINGLE_PASS_STEREO
+#if defined(UNITY_SINGLE_PASS_STEREO) || defined(STEREO_INSTANCING_ON)
 	#define glstate_matrix_projection unity_StereoMatrixP[unity_StereoEyeIndex]
 	#define unity_MatrixV unity_StereoMatrixV[unity_StereoEyeIndex]
 	#define unity_MatrixInvV unity_StereoMatrixInvV[unity_StereoEyeIndex]
@@ -57,7 +57,7 @@ CBUFFER_START(UnityPerCamera)
 	float4 _CosTime; // cos(t/8), cos(t/4), cos(t/2), cos(t)
 	float4 unity_DeltaTime; // dt, 1/dt, smoothdt, 1/smoothdt
 	
-#ifndef UNITY_SINGLE_PASS_STEREO
+#if !defined(UNITY_SINGLE_PASS_STEREO) && !defined(STEREO_INSTANCING_ON)
 	float3 _WorldSpaceCameraPos;
 #endif
 	
@@ -91,7 +91,7 @@ CBUFFER_END
 CBUFFER_START(UnityPerCameraRare)
 	float4 unity_CameraWorldClipPlanes[6];
 
-#ifndef UNITY_SINGLE_PASS_STEREO
+#if !defined(UNITY_SINGLE_PASS_STEREO) && !defined(STEREO_INSTANCING_ON)
 	// Projection matrices of the camera. Note that this might be different from projection matrix
 	// that is set right now, e.g. while rendering shadows the matrices below are still the projection
 	// of original camera.
@@ -162,7 +162,7 @@ CBUFFER_END
 
 // ----------------------------------------------------------------------------
 
-CBUFFER_START(UnityPerDraw)
+CBUFFER_START_WITH_BINDING(UnityPerDraw, 1, 0)
 #ifdef UNITY_USE_PREMULTIPLIED_MATRICES
 	float4x4 glstate_matrix_mvp;
 	float4x4 glstate_matrix_modelview0;
@@ -175,7 +175,7 @@ CBUFFER_START(UnityPerDraw)
 	float4 unity_WorldTransformParams; // w is usually 1.0, or -1.0 for odd-negative scale transforms
 CBUFFER_END
 
-#ifdef UNITY_SINGLE_PASS_STEREO
+#if defined(UNITY_SINGLE_PASS_STEREO) || defined(STEREO_INSTANCING_ON)
 CBUFFER_START(UnityStereoGlobals)
 	float4x4 unity_StereoMatrixP[2];
 	float4x4 unity_StereoMatrixV[2];
@@ -211,7 +211,7 @@ CBUFFER_START(UnityPerFrame)
 	fixed4 unity_AmbientGround;
 	fixed4 unity_IndirectSpecColor;
 
-#ifndef UNITY_SINGLE_PASS_STEREO
+#if !defined(UNITY_SINGLE_PASS_STEREO) && !defined(STEREO_INSTANCING_ON)
 	float4x4 glstate_matrix_projection;
 	float4x4 unity_MatrixV;
 	float4x4 unity_MatrixInvV;

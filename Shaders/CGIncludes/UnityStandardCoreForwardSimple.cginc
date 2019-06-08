@@ -28,7 +28,7 @@ struct VertexOutputBaseSimple
 		half3 tangentSpaceEyeVec		: TEXCOORD7;
 	#endif
 #endif
-#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
+#if UNITY_REQUIRE_FRAG_WORLDPOS
 	float3 posWorld						: TEXCOORD8;
 #endif
 };
@@ -79,7 +79,7 @@ VertexOutputBaseSimple vertForwardBaseSimple (VertexInput v)
 	UNITY_INITIALIZE_OUTPUT(VertexOutputBaseSimple, o);
 
 	float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
-#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
+#if UNITY_REQUIRE_FRAG_WORLDPOS
 	o.posWorld = posWorld.xyz;
 #endif
 	o.pos = UnityObjectToClipPos(v.vertex);
@@ -106,7 +106,7 @@ VertexOutputBaseSimple vertForwardBaseSimple (VertexInput v)
 
 	o.fogCoord.yzw = reflect(eyeVec, normalWorld);
 
-	o.normalWorld.w = Pow4(1 - DotClamped (normalWorld, -eyeVec)); // fresnel term
+	o.normalWorld.w = Pow4(1 - saturate(dot(normalWorld, -eyeVec))); // fresnel term
 	#if !GLOSSMAP
 		o.eyeVec.w = saturate(_Glossiness + UNIFORM_REFLECTIVITY()); // grazing term
 	#endif
@@ -144,17 +144,14 @@ FragmentCommonData FragmentSetupSimple(VertexOutputBaseSimple i)
 
 UnityLight MainLightSimple(VertexOutputBaseSimple i, FragmentCommonData s)
 {
-	UnityLight mainLight = MainLight(s.normalWorld);
-	#if defined(LIGHTMAP_OFF) && defined(_NORMALMAP)
-		mainLight.ndotl = LambertTerm(s.tangentSpaceNormal, i.tangentSpaceLightDir);
-	#endif
+	UnityLight mainLight = MainLight();
 	return mainLight;
 }
 
 half PerVertexGrazingTerm(VertexOutputBaseSimple i, FragmentCommonData s)
 {
 	#if GLOSSMAP
-		return saturate(s.oneMinusRoughness + (1-s.oneMinusReflectivity));
+		return saturate(s.smoothness + (1-s.oneMinusReflectivity));
 	#else
 		return i.eyeVec.w;
 	#endif
@@ -182,10 +179,10 @@ half3 LightDirForSpecular(VertexOutputBaseSimple i, UnityLight mainLight)
 	#endif
 }
 
-half3 BRDF3DirectSimple(half3 diffColor, half3 specColor, half oneMinusRoughness, half rl)
+half3 BRDF3DirectSimple(half3 diffColor, half3 specColor, half smoothness, half rl)
 {
 	#if SPECULAR_HIGHLIGHTS
-		return BRDF3_Direct(diffColor, specColor, Pow4(rl), oneMinusRoughness);
+		return BRDF3_Direct(diffColor, specColor, Pow4(rl), smoothness);
 	#else
 		return diffColor;
 	#endif
@@ -197,17 +194,23 @@ half4 fragForwardBaseSimpleInternal (VertexOutputBaseSimple i)
 
 	UnityLight mainLight = MainLightSimple(i, s);
 	
+	#if !defined(LIGHTMAP_ON) && defined(_NORMALMAP)
+	half ndotl = saturate(dot(s.tangentSpaceNormal, i.tangentSpaceLightDir));
+	#else
+	half ndotl = saturate(dot(s.normalWorld, mainLight.dir));
+	#endif
+	
 	half atten = SHADOW_ATTENUATION(i);
 	
 	half occlusion = Occlusion(i.tex.xy);
 	half rl = dot(REFLECTVEC_FOR_SPECULAR(i, s), LightDirForSpecular(i, mainLight));
 	
 	UnityGI gi = FragmentGI (s, occlusion, i.ambientOrLightmapUV, atten, mainLight);
-	half3 attenuatedLightColor = gi.light.color * mainLight.ndotl;
+	half3 attenuatedLightColor = gi.light.color * ndotl;
 
 	half3 c = BRDF3_Indirect(s.diffColor, s.specColor, gi.indirect, PerVertexGrazingTerm(i, s), PerVertexFresnelTerm(i));
-	c += BRDF3DirectSimple(s.diffColor, s.specColor, s.oneMinusRoughness, rl) * attenuatedLightColor;
-	c += UNITY_BRDF_GI (s.diffColor, s.specColor, s.oneMinusReflectivity, s.oneMinusRoughness, s.normalWorld, -s.eyeVec, occlusion, gi);
+	c += BRDF3DirectSimple(s.diffColor, s.specColor, s.smoothness, rl) * attenuatedLightColor;
+	c += UNITY_BRDF_GI (s.diffColor, s.specColor, s.oneMinusReflectivity, s.smoothness, s.normalWorld, -s.eyeVec, occlusion, gi);
 	c += Emission(i.tex.xy);
 
 	UNITY_APPLY_FOG(i.fogCoord, c);
@@ -331,13 +334,13 @@ half4 fragForwardAddSimpleInternal (VertexOutputForwardAddSimple i)
 {
 	FragmentCommonData s = FragmentSetupSimpleAdd(i);
 
-	half3 c = BRDF3DirectSimple(s.diffColor, s.specColor, s.oneMinusRoughness, dot(REFLECTVEC_FOR_SPECULAR(i, s), i.lightDir));
+	half3 c = BRDF3DirectSimple(s.diffColor, s.specColor, s.smoothness, dot(REFLECTVEC_FOR_SPECULAR(i, s), i.lightDir));
 
 	#if SPECULAR_HIGHLIGHTS // else diffColor has premultiplied light color
 		c *= _LightColor0.rgb;
 	#endif
 
-	c *= LIGHT_ATTENUATION(i) * LambertTerm(LightSpaceNormal(i, s), i.lightDir);
+	c *= LIGHT_ATTENUATION(i) * saturate(dot(LightSpaceNormal(i, s), i.lightDir));
 	
 	UNITY_APPLY_FOG_COLOR(i.fogCoord, c.rgb, half4(0,0,0,0)); // fog towards black in additive pass
 	return OutputForward (half4(c, 1), s.alpha);

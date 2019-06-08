@@ -5,23 +5,33 @@
 #include "UnityStandardConfig.cginc"
 #include "UnityLightingCommon.cginc"
 
-//-------------------------------------------------------------------------------------
-// Legacy, to keep backwards compatibility for (pre Unity 5.3) custom user shaders:
-#define unity_LightGammaCorrectionConsts_PIDiv4 (IsGammaSpace()? (UNITY_PI/4)*(UNITY_PI/4): (UNITY_PI/4))
-#define unity_LightGammaCorrectionConsts_HalfDivPI (IsGammaSpace()? (.5h/UNITY_PI)*(.5h/UNITY_PI): (.5h/UNITY_PI))
-#define unity_LightGammaCorrectionConsts_8 (IsGammaSpace()? (8*8): 8)
-#define unity_LightGammaCorrectionConsts_SqrtHalfPI (IsGammaSpace()? (2/UNITY_PI): 0.79788)
+//-----------------------------------------------------------------------------
+// Helper to convert smoothness to roughness
+//-----------------------------------------------------------------------------
 
-//-------------------------------------------------------------------------------------
-
-inline half DotClamped (half3 a, half3 b)
+half PerceptualRoughnessToRoughness(half perceptualRoughness)
 {
-	#if (SHADER_TARGET < 30 || defined(SHADER_API_PS3))
-		return saturate(dot(a, b));
-	#else
-		return max(0.0h, dot(a, b));
-	#endif
+	return perceptualRoughness * perceptualRoughness;
 }
+
+half RoughnessToPerceptualRoughness(half roughness)
+{
+	return sqrt(roughness);
+}
+
+// Smoothness is the user facing name
+// it should be perceptualSmoothness but we don't want the user to have to deal with this name
+half SmoothnessToRoughness(half smoothness)
+{
+	return (1 - smoothness) * (1 - smoothness);
+}
+
+half SmoothnessToPerceptualRoughness(half smoothness)
+{
+	return (1 - smoothness);
+}
+
+//-------------------------------------------------------------------------------------
 
 inline half Pow4 (half x)
 {
@@ -66,16 +76,6 @@ inline half4 Pow5 (half4 x)
 	return x*x * x*x * x;
 }
 
-inline half LambertTerm (half3 normal, half3 lightDir)
-{
-	return DotClamped (normal, lightDir);
-}
-
-inline half BlinnTerm (half3 normal, half3 halfDir)
-{
-	return DotClamped (normal, halfDir);
-}
-
 inline half3 FresnelTerm (half3 F0, half cosA)
 {
 	half t = Pow5 (1 - cosA);	// ala Schlick interpoliation
@@ -92,46 +92,20 @@ inline half3 FresnelLerpFast (half3 F0, half3 F90, half cosA)
 	half t = Pow4 (1 - cosA);
 	return lerp (F0, F90, t);
 }
-inline half3 LazarovFresnelTerm (half3 F0, half roughness, half cosA)
+
+// Note: Disney diffuse must be multiply by diffuseAlbedo / PI. This is done outside of this function.
+half DisneyDiffuse(half NdotV, half NdotL, half LdotH, half perceptualRoughness)
 {
-	half t = Pow5 (1 - cosA);	// ala Schlick interpoliation
-	t /= 4 - 3 * roughness;
-	return F0 + (1-F0) * t;
-}
-inline half3 SebLagardeFresnelTerm (half3 F0, half roughness, half cosA)
-{
-	half t = Pow5 (1 - cosA);	// ala Schlick interpoliation
-	return F0 + (max (F0, roughness) - F0) * t;
+	half fd90 = 0.5 + 2 * LdotH * LdotH * perceptualRoughness;
+	// Two schlick fresnel term
+	half lightScatter	= (1 + (fd90 - 1) * Pow5(1 - NdotL));
+	half viewScatter	= (1 + (fd90 - 1) * Pow5(1 - NdotV));
+
+	return lightScatter * viewScatter;
 }
 
 // NOTE: Visibility term here is the full form from Torrance-Sparrow model, it includes Geometric term: V = G / (N.L * N.V)
 // This way it is easier to swap Geometric terms and more room for optimizations (except maybe in case of CookTorrance geom term)
-
-// Cook-Torrance visibility term, doesn't take roughness into account
-inline half CookTorranceVisibilityTerm (half NdotL, half NdotV,  half NdotH, half VdotH)
-{
-	VdotH += 1e-5f;
-	half G = min (1.0, min (
-		(2.0 * NdotH * NdotV) / VdotH,
-		(2.0 * NdotH * NdotL) / VdotH));
-	return G / (NdotL * NdotV + 1e-4f);
-}
-
-// Kelemen-Szirmay-Kalos is an approximation to Cook-Torrance visibility term
-// http://sirkan.iit.bme.hu/~szirmay/scook.pdf
-inline half KelemenVisibilityTerm (half LdotH)
-{
-	return 1.0 / (LdotH * LdotH);
-}
-
-// Modified Kelemen-Szirmay-Kalos which takes roughness into account, based on: http://www.filmicworlds.com/2014/04/21/optimizing-ggx-shaders-with-dotlh/ 
-inline half ModifiedKelemenVisibilityTerm (half LdotH, half roughness)
-{
-	half c = 0.797884560802865h; // c = sqrt(2 / Pi)
-	half k = roughness * roughness * c;
-	half gH = LdotH * (1-k) + k;
-	return 1.0 / (gH * gH);
-}
 
 // Generic Smith-Schlick visibility term
 inline half SmithVisibilityTerm (half NdotL, half NdotV, half k)
@@ -146,15 +120,8 @@ inline half SmithVisibilityTerm (half NdotL, half NdotV, half k)
 inline half SmithBeckmannVisibilityTerm (half NdotL, half NdotV, half roughness)
 {
 	half c = 0.797884560802865h; // c = sqrt(2 / Pi)
-	half k = roughness * roughness * c;
-	return SmithVisibilityTerm (NdotL, NdotV, k);
-}
-
-// Smith-Schlick derived for GGX 
-inline half SmithGGXVisibilityTerm (half NdotL, half NdotV, half roughness)
-{
-	half k = (roughness * roughness) / 2; // derived by B. Karis, http://graphicrants.blogspot.se/2013/08/specular-brdf-reference.html
-	return SmithVisibilityTerm (NdotL, NdotV, k);
+	half k = roughness * c;
+	return SmithVisibilityTerm (NdotL, NdotV, k) * 0.25f; // * 0.25 is the 1/4 of the visibility term
 }
 
 // Ref: http://jcgt.org/published/0003/02/03/paper.pdf
@@ -167,50 +134,40 @@ inline half SmithJointGGXVisibilityTerm (half NdotL, half NdotV, half roughness)
 	//	G			= 1 / (1 + lambda_v + lambda_l);
 
 	// Reorder code to be more optimal
-	half a		= roughness * roughness; // from unity roughness to true roughness
-	half a2		= a * a;
+	half a			= roughness;
+	half a2			= a * a;
 
-	half lambdaV = NdotL * sqrt((-NdotV * a2 + NdotV) * NdotV + a2);
-	half lambdaL = NdotV * sqrt((-NdotL * a2 + NdotL) * NdotL + a2);
+	half lambdaV	= NdotL * sqrt((-NdotV * a2 + NdotV) * NdotV + a2);
+	half lambdaL	= NdotV * sqrt((-NdotL * a2 + NdotL) * NdotL + a2);
 
-	// Unity BRDF code expect already simplified data by (NdotL * NdotV)
-	// return (2.0f * NdotL * NdotV) / (lambda_v + lambda_l + 1e-5f);
-	return 2.0f / (lambdaV + lambdaL + 1e-5f);
+	// Simplify visibility term: (2.0f * NdotL * NdotV) /  ((4.0f * NdotL * NdotV) * (lambda_v + lambda_l + 1e-5f));
+	return 0.5f / (lambdaV + lambdaL + 1e-5f);	// This function is not intended to be running on Mobile,
+												// therefore epsilon is smaller than can be represented by half
 #else
     // Approximation of the above formulation (simplify the sqrt, not mathematically correct but close enough)
-	half a = roughness * roughness;
+	half a = roughness;
 	half lambdaV = NdotL * (NdotV * (1 - a) + a);
 	half lambdaL = NdotV * (NdotL * (1 - a) + a);
-	return 2.0f / (lambdaV + lambdaL + 1e-5f);	// This function is not intended to be running on Mobile,
-												// therefore epsilon is smaller than can be represented by half
+
+	return 0.5f / (lambdaV + lambdaL + 1e-5f);
 #endif
 }
 
-inline half ImplicitVisibilityTerm ()
+inline half GGXTerm (half NdotH, half roughness)
 {
-	return 1;
+	half a2 = roughness * roughness;
+	half d = (NdotH * a2 - NdotH) * NdotH + 1.0f; // 2 mad
+	return UNITY_INV_PI * a2 / (d * d + 1e-7f); // This function is not intended to be running on Mobile,
+											// therefore epsilon is smaller than what can be represented by half
 }
 
-inline half RoughnessToSpecPower (half roughness)
+inline half PerceptualRoughnessToSpecPower (half perceptualRoughness)
 {
-#if UNITY_GLOSS_MATCHES_MARMOSET_TOOLBAG2
-	// from https://s3.amazonaws.com/docs.knaldtech.com/knald/1.0.0/lys_power_drops.html
-	half n = 10.0 / log2((1-roughness)*0.968 + 0.03);
-#if defined(SHADER_API_PS3) || defined(SHADER_API_GLES) || defined(SHADER_API_GLES3)
-	// Prevent fp16 overflow when running on platforms where half is actually in use.
-	n = max(n,-255.9370);  //i.e. less than sqrt(65504)
-#endif
-	return n * n;
-
-	// NOTE: another approximate approach to match Marmoset gloss curve is to
-	// multiply roughness by 0.7599 in the code below (makes SpecPower range 4..N instead of 1..N)
-#else
-	half m = max(1e-4f, roughness * roughness);			// m is the true academic roughness.
-	
-	half n = (2.0 / (m*m)) - 2.0;						// https://dl.dropboxusercontent.com/u/55891920/papers/mm_brdf.pdf
+	half m = PerceptualRoughnessToRoughness(perceptualRoughness);	// m is the true academic roughness.
+	half sq = max(1e-4f, m*m);
+	half n = (2.0 / sq) - 2.0;							// https://dl.dropboxusercontent.com/u/55891920/papers/mm_brdf.pdf
 	n = max(n, 1e-4f);									// prevent possible cases of pow(0,0), which could happen when roughness is 1.0 and NdotH is zero
 	return n;
-#endif
 }
 
 // BlinnPhong normalized as normal distribution function (NDF)
@@ -223,25 +180,6 @@ inline half NDFBlinnPhongNormalizedTerm (half NdotH, half n)
 
 	half specTerm = pow (NdotH, n);
 	return specTerm * normTerm;
-}
-
-// BlinnPhong normalized as reflec­tion den­sity func­tion (RDF)
-// ready for use directly as specular: spec=D
-// http://www.thetenthplanet.de/archives/255
-inline half RDFBlinnPhongNormalizedTerm (half NdotH, half n)
-{
-	half normTerm = (n + 2.0) / (8.0 * UNITY_PI);
-	half specTerm = pow (NdotH, n);
-	return specTerm * normTerm;
-}
-
-inline half GGXTerm (half NdotH, half roughness)
-{
-	half a = roughness * roughness;
-	half a2 = a * a;
-	half d = NdotH * NdotH * (a2 - 1.f) + 1.f;
-	return a2 / (UNITY_PI * d * d + 1e-7f); // This function is not intended to be running on Mobile,
-											// therefore epsilon is smaller than what can be represented by half
 }
 
 //-------------------------------------------------------------------------------------
@@ -259,71 +197,9 @@ float GetSpecPowToMip(float fSpecPow, int nMips)
    return float(nMips-1)*(1.0 - clamp( fSmulMaxT/g_fMaxT, 0.0, 1.0 ));
 }
 
-	//float specPower = RoughnessToSpecPower (roughness);
+	//float specPower = PerceptualRoughnessToSpecPower(perceptualRoughness);
 	//float mip = GetSpecPowToMip (specPower, 7);
 */
-
-// Decodes HDR textures
-// handles dLDR, RGBM formats
-// Modified version of DecodeHDR from UnityCG.cginc
-inline half3 DecodeHDR_NoLinearSupportInSM2 (half4 data, half4 decodeInstructions)
-{
-	// If Linear mode is not supported we can skip exponent part
-
-	// In Standard shader SM2.0 and SM3.0 paths are always using different shader variations
-	// SM2.0: hardware does not support Linear, we can skip exponent part
-	#if defined(UNITY_NO_LINEAR_COLORSPACE) && (SHADER_TARGET < 30)
-		return (data.a * decodeInstructions.x) * data.rgb;
-	#else
-		return DecodeHDR(data, decodeInstructions);
-	#endif
-}
-
-struct
-Unity_GlossyEnvironmentData
-{
-	half	roughness;
-	half3	reflUVW;
-};
-
-half3 Unity_GlossyEnvironment (UNITY_ARGS_TEXCUBE(tex), half4 hdr, Unity_GlossyEnvironmentData glossIn)
-{
-#if UNITY_GLOSS_MATCHES_MARMOSET_TOOLBAG2 && (SHADER_TARGET >= 30)
-	// TODO: remove pow, store cubemap mips differently
-	half roughness = pow(glossIn.roughness, 3.0/4.0);
-#else
-	half roughness = glossIn.roughness;			// MM: switched to this
-#endif
-	//roughness = sqrt(sqrt(2/(64.0+2)));		// spec power to the square root of real roughness
-
-#if 0
-	float m = roughness*roughness;				// m is the real roughness parameter
-	const float fEps = 1.192092896e-07F;        // smallest such that 1.0+FLT_EPSILON != 1.0  (+1e-4h is NOT good here. is visibly very wrong)
-	float n =  (2.0/max(fEps, m*m))-2.0;		// remap to spec power. See eq. 21 in --> https://dl.dropboxusercontent.com/u/55891920/papers/mm_brdf.pdf
-
-	n /= 4;									    // remap from n_dot_h formulatino to n_dot_r. See section "Pre-convolved Cube Maps vs Path Tracers" --> https://s3.amazonaws.com/docs.knaldtech.com/knald/1.0.0/lys_power_drops.html
-
-	roughness = pow( 2/(n+2), 0.25);			// remap back to square root of real roughness
-#else
-	// MM: came up with a surprisingly close approximation to what the #if 0'ed out code above does.
-	roughness = roughness*(1.7 - 0.7*roughness);
-#endif
-
-
-#if UNITY_OPTIMIZE_TEXCUBELOD
-	half4 rgbm = UNITY_SAMPLE_TEXCUBE_LOD(tex, glossIn.reflUVW, 4);
-	if(roughness > 0.5)
-		rgbm = lerp(rgbm, UNITY_SAMPLE_TEXCUBE_LOD(tex, glossIn.reflUVW, 8), 2*roughness-1);
-	else
-		rgbm = lerp(UNITY_SAMPLE_TEXCUBE(tex, glossIn.reflUVW), rgbm, 2*roughness);
-#else
-	half mip = roughness * UNITY_SPECCUBE_LOD_STEPS;
-	half4 rgbm = UNITY_SAMPLE_TEXCUBE_LOD(tex, glossIn.reflUVW, mip);
-#endif
-
-	return DecodeHDR_NoLinearSupportInSM2 (rgbm, hdr);
-}
-
 
 inline half3 Unity_SafeNormalize(half3 inVec)
 {
@@ -333,7 +209,7 @@ inline half3 Unity_SafeNormalize(half3 inVec)
 
 //-------------------------------------------------------------------------------------
 
-// Note: BRDF entry points use oneMinusRoughness (aka "smoothness") and oneMinusReflectivity for optimization
+// Note: BRDF entry points use smoothness and oneMinusReflectivity for optimization
 // purposes, mostly for DX9 SM2.0 level. Most of the math is being done on these (1-x) values, and that saves
 // a few precious ALU slots.
 
@@ -349,80 +225,80 @@ inline half3 Unity_SafeNormalize(half3 inVec)
 //  b) GGX
 // * Smith for Visiblity term
 // * Schlick approximation for Fresnel
-half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivity, half oneMinusRoughness,
+half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivity, half smoothness,
 	half3 normal, half3 viewDir,
 	UnityLight light, UnityIndirect gi)
 {
-	half roughness = 1-oneMinusRoughness;
+	half perceptualRoughness = SmoothnessToPerceptualRoughness (smoothness);
 	half3 halfDir = Unity_SafeNormalize (light.dir + viewDir);
 
-	// NdotV should not be negative for visible pixels, but it can happen due to perspective projection and normal mapping
-	// In this case normal should be modified to become valid (i.e facing camera) and not cause weird artifacts.
-	// but this operation adds few ALU and users may not want it. Alternative is to simply take the abs of NdotV (less correct but works too).
-	// Following define allow to control this. Set it to 0 if ALU is critical on your platform.
-	// This correction is interesting for GGX with SmithJoint visibility function because artifacts are more visible in this case due to highlight edge of rough surface
-	// Edit: Disable this code by default for now as it is not compatible with two sided lighting used in SpeedTree.
-	#define UNITY_HANDLE_CORRECTLY_NEGATIVE_NDOTV 0 
+// NdotV should not be negative for visible pixels, but it can happen due to perspective projection and normal mapping
+// In this case normal should be modified to become valid (i.e facing camera) and not cause weird artifacts.
+// but this operation adds few ALU and users may not want it. Alternative is to simply take the abs of NdotV (less correct but works too).
+// Following define allow to control this. Set it to 0 if ALU is critical on your platform.
+// This correction is interesting for GGX with SmithJoint visibility function because artifacts are more visible in this case due to highlight edge of rough surface
+// Edit: Disable this code by default for now as it is not compatible with two sided lighting used in SpeedTree.
+#define UNITY_HANDLE_CORRECTLY_NEGATIVE_NDOTV 0 
 
 #if UNITY_HANDLE_CORRECTLY_NEGATIVE_NDOTV
 	// The amount we shift the normal toward the view vector is defined by the dot product.
-	// This correction is only applied with SmithJoint visibility function because artifacts are more visible in this case due to highlight edge of rough surface
 	half shiftAmount = dot(normal, viewDir);
 	normal = shiftAmount < 0.0f ? normal + viewDir * (-shiftAmount + 1e-5f) : normal;
 	// A re-normalization should be applied here but as the shift is small we don't do it to save ALU.
 	//normal = normalize(normal);
 
-	// As we have modified the normal we need to recalculate the dot product nl.
-	// Note that  light.ndotl is a clamped cosine and only the ForwardSimple mode use a specific ndotL with BRDF3
-	half nl = DotClamped(normal, light.dir);
+	half nv = saturate(dot(normal, viewDir)); // TODO: this saturate should no be necessary here
 #else
-	half nl = light.ndotl;
+	half nv = abs(dot(normal, viewDir));	// This abs allow to limit artifact
 #endif
-	half nh = BlinnTerm (normal, halfDir);
-	half nv = DotClamped(normal, viewDir);
 
-	half lv = DotClamped (light.dir, viewDir);
-	half lh = DotClamped (light.dir, halfDir);
+	half nl = saturate(dot(normal, light.dir));
+	half nh = saturate(dot(normal, halfDir));
 
+	half lv = saturate(dot(light.dir, viewDir));
+	half lh = saturate(dot(light.dir, halfDir));
+
+	// Diffuse term
+	half diffuseTerm = DisneyDiffuse(nv, nl, lh, perceptualRoughness) * nl;
+
+	// Specular term
+	// HACK: theoretically we should divide diffuseTerm by Pi and not multiply specularTerm!
+	// BUT 1) that will make shader look significantly darker than Legacy ones
+	// and 2) on engine side "Non-important" lights have to be divided by Pi too in cases when they are injected into ambient SH
+	half roughness = PerceptualRoughnessToRoughness(perceptualRoughness);
 #if UNITY_BRDF_GGX
 	half V = SmithJointGGXVisibilityTerm (nl, nv, roughness);
 	half D = GGXTerm (nh, roughness);
 #else
+	// Legacy
 	half V = SmithBeckmannVisibilityTerm (nl, nv, roughness);
-	half D = NDFBlinnPhongNormalizedTerm (nh, RoughnessToSpecPower (roughness));
+	half D = NDFBlinnPhongNormalizedTerm (nh, PerceptualRoughnessToSpecPower(perceptualRoughness));
 #endif
 
-	half nlPow5 = Pow5 (1-nl);
-	half nvPow5 = Pow5 (1-nv);
-	half Fd90 = 0.5 + 2 * lh * lh * roughness;
-	half disneyDiffuse = (1 + (Fd90-1) * nlPow5) * (1 + (Fd90-1) * nvPow5);
-	
-	// HACK: theoretically we should divide by Pi diffuseTerm and not multiply specularTerm!
-	// BUT 1) that will make shader look significantly darker than Legacy ones
-	// and 2) on engine side "Non-important" lights have to be divided by Pi to in cases when they are injected into ambient SH
-	// NOTE: multiplication by Pi is part of single constant together with 1/4 now
-	half specularTerm = (V * D) * (UNITY_PI/4); // Torrance-Sparrow model, Fresnel is applied later (for optimization reasons)
-	if (IsGammaSpace())
+	half specularTerm = V*D * UNITY_PI; // Torrance-Sparrow model, Fresnel is applied later
+
+#	ifdef UNITY_COLORSPACE_GAMMA
 		specularTerm = sqrt(max(1e-4h, specularTerm));
+#	endif
+
+	// specularTerm * nl can be NaN on Metal in some cases, use max() to make sure it's a sane value
 	specularTerm = max(0, specularTerm * nl);
-
-
 #if defined(_SPECULARHIGHLIGHTS_OFF)
 	specularTerm = 0.0;
 #endif
 
-	half diffuseTerm = disneyDiffuse * nl;
-
-	// surfaceReduction = Int D(NdotH) * NdotH * Id(NdotL>0) dH = 1/(realRoughness^2+1)
-	half realRoughness = roughness*roughness;		// need to square perceptual roughness
+	// surfaceReduction = Int D(NdotH) * NdotH * Id(NdotL>0) dH = 1/(roughness^2+1)
 	half surfaceReduction;
-	if(IsGammaSpace()) surfaceReduction = 1.0-0.28*realRoughness*roughness;		// 1-0.28*x^3 as approximation for (1/(x^4+1))^(1/2.2) on the domain [0;1]
-	else surfaceReduction = 1.0 / (realRoughness*realRoughness + 1.0);			// fade \in [0.5;1]
-		
+#	ifdef UNITY_COLORSPACE_GAMMA
+		surfaceReduction = 1.0-0.28*roughness*perceptualRoughness;		// 1-0.28*x^3 as approximation for (1/(x^4+1))^(1/2.2) on the domain [0;1]
+#	else
+		surfaceReduction = 1.0 / (roughness*roughness + 1.0);			// fade \in [0.5;1]
+#	endif
+
 	// To provide true Lambert lighting, we need to be able to kill specular completely.
 	specularTerm *= any(specColor) ? 1.0 : 0.0;
 
-	half grazingTerm = saturate(oneMinusRoughness + (1-oneMinusReflectivity));
+	half grazingTerm = saturate(smoothness + (1-oneMinusReflectivity));
     half3 color =	diffColor * (gi.diffuse + light.color * diffuseTerm)
                     + specularTerm * light.color * FresnelTerm (specColor, lh)
 					+ surfaceReduction * gi.specular * FresnelLerp (specColor, grazingTerm, nv);
@@ -433,68 +309,103 @@ half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 // Based on Minimalist CookTorrance BRDF
 // Implementation is slightly different from original derivation: http://www.thetenthplanet.de/archives/255
 //
-// * BlinnPhong as NDF
+// * NDF (depending on UNITY_BRDF_GGX):
+//  a) BlinnPhong
+//  b) [Modified] GGX
 // * Modified Kelemen and Szirmay-​Kalos for Visibility term
 // * Fresnel approximated with 1/LdotH
-half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivity, half oneMinusRoughness,
+half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivity, half smoothness,
 	half3 normal, half3 viewDir,
 	UnityLight light, UnityIndirect gi)
 {
 	half3 halfDir = Unity_SafeNormalize (light.dir + viewDir);
 
-	half nl = light.ndotl;
-	half nh = BlinnTerm (normal, halfDir);
-	half nv = DotClamped (normal, viewDir);
-	half lh = DotClamped (light.dir, halfDir);
+	half nl = saturate(dot(normal, light.dir));
+	half nh = saturate(dot(normal, halfDir));
+	half nv = saturate(dot(normal, viewDir));
+	half lh = saturate(dot(light.dir, halfDir));
 
-	half roughness = 1-oneMinusRoughness;
-	half specularPower = RoughnessToSpecPower (roughness);
+	// Specular term
+	half perceptualRoughness = SmoothnessToPerceptualRoughness (smoothness);
+	half roughness = PerceptualRoughnessToRoughness(perceptualRoughness);
+
+#if UNITY_BRDF_GGX
+
+	// GGX Distribution multiplied by combined approximation of Visibility and Fresnel
+	// See "Optimizing PBR for Mobile" from Siggraph 2015 moving mobile graphics course
+	// https://community.arm.com/events/1155
+	half a = roughness;
+	half a2 = a*a;
+
+	half d = nh * nh * (a2 - 1.h) + 1.00001h;
+#ifdef UNITY_COLORSPACE_GAMMA
+	// Tighter approximation for Gamma only rendering mode!
+	// DVF = sqrt(DVF);
+	// DVF = (a * sqrt(.25)) / (max(sqrt(0.1), lh)*sqrt(roughness + .5) * d);
+	half specularTerm = a / (max(0.32h, lh) * (1.5h + roughness) * d);
+#else
+	half specularTerm = a2 / (max(0.1h, lh*lh) * (roughness + 0.5h) * (d * d) * 4);
+#endif
+
+	// on mobiles (where half actually means something) denominator have risk of overflow
+	// clamp below was added specifically to "fix" that, but dx compiler (we convert bytecode to metal/gles)
+	// sees that specularTerm have only non-negative terms, so it skips max(0,..) in clamp (leaving only min(100,...))
+#if defined (SHADER_API_MOBILE)
+	specularTerm = specularTerm - 1e-4h;
+#endif
+
+#else
+
+	// Legacy
+	half specularPower = PerceptualRoughnessToSpecPower(perceptualRoughness);
 	// Modified with approximate Visibility function that takes roughness into account
 	// Original ((n+1)*N.H^n) / (8*Pi * L.H^3) didn't take into account roughness 
 	// and produced extremely bright specular at grazing angles
 
-	// HACK: theoretically we should divide by Pi diffuseTerm and not multiply specularTerm!
-	// BUT 1) that will make shader look significantly darker than Legacy ones
-	// and 2) on engine side "Non-important" lights have to be divided by Pi to in cases when they are injected into ambient SH
-	// NOTE: multiplication by Pi is cancelled with Pi in denominator
-
-	half invV = lh * lh * oneMinusRoughness + roughness * roughness; // approx ModifiedKelemenVisibilityTerm(lh, 1-oneMinusRoughness);
+	half invV = lh * lh * smoothness + perceptualRoughness * perceptualRoughness; // approx ModifiedKelemenVisibilityTerm(lh, perceptualRoughness);
 	half invF = lh;
-	half specular = ((specularPower + 1) * pow (nh, specularPower)) / (8 * invV * invF + 1e-4h);
-	if (IsGammaSpace())
-		specular = sqrt(max(1e-4h, specular));
+
+	half specularTerm = ((specularPower + 1) * pow (nh, specularPower)) / (8 * invV * invF + 1e-4h);
+
+#ifdef UNITY_COLORSPACE_GAMMA
+	specularTerm = sqrt(max(1e-4h, specularTerm));
+#endif
+
+#endif
+
+#if defined (SHADER_API_MOBILE)
+	specularTerm = clamp(specularTerm, 0.0, 100.0);	// Prevent FP16 overflow on mobiles
+#endif
+#if defined(_SPECULARHIGHLIGHTS_OFF)
+	specularTerm = 0.0;
+#endif
 
 	// surfaceReduction = Int D(NdotH) * NdotH * Id(NdotL>0) dH = 1/(realRoughness^2+1)
-	half realRoughness = roughness*roughness;		// need to square perceptual roughness
-	
+
 	// 1-0.28*x^3 as approximation for (1/(x^4+1))^(1/2.2) on the domain [0;1]
 	// 1-x^3*(0.6-0.08*x)   approximation for 1/(x^4+1)
-	half surfaceReduction = IsGammaSpace() ? 0.28 : (0.6-0.08*roughness);
-	surfaceReduction = 1.0 - realRoughness*roughness*surfaceReduction;
-	
-	// Prevent FP16 overflow on mobiles
-#if SHADER_API_GLES || SHADER_API_GLES3
-	specular = clamp(specular, 0.0, 100.0);
+#ifdef UNITY_COLORSPACE_GAMMA
+	half surfaceReduction = 0.28;
+#else
+	half surfaceReduction = (0.6-0.08*perceptualRoughness);
 #endif
 
-#if defined(_SPECULARHIGHLIGHTS_OFF)
-	specular = 0.0;
-#endif
+	surfaceReduction = 1.0 - roughness*perceptualRoughness*surfaceReduction;
 
-	half grazingTerm = saturate(oneMinusRoughness + (1-oneMinusReflectivity));
-    half3 color =	(diffColor + specular * specColor) * light.color * nl
-    				+ gi.diffuse * diffColor
+	half grazingTerm = saturate(smoothness + (1-oneMinusReflectivity));
+	half3 color =	(diffColor + specularTerm * specColor) * light.color * nl
+					+ gi.diffuse * diffColor
 					+ surfaceReduction * gi.specular * FresnelLerpFast (specColor, grazingTerm, nv);
 
 	return half4(color, 1);
 }
 
 sampler2D unity_NHxRoughness;
-half3 BRDF3_Direct(half3 diffColor, half3 specColor, half rlPow4, half oneMinusRoughness)
+half3 BRDF3_Direct(half3 diffColor, half3 specColor, half rlPow4, half smoothness)
 {
 	half LUT_RANGE = 16.0; // must match range in NHxRoughness() function in GeneratedTextures.cpp
 	// Lookup texture to save instructions
-	half specular = tex2D(unity_NHxRoughness, half2(rlPow4, 1-oneMinusRoughness)).UNITY_ATTEN_CHANNEL * LUT_RANGE;
+	half specular = tex2D(unity_NHxRoughness, half2(rlPow4, SmoothnessToPerceptualRoughness(smoothness))).UNITY_ATTEN_CHANNEL * LUT_RANGE;
 #if defined(_SPECULARHIGHLIGHTS_OFF)
 	specular = 0.0;
 #endif
@@ -517,41 +428,32 @@ half3 BRDF3_Indirect(half3 diffColor, half3 specColor, UnityIndirect indirect, h
 // * No Fresnel term
 //
 // TODO: specular is too weak in Linear rendering mode
-half4 BRDF3_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivity, half oneMinusRoughness,
+half4 BRDF3_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivity, half smoothness,
 	half3 normal, half3 viewDir,
 	UnityLight light, UnityIndirect gi)
 {
 	half3 reflDir = reflect (viewDir, normal);
 
-	half nl = light.ndotl;
-	half nv = DotClamped (normal, viewDir);
+	half nl = saturate(dot(normal, light.dir));
+	half nv = saturate(dot(normal, viewDir));
 
 	// Vectorize Pow4 to save instructions
 	half2 rlPow4AndFresnelTerm = Pow4 (half2(dot(reflDir, light.dir), 1-nv));  // use R.L instead of N.H to save couple of instructions
 	half rlPow4 = rlPow4AndFresnelTerm.x; // power exponent must match kHorizontalWarpExp in NHxRoughness() function in GeneratedTextures.cpp
 	half fresnelTerm = rlPow4AndFresnelTerm.y;
 
-	half grazingTerm = saturate(oneMinusRoughness + (1-oneMinusReflectivity));
+	half grazingTerm = saturate(smoothness + (1-oneMinusReflectivity));
 
-	half3 color = BRDF3_Direct(diffColor, specColor, rlPow4, oneMinusRoughness);
+	half3 color = BRDF3_Direct(diffColor, specColor, rlPow4, smoothness);
 	color *= light.color * nl;
 	color += BRDF3_Indirect(diffColor, specColor, gi, grazingTerm, fresnelTerm);
 
 	return half4(color, 1);
 }
 
-
-//
-// Old Unity_GlossyEnvironment signature. Kept only for backward compatibility and will be removed soon
-//
-half3 Unity_GlossyEnvironment (UNITY_ARGS_TEXCUBE(tex), half4 hdr, half3 worldNormal, half roughness)
-{
-	Unity_GlossyEnvironmentData g;
-	g.roughness	= roughness;
-	g.reflUVW	= worldNormal;
-	return Unity_GlossyEnvironment (UNITY_PASS_TEXCUBE(tex), hdr, g);
-
-}
-
+// Include deprecated function
+#define INCLUDE_UNITY_STANDARD_BRDF_DEPRECATED
+#include "UnityDeprecated.cginc"
+#undef INCLUDE_UNITY_STANDARD_BRDF_DEPRECATED
 
 #endif // UNITY_STANDARD_BRDF_INCLUDED

@@ -34,9 +34,6 @@
 #define UNITY_SAMPLE_FULL_SH_PER_PIXEL 0
 #endif
 
-#ifndef UNITY_GLOSS_MATCHES_MARMOSET_TOOLBAG2
-#define UNITY_GLOSS_MATCHES_MARMOSET_TOOLBAG2 0
-#endif
 #ifndef UNITY_BRDF_GGX
 #define UNITY_BRDF_GGX 1
 #endif
@@ -67,6 +64,7 @@
 	#define UNITY_STANDARD_SIMPLE 0
 #endif
 
-
+// Setup a new define with meaniful name to know if we require world pos in fragment shader
+#define UNITY_REQUIRE_FRAG_WORLDPOS (UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME)
 
 #endif // UNITY_STANDARD_CONFIG_INCLUDED

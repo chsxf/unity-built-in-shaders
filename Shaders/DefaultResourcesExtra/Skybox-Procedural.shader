@@ -23,7 +23,6 @@ SubShader {
 		#include "UnityCG.cginc"
 		#include "Lighting.cginc"
 
-		#pragma multi_compile __ UNITY_COLORSPACE_GAMMA
 		#pragma multi_compile _SUNDISK_NONE _SUNDISK_SIMPLE _SUNDISK_HIGH_QUALITY
 
 		uniform half _Exposure;		// HDR exposure
@@ -128,6 +127,7 @@ SubShader {
 		struct appdata_t
 		{
 			float4 vertex : POSITION;
+			UNITY_VERTEX_INPUT_INSTANCE_ID
 		};
 
 		struct v2f
@@ -151,6 +151,8 @@ SubShader {
 		#if SKYBOX_SUNDISK != SKYBOX_SUNDISK_NONE
 			half3	sunColor		: TEXCOORD3;
 		#endif
+
+			UNITY_VERTEX_OUTPUT_STEREO
 		};
 
 
@@ -169,6 +171,8 @@ SubShader {
 		v2f vert (appdata_t v)
 		{
 			v2f OUT;
+			UNITY_SETUP_INSTANCE_ID(v);
+			UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
 			OUT.pos = UnityObjectToClipPos(v.vertex);
 
 			float3 kSkyTintInGammaSpace = COLOR_2_GAMMA(_SkyTint); // convert tint from Linear back to Gamma

@@ -24,6 +24,7 @@ struct SpeedTreeVB
 	float4 texcoord2	: TEXCOORD2;
 	float2 texcoord3	: TEXCOORD3;
 	half4 color			: COLOR;
+	UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 
@@ -65,8 +66,8 @@ void OffsetSpeedTreeVertex(inout SpeedTreeVB data, float lodValue)
 		else
 		{
 			// compute rotated wind parameters
-			rotatedWindVector = normalize(mul((float3x3)unity_WorldToObject, _ST_WindVector.xyz));
-			rotatedBranchAnchor = normalize(mul((float3x3)unity_WorldToObject, _ST_WindBranchAnchor.xyz)) * _ST_WindBranchAnchor.w;
+			rotatedWindVector = normalize(mul(_ST_WindVector.xyz, (float3x3)unity_ObjectToWorld));
+			rotatedBranchAnchor = normalize(mul(_ST_WindBranchAnchor.xyz, (float3x3)unity_ObjectToWorld)) * _ST_WindBranchAnchor.w;
 		}
 	#endif
 

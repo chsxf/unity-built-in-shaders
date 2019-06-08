@@ -8,11 +8,10 @@
 #include "UnityStandardInput.cginc"
 #include "UnityPBSLighting.cginc"
 #include "UnityStandardUtils.cginc"
+#include "UnityGBuffer.cginc"
 #include "UnityStandardBRDF.cginc"
 
 #include "AutoLight.cginc"
-
-
 //-------------------------------------------------------------------------------------
 // counterpart for NormalizePerPixelNormal
 // skips normalization per-vertex and expects normalization to happen per-pixel
@@ -35,26 +34,26 @@ half3 NormalizePerPixelNormal (half3 n)
 }
 
 //-------------------------------------------------------------------------------------
-UnityLight MainLight (half3 normalWorld)
+UnityLight MainLight ()
 {
 	UnityLight l;
-	#ifdef LIGHTMAP_OFF
-		
+	#if !defined(LIGHTMAP_ON)
 		l.color = _LightColor0.rgb;
 		l.dir = _WorldSpaceLightPos0.xyz;
-		l.ndotl = LambertTerm (normalWorld, l.dir);
+		l.ndotl = 0; // Not used
 	#else
 		// no light specified by the engine
 		// analytical light might be extracted from Lightmap data later on in the shader depending on the Lightmap type
-		l.color = half3(0.f, 0.f, 0.f);
-		l.ndotl  = 0.f;
-		l.dir = half3(0.f, 0.f, 0.f);
+		// Should be ResetUnityLight() call but can't move the function to a UnityLightingCommon.cginc header because it break UBER shader on asset store...
+		l.color = half3(0, 0, 0);
+		l.dir = half3(0, 1, 0); // Irrelevant direction, just not null
+		l.ndotl = 0; // Not used
 	#endif
 
 	return l;
 }
 
-UnityLight AdditiveLight (half3 normalWorld, half3 lightDir, half atten)
+UnityLight AdditiveLight (half3 lightDir, half atten)
 {
 	UnityLight l;
 
@@ -63,19 +62,17 @@ UnityLight AdditiveLight (half3 normalWorld, half3 lightDir, half atten)
 	#ifndef USING_DIRECTIONAL_LIGHT
 		l.dir = NormalizePerPixelNormal(l.dir);
 	#endif
-	l.ndotl = LambertTerm (normalWorld, l.dir);
 
 	// shadow the light
 	l.color *= atten;
 	return l;
 }
 
-UnityLight DummyLight (half3 normalWorld)
+UnityLight DummyLight ()
 {
 	UnityLight l;
 	l.color = 0;
 	l.dir = half3 (0,1,0);
-	l.ndotl = LambertTerm (normalWorld, l.dir);
 	return l;
 }
 
@@ -158,7 +155,7 @@ half3 PerPixelWorldNormal(float4 i_tex, half4 tangentToWorld[3])
 	#define IN_VIEWDIR4PARALLAX_FWDADD(i) half3(0,0,0)
 #endif
 
-#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
+#if UNITY_REQUIRE_FRAG_WORLDPOS
 	#define IN_WORLDPOS(i) i.posWorld
 #else
 	#define IN_WORLDPOS(i) half3(0,0,0)
@@ -175,9 +172,9 @@ half3 PerPixelWorldNormal(float4 i_tex, half4 tangentToWorld[3])
 struct FragmentCommonData
 {
 	half3 diffColor, specColor;
-	// Note: oneMinusRoughness & oneMinusReflectivity for optimization purposes, mostly for DX9 SM2.0 level.
+	// Note: smoothness & oneMinusReflectivity for optimization purposes, mostly for DX9 SM2.0 level.
 	// Most of the math is being done on these (1-x) values, and that saves a few precious ALU slots.
-	half oneMinusReflectivity, oneMinusRoughness;
+	half oneMinusReflectivity, smoothness;
 	half3 normalWorld, eyeVec, posWorld;
 	half alpha;
 
@@ -198,7 +195,7 @@ inline FragmentCommonData SpecularSetup (float4 i_tex)
 {
 	half4 specGloss = SpecularGloss(i_tex.xy);
 	half3 specColor = specGloss.rgb;
-	half oneMinusRoughness = specGloss.a;
+	half smoothness = specGloss.a;
 
 	half oneMinusReflectivity;
 	half3 diffColor = EnergyConservationBetweenDiffuseAndSpecular (Albedo(i_tex), specColor, /*out*/ oneMinusReflectivity);
@@ -207,7 +204,7 @@ inline FragmentCommonData SpecularSetup (float4 i_tex)
 	o.diffColor = diffColor;
 	o.specColor = specColor;
 	o.oneMinusReflectivity = oneMinusReflectivity;
-	o.oneMinusRoughness = oneMinusRoughness;
+	o.smoothness = smoothness;
 	return o;
 }
 
@@ -215,7 +212,7 @@ inline FragmentCommonData MetallicSetup (float4 i_tex)
 {
 	half2 metallicGloss = MetallicGloss(i_tex.xy);
 	half metallic = metallicGloss.x;
-	half oneMinusRoughness = metallicGloss.y;		// this is 1 minus the square root of real roughness m.
+	half smoothness = metallicGloss.y; // this is 1 minus the square root of real roughness m.
 
 	half oneMinusReflectivity;
 	half3 specColor;
@@ -225,7 +222,7 @@ inline FragmentCommonData MetallicSetup (float4 i_tex)
 	o.diffColor = diffColor;
 	o.specColor = specColor;
 	o.oneMinusReflectivity = oneMinusReflectivity;
-	o.oneMinusRoughness = oneMinusRoughness;
+	o.smoothness = smoothness;
 	return o;
 } 
 
@@ -262,25 +259,27 @@ inline UnityGI FragmentGI (FragmentCommonData s, half occlusion, half4 i_ambient
 		d.ambient = i_ambientOrLightmapUV.rgb;
 		d.lightmapUV = 0;
 	#endif
-	d.boxMax[0] = unity_SpecCube0_BoxMax;
-	d.boxMin[0] = unity_SpecCube0_BoxMin;
-	d.probePosition[0] = unity_SpecCube0_ProbePosition;
-	d.probeHDR[0] = unity_SpecCube0_HDR;
 
-	d.boxMax[1] = unity_SpecCube1_BoxMax;
-	d.boxMin[1] = unity_SpecCube1_BoxMin;
-	d.probePosition[1] = unity_SpecCube1_ProbePosition;
+	d.probeHDR[0] = unity_SpecCube0_HDR;
 	d.probeHDR[1] = unity_SpecCube1_HDR;
+	#if UNITY_SPECCUBE_BLENDING || UNITY_SPECCUBE_BOX_PROJECTION
+	  d.boxMin[0] = unity_SpecCube0_BoxMin; // .w holds lerp value for blending
+	#endif
+	#if UNITY_SPECCUBE_BOX_PROJECTION
+	  d.boxMax[0] = unity_SpecCube0_BoxMax;
+	  d.probePosition[0] = unity_SpecCube0_ProbePosition;
+	  d.boxMax[1] = unity_SpecCube1_BoxMax;
+	  d.boxMin[1] = unity_SpecCube1_BoxMin;
+	  d.probePosition[1] = unity_SpecCube1_ProbePosition;
+	#endif
 
 	if(reflections)
 	{
-		Unity_GlossyEnvironmentData g;
-		g.roughness		= 1 - s.oneMinusRoughness;
-	#if UNITY_OPTIMIZE_TEXCUBELOD || UNITY_STANDARD_SIMPLE
-		g.reflUVW 		= s.reflUVW;
-	#else
-		g.reflUVW		= reflect(s.eyeVec, s.normalWorld);
-	#endif
+		Unity_GlossyEnvironmentData g = UnityGlossyEnvironmentSetup(s.smoothness, -s.eyeVec, s.normalWorld, s.specColor);
+		// Replace the reflUVW if it has been compute in Vertex shader. Note: the compiler will optimize the calcul in UnityGlossyEnvironmentSetup itself
+		#if UNITY_OPTIMIZE_TEXCUBELOD || UNITY_STANDARD_SIMPLE
+			g.reflUVW = s.reflUVW;
+		#endif
 
 		return UnityGlobalIllumination (d, occlusion, s.normalWorld, g);
 	}
@@ -311,7 +310,7 @@ inline half4 VertexGIForward(VertexInput v, float3 posWorld, half3 normalWorld)
 {
 	half4 ambientOrLightmapUV = 0;
 	// Static lightmaps
-	#ifndef LIGHTMAP_OFF
+	#ifdef LIGHTMAP_ON
 		ambientOrLightmapUV.xy = v.uv1.xy * unity_LightmapST.xy + unity_LightmapST.zw;
 		ambientOrLightmapUV.zw = 0;
 	// Sample light probe for Dynamic objects only (no static or dynamic lightmaps)
@@ -348,12 +347,12 @@ struct VertexOutputForwardBase
 	UNITY_FOG_COORDS(7)
 
 	// next ones would not fit into SM2.0 limits, but they are always for SM3.0+
-	#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
+	#if UNITY_REQUIRE_FRAG_WORLDPOS
 		float3 posWorld					: TEXCOORD8;
 	#endif
 
 	#if UNITY_OPTIMIZE_TEXCUBELOD
-		#if UNITY_SPECCUBE_BOX_PROJECTION
+		#if UNITY_REQUIRE_FRAG_WORLDPOS
 			half3 reflUVW				: TEXCOORD9;
 		#else
 			half3 reflUVW				: TEXCOORD8;
@@ -371,7 +370,7 @@ VertexOutputForwardBase vertForwardBase (VertexInput v)
 	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
 	float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
-	#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
+	#if UNITY_REQUIRE_FRAG_WORLDPOS
 		o.posWorld = posWorld.xyz;
 	#endif
 	o.pos = UnityObjectToClipPos(v.vertex);
@@ -419,15 +418,15 @@ half4 fragForwardBaseInternal (VertexOutputForwardBase i)
 	s.reflUVW		= i.reflUVW;
 #endif
 
-	UnityLight mainLight = MainLight (s.normalWorld);
+	UnityLight mainLight = MainLight ();
 	half atten = SHADOW_ATTENUATION(i);
 
 
 	half occlusion = Occlusion(i.tex.xy);
 	UnityGI gi = FragmentGI (s, occlusion, i.ambientOrLightmapUV, atten, mainLight);
 
-	half4 c = UNITY_BRDF_PBS (s.diffColor, s.specColor, s.oneMinusReflectivity, s.oneMinusRoughness, s.normalWorld, -s.eyeVec, gi.light, gi.indirect);
-	c.rgb += UNITY_BRDF_GI (s.diffColor, s.specColor, s.oneMinusReflectivity, s.oneMinusRoughness, s.normalWorld, -s.eyeVec, occlusion, gi);
+	half4 c = UNITY_BRDF_PBS (s.diffColor, s.specColor, s.oneMinusReflectivity, s.smoothness, s.normalWorld, -s.eyeVec, gi.light, gi.indirect);
+	c.rgb += UNITY_BRDF_GI (s.diffColor, s.specColor, s.oneMinusReflectivity, s.smoothness, s.normalWorld, -s.eyeVec, occlusion, gi);
 	c.rgb += Emission(i.tex.xy);
 
 	UNITY_APPLY_FOG(i.fogCoord, c.rgb);
@@ -507,10 +506,10 @@ half4 fragForwardAddInternal (VertexOutputForwardAdd i)
 {
 	FRAGMENT_SETUP_FWDADD(s)
 
-	UnityLight light = AdditiveLight (s.normalWorld, IN_LIGHTDIR_FWDADD(i), LIGHT_ATTENUATION(i));
+	UnityLight light = AdditiveLight (IN_LIGHTDIR_FWDADD(i), LIGHT_ATTENUATION(i));
 	UnityIndirect noIndirect = ZeroIndirect ();
 
-	half4 c = UNITY_BRDF_PBS (s.diffColor, s.specColor, s.oneMinusReflectivity, s.oneMinusRoughness, s.normalWorld, -s.eyeVec, light, noIndirect);
+	half4 c = UNITY_BRDF_PBS (s.diffColor, s.specColor, s.oneMinusReflectivity, s.smoothness, s.normalWorld, -s.eyeVec, light, noIndirect);
 	
 	UNITY_APPLY_FOG_COLOR(i.fogCoord, c.rgb, half4(0,0,0,0)); // fog towards black in additive pass
 	return OutputForward (c, s.alpha);
@@ -530,14 +529,14 @@ struct VertexOutputDeferred
 	float4 tex							: TEXCOORD0;
 	half3 eyeVec 						: TEXCOORD1;
 	half4 tangentToWorldAndParallax[3]	: TEXCOORD2;	// [3x3:tangentToWorld | 1x3:viewDirForParallax]
-	half4 ambientOrLightmapUV			: TEXCOORD5;	// SH or Lightmap UVs			
+	half4 ambientOrLightmapUV			: TEXCOORD5;	// SH or Lightmap UVs
 
-	#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
+	#if UNITY_REQUIRE_FRAG_WORLDPOS
 		float3 posWorld						: TEXCOORD6;
 	#endif
 
 	#if UNITY_OPTIMIZE_TEXCUBELOD
-		#if UNITY_SPECCUBE_BOX_PROJECTION
+		#if UNITY_REQUIRE_FRAG_WORLDPOS
 			half3 reflUVW				: TEXCOORD7;
 		#else
 			half3 reflUVW				: TEXCOORD6;
@@ -556,7 +555,7 @@ VertexOutputDeferred vertDeferred (VertexInput v)
 	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
 	float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
-	#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
+	#if UNITY_REQUIRE_FRAG_WORLDPOS
 		o.posWorld = posWorld;
 	#endif
 	o.pos = UnityObjectToClipPos(v.vertex);
@@ -578,7 +577,7 @@ VertexOutputDeferred vertDeferred (VertexInput v)
 	#endif
 
 	o.ambientOrLightmapUV = 0;
-	#ifndef LIGHTMAP_OFF
+	#ifdef LIGHTMAP_ON
 		o.ambientOrLightmapUV.xy = v.uv1.xy * unity_LightmapST.xy + unity_LightmapST.zw;
 	#elif UNITY_SHOULD_SAMPLE_SH
 		o.ambientOrLightmapUV.rgb = ShadeSHPerVertex (normalWorld, o.ambientOrLightmapUV.rgb);
@@ -604,16 +603,16 @@ VertexOutputDeferred vertDeferred (VertexInput v)
 
 void fragDeferred (
 	VertexOutputDeferred i,
-	out half4 outDiffuse : SV_Target0,			// RT0: diffuse color (rgb), occlusion (a)
-	out half4 outSpecSmoothness : SV_Target1,	// RT1: spec color (rgb), smoothness (a)
-	out half4 outNormal : SV_Target2,			// RT2: normal (rgb), --unused, very low precision-- (a) 
+	out half4 outGBuffer0 : SV_Target0,
+	out half4 outGBuffer1 : SV_Target1,
+	out half4 outGBuffer2 : SV_Target2,
 	out half4 outEmission : SV_Target3			// RT3: emission (rgb), --unused-- (a)
 )
 {
 	#if (SHADER_TARGET < 30)
-		outDiffuse = 1;
-		outSpecSmoothness = 1;
-		outNormal = 0;
+		outGBuffer0 = 1;
+		outGBuffer1 = 1;
+		outGBuffer2 = 0;
 		outEmission = 0;
 		return;
 	#endif
@@ -624,7 +623,7 @@ void fragDeferred (
 #endif
 
 	// no analytic lights in this pass
-	UnityLight dummyLight = DummyLight (s.normalWorld);
+	UnityLight dummyLight = DummyLight ();
 	half atten = 1;
 
 	// only GI
@@ -637,21 +636,28 @@ void fragDeferred (
 
 	UnityGI gi = FragmentGI (s, occlusion, i.ambientOrLightmapUV, atten, dummyLight, sampleReflectionsInDeferred);
 
-	half3 color = UNITY_BRDF_PBS (s.diffColor, s.specColor, s.oneMinusReflectivity, s.oneMinusRoughness, s.normalWorld, -s.eyeVec, gi.light, gi.indirect).rgb;
-	color += UNITY_BRDF_GI (s.diffColor, s.specColor, s.oneMinusReflectivity, s.oneMinusRoughness, s.normalWorld, -s.eyeVec, occlusion, gi);
+	half3 emissiveColor = UNITY_BRDF_PBS (s.diffColor, s.specColor, s.oneMinusReflectivity, s.smoothness, s.normalWorld, -s.eyeVec, gi.light, gi.indirect).rgb;
+	emissiveColor += UNITY_BRDF_GI (s.diffColor, s.specColor, s.oneMinusReflectivity, s.smoothness, s.normalWorld, -s.eyeVec, occlusion, gi);
 
 	#ifdef _EMISSION
-		color += Emission (i.tex.xy);
+		emissiveColor += Emission (i.tex.xy);
 	#endif
 
 	#ifndef UNITY_HDR_ON
-		color.rgb = exp2(-color.rgb);
+		emissiveColor.rgb = exp2(-emissiveColor.rgb);
 	#endif
 
-	outDiffuse = half4(s.diffColor, occlusion);
-	outSpecSmoothness = half4(s.specColor, s.oneMinusRoughness);
-	outNormal = half4(s.normalWorld*0.5+0.5,1);
-	outEmission = half4(color, 1);
+	UnityStandardData data;
+	data.diffuseColor	= s.diffColor;
+	data.occlusion		= occlusion;		
+	data.specularColor	= s.specColor;
+	data.smoothness		= s.smoothness;	
+	data.normalWorld	= s.normalWorld;
+
+	UnityStandardDataToGbuffer(data, outGBuffer0, outGBuffer1, outGBuffer2);
+
+	// Emisive lighting buffer
+	outEmission = half4(emissiveColor, 1);
 }
 
 
@@ -661,13 +667,13 @@ void fragDeferred (
 
 inline UnityGI FragmentGI(
 	float3 posWorld,
-	half occlusion, half4 i_ambientOrLightmapUV, half atten, half oneMinusRoughness, half3 normalWorld, half3 eyeVec,
+	half occlusion, half4 i_ambientOrLightmapUV, half atten, half smoothness, half3 normalWorld, half3 eyeVec,
 	UnityLight light,
 	bool reflections)
 {
 	// we init only fields actually used
 	FragmentCommonData s = (FragmentCommonData)0;
-	s.oneMinusRoughness = oneMinusRoughness;
+	s.smoothness = smoothness;
 	s.normalWorld = normalWorld;
 	s.eyeVec = eyeVec;
 	s.posWorld = posWorld;
@@ -678,10 +684,10 @@ inline UnityGI FragmentGI(
 }
 inline UnityGI FragmentGI (
 	float3 posWorld,
-	half occlusion, half4 i_ambientOrLightmapUV, half atten, half oneMinusRoughness, half3 normalWorld, half3 eyeVec,
+	half occlusion, half4 i_ambientOrLightmapUV, half atten, half smoothness, half3 normalWorld, half3 eyeVec,
 	UnityLight light)
 {
-	return FragmentGI (posWorld, occlusion, i_ambientOrLightmapUV, atten, oneMinusRoughness, normalWorld, eyeVec, light, true);
+	return FragmentGI (posWorld, occlusion, i_ambientOrLightmapUV, atten, smoothness, normalWorld, eyeVec, light, true);
 }
 
 #endif // UNITY_STANDARD_CORE_INCLUDED

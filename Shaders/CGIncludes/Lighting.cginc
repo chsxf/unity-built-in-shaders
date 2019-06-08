@@ -2,6 +2,7 @@
 #define LIGHTING_INCLUDED
 
 #include "UnityLightingCommon.cginc"
+#include "UnityGBuffer.cginc"
 #include "UnityGlobalIllumination.cginc"
 
 struct SurfaceOutput {
@@ -54,11 +55,17 @@ inline fixed4 LightingLambert (SurfaceOutput s, UnityGI gi)
 	return c;
 }
 
-inline half4 LightingLambert_Deferred (SurfaceOutput s, UnityGI gi, out half4 outDiffuseOcclusion, out half4 outSpecSmoothness, out half4 outNormal)
+inline half4 LightingLambert_Deferred (SurfaceOutput s, UnityGI gi, out half4 outGBuffer0, out half4 outGBuffer1, out half4 outGBuffer2)
 {
-	outDiffuseOcclusion = half4(s.Albedo, 1);
-	outSpecSmoothness = 0.0;
-	outNormal = half4(s.Normal * 0.5 + 0.5, 1);
+	UnityStandardData data;
+	data.diffuseColor	= s.Albedo;
+	data.occlusion		= 1;		
+	data.specularColor	= 0;
+	data.smoothness		= 0;	
+	data.normalWorld	= s.Normal;
+
+	UnityStandardDataToGbuffer(data, outGBuffer0, outGBuffer1, outGBuffer2);
+
 	half4 emission = half4(s.Emission, 1);
 
 	#ifdef UNITY_LIGHT_FUNCTION_APPLY_INDIRECT
@@ -123,12 +130,18 @@ inline fixed4 LightingBlinnPhong (SurfaceOutput s, half3 viewDir, UnityGI gi)
 	return c;
 }
 
-inline half4 LightingBlinnPhong_Deferred (SurfaceOutput s, half3 viewDir, UnityGI gi, out half4 outDiffuseOcclusion, out half4 outSpecSmoothness, out half4 outNormal)
+inline half4 LightingBlinnPhong_Deferred (SurfaceOutput s, half3 viewDir, UnityGI gi, out half4 outGBuffer0, out half4 outGBuffer1, out half4 outGBuffer2)
 {
-	outDiffuseOcclusion = half4(s.Albedo, 1);
+	UnityStandardData data;
+	data.diffuseColor	= s.Albedo;
+	data.occlusion		= 1;		
 	// PI factor come from StandardBDRF (UnityStandardBRDF.cginc:351 for explanation)
-	outSpecSmoothness = half4(_SpecColor.rgb * s.Gloss * (1/UNITY_PI), s.Specular);
-	outNormal = half4(s.Normal * 0.5 + 0.5, 1);
+	data.specularColor	= _SpecColor.rgb * s.Gloss * (1/UNITY_PI);
+	data.smoothness		= s.Specular;	
+	data.normalWorld	= s.Normal;
+
+	UnityStandardDataToGbuffer(data, outGBuffer0, outGBuffer1, outGBuffer2);
+
 	half4 emission = half4(s.Emission, 1);
 
 	#ifdef UNITY_LIGHT_FUNCTION_APPLY_INDIRECT

@@ -50,6 +50,7 @@ SubShader {
 			float4 pos : SV_POSITION;
 			float2 uvMain : TEXCOORD0;
 			float2 uvIllum : TEXCOORD1;
+			UNITY_VERTEX_OUTPUT_STEREO
 		};
 
 		float4 _MainTex_ST;
@@ -58,6 +59,8 @@ SubShader {
 		v2f vert (appdata_full v)
 		{
 			v2f o;
+			UNITY_SETUP_INSTANCE_ID(v);
+			UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 			o.pos = UnityMetaVertexPosition(v.vertex, v.texcoord1.xy, v.texcoord2.xy, unity_LightmapST, unity_DynamicLightmapST);
 			o.uvMain = TRANSFORM_TEX(v.texcoord, _MainTex);
 			o.uvIllum = TRANSFORM_TEX(v.texcoord, _Illum);

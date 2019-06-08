@@ -139,8 +139,9 @@ half3 ShadeSHPerVertex (half3 normal, half3 ambient)
 
 		// NOTE: SH data is always in Linear AND calculation is split between vertex & pixel
 		// Convert ambient to Linear and do final gamma-correction at the end (per-pixel)
-		if (IsGammaSpace())
+		#ifdef UNITY_COLORSPACE_GAMMA
 			ambient = GammaToLinearSpace (ambient);
+		#endif
 		ambient += SHEvalLinearL2 (half4(normal, 1.0));		// no max since this is only L2 contribution
 	#endif
 
@@ -171,8 +172,9 @@ half3 ShadeSHPerPixel (half3 normal, half3 ambient, float3 worldPos)
 		#endif
 
 		ambient = max(half3(0, 0, 0), ambient+ambient_contrib);		// include L2 contribution in vertex shader before clamp.
-		if (IsGammaSpace())
+		#ifdef UNITY_COLORSPACE_GAMMA
 			ambient = LinearToGammaSpace (ambient);
+		#endif
 	#endif
 
 	return ambient;

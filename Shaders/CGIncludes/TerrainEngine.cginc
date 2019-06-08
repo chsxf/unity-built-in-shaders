@@ -34,6 +34,7 @@ struct appdata_tree {
 	float3 normal : NORMAL;			// normal
 	fixed4 color : COLOR;			// .w = bend factor
 	float4 texcoord : TEXCOORD0;	// UV
+	UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 struct appdata_tree_billboard {
@@ -41,6 +42,7 @@ struct appdata_tree_billboard {
 	fixed4 color : COLOR;			// Color
 	float4 texcoord : TEXCOORD0;	// UV Coordinates 
 	float2 texcoord1 : TEXCOORD1;	// Billboard extrusion
+	UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 // ---- Grass helpers
@@ -308,7 +310,7 @@ inline float4 AnimateVertex(float4 pos, float3 normal, float4 animParams)
 	float fBranchAmp = 0.3f;
 	
 	// Phases (object, vertex, branch)
-	float fObjPhase = dot(unity_ObjectToWorld[3].xyz, 1);
+	float fObjPhase = dot(unity_ObjectToWorld._14_24_34, 1);
 	float fBranchPhase = fObjPhase + animParams.x;
 	
 	float fVtxPhase = dot(pos.xyz, animParams.y + fBranchPhase);

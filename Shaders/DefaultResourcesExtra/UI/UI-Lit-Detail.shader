@@ -66,12 +66,13 @@ Shader "UI/Lit/Detail"
 				fixed4 color : COLOR;
 				float3 normal : NORMAL;
 				float4 tangent : TANGENT;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 	
 			struct Input
 			{
-				half2 uv_MainTex;
-				half2 uv2_DetailTex;
+				float2 uv_MainTex;
+				float2 uv2_DetailTex;
 				fixed4 color : COLOR;
 				float4 worldPosition;
 			};

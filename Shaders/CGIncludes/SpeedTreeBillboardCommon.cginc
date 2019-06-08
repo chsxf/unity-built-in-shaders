@@ -28,6 +28,7 @@ struct SpeedTreeBillboardData
 	float3 normal		: NORMAL;
 	float4 tangent		: TANGENT;
 	float4 color		: COLOR;
+	UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 void SpeedTreeBillboardVert(inout SpeedTreeBillboardData IN, out Input OUT)

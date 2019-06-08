@@ -32,6 +32,7 @@ struct v2f {
 	float3	TtoW1	: TEXCOORD4;
 	float3	TtoW2	: TEXCOORD5;
 	UNITY_FOG_COORDS(6)
+	UNITY_VERTEX_OUTPUT_STEREO
 };
 
 uniform float4 _MainTex_ST, _BumpMap_ST;
@@ -39,6 +40,8 @@ uniform float4 _MainTex_ST, _BumpMap_ST;
 v2f vert(appdata_tan v)
 {
 	v2f o;
+	UNITY_SETUP_INSTANCE_ID(v);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 	o.pos = UnityObjectToClipPos(v.vertex);
 	o.uv = TRANSFORM_TEX(v.texcoord,_MainTex);
 	o.uv2 = TRANSFORM_TEX(v.texcoord,_BumpMap);

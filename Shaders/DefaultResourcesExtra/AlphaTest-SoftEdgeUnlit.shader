@@ -37,6 +37,7 @@ SubShader {
 				float4 vertex : POSITION;
 				float4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
 			struct v2f {
@@ -44,6 +45,7 @@ SubShader {
 				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
 				UNITY_FOG_COORDS(1)
+				UNITY_VERTEX_OUTPUT_STEREO
 			};
 
 			sampler2D _MainTex;
@@ -53,6 +55,8 @@ SubShader {
 			v2f vert (appdata_t v)
 			{
 				v2f o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.color = v.color;
 				o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
@@ -93,6 +97,7 @@ SubShader {
 				float4 vertex : POSITION;
 				float4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
 			struct v2f {
@@ -100,6 +105,7 @@ SubShader {
 				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
 				UNITY_FOG_COORDS(1)
+				UNITY_VERTEX_OUTPUT_STEREO
 			};
 
 			sampler2D _MainTex;
@@ -109,6 +115,8 @@ SubShader {
 			v2f vert (appdata_t v)
 			{
 				v2f o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.color = v.color;
 				o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);

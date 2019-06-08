@@ -1,15 +1,29 @@
 #ifndef UNITY_CG_INCLUDED
 #define UNITY_CG_INCLUDED
 
-#define UNITY_PI	3.14159265359f
+#define UNITY_PI			3.14159265359f
+#define UNITY_TWO_PI		6.28318530718f
+#define UNITY_FOUR_PI		12.56637061436f
+#define UNITY_INV_PI		0.31830988618f
+#define UNITY_INV_TWO_PI	0.15915494309f
+#define UNITY_INV_FOUR_PI	0.07957747155f
+#define UNITY_HALF_PI		1.57079632679f
+#define UNITY_INV_HALF_PI	0.636619772367f
 
 #include "UnityShaderVariables.cginc"
 #include "UnityInstancing.cginc"
 
-fixed4 unity_ColorSpaceGrey;
-fixed4 unity_ColorSpaceDouble;
-half4  unity_ColorSpaceDielectricSpec;
-half4  unity_ColorSpaceLuminance;
+#ifdef UNITY_COLORSPACE_GAMMA
+#define unity_ColorSpaceGrey fixed4(0.5, 0.5, 0.5, 0.5)
+#define unity_ColorSpaceDouble fixed4(2.0, 2.0, 2.0, 2.0)
+#define unity_ColorSpaceDielectricSpec half4(0.220916301, 0.220916301, 0.220916301, 1.0 - 0.220916301)
+#define unity_ColorSpaceLuminance half4(0.22, 0.707, 0.071, 0.0) // Legacy: alpha is set to 0.0 to specify gamma mode
+#else // Linear values
+#define unity_ColorSpaceGrey fixed4(0.214041144, 0.214041144, 0.214041144, 0.5)
+#define unity_ColorSpaceDouble fixed4(4.59479380, 4.59479380, 4.59479380, 2.0)
+#define unity_ColorSpaceDielectricSpec half4(0.04, 0.04, 0.04, 1.0 - 0.04) // standard dielectric reflectivity coef at incident angle (= 4%)
+#define unity_ColorSpaceLuminance half4(0.0396819152, 0.458021790, 0.00609653955, 1.0) // Legacy: alpha is set to 1.0 to specify linear mode
+#endif
 
 // -------------------------------------------------------------------
 //  helper functions and macros used in many standard shaders
@@ -26,15 +40,16 @@ half4  unity_ColorSpaceLuminance;
 #define LIGHTMAP_RGBM_SCALE 5.0
 #define EMISSIVE_RGBM_SCALE 97.0
 
-
-// Dynamic & Static lightmaps contain indirect diffuse ligthing, thus ignore SH
-#define UNITY_SHOULD_SAMPLE_SH ( defined (LIGHTMAP_OFF) && defined(DYNAMICLIGHTMAP_OFF) )
+// Should SH (light probe / ambient) calculations be performed?
+// - Presence of *either* of static or dynamic lightmaps means that diffuse indirect ambient is already in them, so no need for SH.
+// - Passes that don't do ambient (additive, shadowcaster etc.) should not do SH either.
+#define UNITY_SHOULD_SAMPLE_SH (!defined(LIGHTMAP_ON) && !defined(DYNAMICLIGHTMAP_ON) && !defined(UNITY_PASS_FORWARDADD) && !defined(UNITY_PASS_PREPASSBASE) && !defined(UNITY_PASS_SHADOWCASTER) && !defined(UNITY_PASS_META))
 
 struct appdata_base {
 	float4 vertex : POSITION;
 	float3 normal : NORMAL;
 	float4 texcoord : TEXCOORD0;
-	UNITY_INSTANCE_ID
+	UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 struct appdata_tan {
@@ -42,7 +57,7 @@ struct appdata_tan {
 	float4 tangent : TANGENT;
 	float3 normal : NORMAL;
 	float4 texcoord : TEXCOORD0;
-	UNITY_INSTANCE_ID
+	UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 struct appdata_full {
@@ -53,22 +68,18 @@ struct appdata_full {
 	float4 texcoord1 : TEXCOORD1;
 	float4 texcoord2 : TEXCOORD2;
 	float4 texcoord3 : TEXCOORD3;
-#if defined(SHADER_API_XBOX360)
-	half4 texcoord4 : TEXCOORD4;
-	half4 texcoord5 : TEXCOORD5;
-#endif
 	fixed4 color : COLOR;
-	UNITY_INSTANCE_ID
+	UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
+// Legacy for compatibility with existing shaders
 inline bool IsGammaSpace()
 {
-#if defined(UNITY_NO_LINEAR_COLORSPACE)
+	#ifdef UNITY_COLORSPACE_GAMMA
 	return true;
-#else
-	// unity_ColorSpaceLuminance.w == 1 when in Linear space, otherwise == 0
-	return unity_ColorSpaceLuminance.w == 0;
-#endif
+	#else
+		return false;
+	#endif
 }
 
 inline float GammaToLinearSpaceExact (float value)
@@ -175,8 +186,12 @@ inline float3 UnityWorldToObjectDir( in float3 dir )
 // Transforms normal from object to world space
 inline float3 UnityObjectToWorldNormal( in float3 norm )
 {
-	// Multiply by transposed inverse matrix, actually using transpose() generates badly optimized code
-	return normalize(unity_WorldToObject[0].xyz * norm.x + unity_WorldToObject[1].xyz * norm.y + unity_WorldToObject[2].xyz * norm.z);
+#ifdef UNITY_ASSUME_UNIFORM_SCALING
+	return UnityObjectToWorldDir(norm);
+#else
+	// mul(IT_M, norm) => mul(norm, I_M) => {dot(norm, I_M.col0), dot(norm, I_M.col1), dot(norm, I_M.col2)}
+	return normalize(mul(norm, (float3x3)unity_WorldToObject));
+#endif
 }
 
 // Computes world space light direction, from world space position
@@ -260,6 +275,9 @@ float3 Shade4PointLights (
 	lengthSq += toLightX * toLightX;
 	lengthSq += toLightY * toLightY;
 	lengthSq += toLightZ * toLightZ;
+	// don't produce NaNs if some vertex position overlaps with the light
+	lengthSq = max(lengthSq, 0.000001);
+
 	// NdotL
 	float4 ndotl = 0;
 	ndotl += toLightX * normal.x;
@@ -291,6 +309,10 @@ float3 ShadeVertexLightsFull (float4 vertex, float3 normal, int lightCount, bool
 	for (int i = 0; i < lightCount; i++) {
 		float3 toLight = unity_LightPosition[i].xyz - viewpos.xyz * unity_LightPosition[i].w;
 		float lengthSq = dot(toLight, toLight);
+
+		// don't produce NaNs if some vertex position overlaps with the light
+		lengthSq = max(lengthSq, 0.000001);
+
 		toLight *= rsqrt(lengthSq);
 
 		float atten = 1.0 / (1.0 + lengthSq * unity_LightAtten[i].z);
@@ -352,8 +374,9 @@ half3 ShadeSH9 (half4 normal)
 	// Quadratic polynomials
 	res += SHEvalLinearL2 (normal);
 
-	if (IsGammaSpace())
+#	ifdef UNITY_COLORSPACE_GAMMA
 		res = LinearToGammaSpace (res);
+#	endif
 
 	return res;
 }
@@ -363,8 +386,10 @@ half3 ShadeSH3Order(half4 normal)
 {
 	// Quadratic polynomials
 	half3 res = SHEvalLinearL2 (normal);
-	if (IsGammaSpace())
+
+#	ifdef UNITY_COLORSPACE_GAMMA
 		res = LinearToGammaSpace (res);
+#	endif
 
 	return res;
 }
@@ -415,8 +440,10 @@ half3 ShadeSH12Order (half4 normal)
 {
 	// Linear + constant polynomial terms
 	half3 res = SHEvalLinearL0L1 (normal);
-	if (IsGammaSpace())
+
+#	ifdef UNITY_COLORSPACE_GAMMA
 		res = LinearToGammaSpace (res);
+#	endif
 
 	return res;
 }
@@ -454,32 +481,17 @@ inline float2 ParallaxOffset( half h, half height, half3 viewDir )
 	return h * (v.xy / v.z);
 }
 
-
 // Converts color to luminance (grayscale)
-inline half Luminance( half3 c )
+inline half Luminance(half3 rgb)
 {
-	#if defined(UNITY_NO_LINEAR_COLORSPACE)
-		// In Gamma space equation is simple
-		return dot(c, unity_ColorSpaceLuminance.rgb);
-	#else
+	return dot(rgb, unity_ColorSpaceLuminance.rgb);
+}
 
-		// However if we need to support both Linear and Gamma modes,
-		// it is not enough to just have Luminance constant and color defined in Linear space, because (a+b+c)^n != a^n + b^n + c^n
-		// so in Linear space we need additional fixup to compensate this discrepancy.
-		// 1) Correct approach in Linear would be: dot(c^.4545, Luma^.4545)^2.2, but we want cheaper one!
-		// 2) Let's approximate Gamma curve with 2 instead of 2.2 which gives:
-		//    dot(c^.5, Luma^.5)^2, let A=c.x*L.x, B=c.y*L.y, C=c.z*L.z
-		//    (A^.5 + B^.5 + C^.5)^2 => A+B+C + 2(A*B)^.5 + 2(B*C)^.5 + 2(A*C)^.5
-		// 3) A*C is actually very small (L.x*L.z ~ 0.015), so we can safely neglect it
-		// 4) it seems that (A*B)^.5 + (B*C)^.5 can be reasonably approximated with just (A*B + B*C)^.5
-		// Final:
-		//    A+B+C + 2*sqrt(A*B+C*B) => A+B+C + 2*sqrt(B*(A+C))
-		//     where: A=c.x*L.x, B=c.y*L.y, C=c.z*L.z
-		// NOTE: unity_ColorSpaceLuminance.w == 1 when in Linear space, otherwise == 0
-		c *= unity_ColorSpaceLuminance.rgb;
-		half requiresLinearFixup = unity_ColorSpaceLuminance.w;
-		return c.x + c.y + c.z + 2 * sqrt(c.y * (c.x + c.z)) * requiresLinearFixup;
-	#endif
+// Convert rgb to luminance
+// with rgb in linear space with sRGB primaries and D65 white point
+half LinearRgbToLuminance(half3 linearRgb)
+{
+	return dot(linearRgb, half3(0.2126729f,  0.7151522f, 0.0721750f));
 }
 
 half4 UnityEncodeRGBM (half3 rgb, float maxRGBM)
@@ -499,14 +511,21 @@ half4 UnityEncodeRGBM (half3 rgb, float maxRGBM)
 }
 
 // Decodes HDR textures
-// handles dLDR, RGBM formats
+// handles dLDR, RGBM formats, Compressed(BC6H, BC1), and Uncompressed(RGBAHalf, RGBA32)
 inline half3 DecodeHDR (half4 data, half4 decodeInstructions)
 {
+	const bool useAlpha = decodeInstructions.w == 1;
+	half alpha = useAlpha ? data.a : 1.0;
+
 	// If Linear mode is not supported we can skip exponent part
-	#if defined(UNITY_NO_LINEAR_COLORSPACE)
-		return (decodeInstructions.x * data.a) * data.rgb;
+	#if defined(UNITY_COLORSPACE_GAMMA)
+		return (decodeInstructions.x * alpha) * data.rgb;
 	#else
-		return (decodeInstructions.x * pow(data.a, decodeInstructions.y)) * data.rgb;
+	#	if defined(UNITY_USE_NATIVE_HDR)
+			return decodeInstructions.x * data.rgb; // Multiplier for future HDRI relative to absolute conversion.
+	#	else
+			return (decodeInstructions.x * pow(alpha, decodeInstructions.y)) * data.rgb;
+	#	endif
 	#endif
 }
 
@@ -516,7 +535,7 @@ inline half3 DecodeHDR (half4 data, half4 decodeInstructions)
 inline half3 DecodeLightmapRGBM (half4 data, half4 decodeInstructions)
 {
 	// If Linear mode is not supported we can skip exponent part
-	#if defined(UNITY_NO_LINEAR_COLORSPACE)
+	#if defined(UNITY_COLORSPACE_GAMMA)
 	# if defined(UNITY_FORCE_LINEAR_READ_FOR_RGBM)
 		return (decodeInstructions.x * data.a) * sqrt(data.rgb);
 	# else
@@ -691,7 +710,7 @@ inline fixed3 UnpackNormal(fixed4 packednormal)
 }
 
 
-// Z buffer to linear 0..1 depth (0 at eye, 1 at far plane)
+// Z buffer to linear 0..1 depth
 inline float Linear01Depth( float z )
 {
 	return 1.0 / (_ZBufferParams.x * z + _ZBufferParams.y);
@@ -703,7 +722,7 @@ inline float LinearEyeDepth( float z )
 }
 
 
-#ifdef UNITY_SINGLE_PASS_STEREO
+#if defined(UNITY_SINGLE_PASS_STEREO) || defined(STEREO_INSTANCING_ON)
 float2 TransformStereoScreenSpaceTex(float2 uv, float w)
 {
 	float4 scaleOffset = unity_StereoScaleOffset[unity_StereoEyeIndex];
@@ -750,23 +769,19 @@ inline float4 UnityStereoTransformScreenSpaceTex(float4 uv)
 
 inline float4 ComputeNonStereoScreenPos(float4 pos) {
 	float4 o = pos * 0.5f;
-#if defined(UNITY_HALF_TEXEL_OFFSET)
-	o.xy = float2(o.x, o.y*_ProjectionParams.x) + o.w * _ScreenParams.zw;
-#else
 	o.xy = float2(o.x, o.y*_ProjectionParams.x) + o.w;
-#endif
 	o.zw = pos.zw;
 	return o;
 }
 
-inline float4 ComputeScreenPos (float4 pos) {
+inline float4 ComputeScreenPos(float4 pos) {
 	float4 o = ComputeNonStereoScreenPos(pos);
-#ifdef UNITY_SINGLE_PASS_STEREO
+#if defined(UNITY_SINGLE_PASS_STEREO) || defined(STEREO_INSTANCING_ON)
 	o.xy = TransformStereoScreenSpaceTex(o.xy, pos.w);
 #endif
 	return o;
 }
-
+	
 inline float4 ComputeGrabScreenPos (float4 pos) {
 	#if UNITY_UV_STARTS_AT_TOP
 	float scale = -1.0;
@@ -783,13 +798,8 @@ inline float4 ComputeGrabScreenPos (float4 pos) {
 inline float4 UnityPixelSnap (float4 pos)
 {
 	float2 hpc = _ScreenParams.xy * 0.5f;
-	#ifdef UNITY_HALF_TEXEL_OFFSET
-	float2 hpcO = float2(-0.5f, 0.5f);
-	#else
-	float2 hpcO = float2(0,0);
-	#endif	
 	float2 pixelPos = round ((pos.xy / pos.w) * hpc);
-	pos.xy = (pixelPos + hpcO) / hpc * pos.w;
+	pos.xy = pixelPos / hpc * pos.w;
 	return pos;
 }
 
@@ -859,8 +869,13 @@ float4 UnityClipSpaceShadowCasterPos(float3 vertex, float3 normal)
 
 float4 UnityApplyLinearShadowBias(float4 clipPos)
 {
+#if defined(UNITY_REVERSED_Z)
+	clipPos.z += clamp(unity_LightShadowBias.x/clipPos.w, -1, 0);
+	float clamped = min(clipPos.z, clipPos.w*UNITY_NEAR_CLIP_VALUE);
+#else 
 	clipPos.z += saturate(unity_LightShadowBias.x/clipPos.w);
 	float clamped = max(clipPos.z, clipPos.w*UNITY_NEAR_CLIP_VALUE);
+#endif
 	clipPos.z = lerp(clipPos.z, clamped, unity_LightShadowBias.y);
 	return clipPos;
 }
@@ -923,19 +938,32 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 #undef FOG_EXP2
 #endif
 
+#if defined(UNITY_REVERSED_Z)
+	//D3d with reversed Z => z clip range is [near, 0] -> remapping to [0, far]
+	//max is required to protect ourselves from near plane not being correct/meaningfull in case of oblique matrices.
+	#define UNITY_Z_0_FAR_FROM_CLIPSPACE(coord) max(((1.0-(coord)/_ProjectionParams.y)*_ProjectionParams.z),0)
+#elif UNITY_UV_STARTS_AT_TOP
+	//D3d without reversed z => z clip range is [0, far] -> nothing to do
+	#define UNITY_Z_0_FAR_FROM_CLIPSPACE(coord) (coord)
+#else 
+	//Opengl => z clip range is [-near, far] -> should remap in theory but dont do it in practice to save some perf (range is close enought)
+	#define UNITY_Z_0_FAR_FROM_CLIPSPACE(coord) (coord)
+#endif
 
 #if defined(FOG_LINEAR)
 	// factor = (end-z)/(end-start) = z * (-1/(end-start)) + (end/(end-start))
-	#define UNITY_CALC_FOG_FACTOR(coord) float unityFogFactor = (coord) * unity_FogParams.z + unity_FogParams.w
+	#define UNITY_CALC_FOG_FACTOR_RAW(coord) float unityFogFactor = (coord) * unity_FogParams.z + unity_FogParams.w
 #elif defined(FOG_EXP)
 	// factor = exp(-density*z)
-	#define UNITY_CALC_FOG_FACTOR(coord) float unityFogFactor = unity_FogParams.y * (coord); unityFogFactor = exp2(-unityFogFactor)
+	#define UNITY_CALC_FOG_FACTOR_RAW(coord) float unityFogFactor = unity_FogParams.y * (coord); unityFogFactor = exp2(-unityFogFactor)
 #elif defined(FOG_EXP2)
 	// factor = exp(-(density*z)^2)
-	#define UNITY_CALC_FOG_FACTOR(coord) float unityFogFactor = unity_FogParams.x * (coord); unityFogFactor = exp2(-unityFogFactor*unityFogFactor)
+	#define UNITY_CALC_FOG_FACTOR_RAW(coord) float unityFogFactor = unity_FogParams.x * (coord); unityFogFactor = exp2(-unityFogFactor*unityFogFactor)
 #else
-	#define UNITY_CALC_FOG_FACTOR(coord) float unityFogFactor = 0.0
+	#define UNITY_CALC_FOG_FACTOR_RAW(coord) float unityFogFactor = 0.0
 #endif
+
+#define UNITY_CALC_FOG_FACTOR(coord) UNITY_CALC_FOG_FACTOR_RAW(UNITY_Z_0_FAR_FROM_CLIPSPACE(coord))
 
 #define UNITY_FOG_COORDS_PACKED(idx, vectype) vectype fogCoord : TEXCOORD##idx;
 

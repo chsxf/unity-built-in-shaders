@@ -31,6 +31,8 @@ Shader "Sprites/Diffuse"
 		sampler2D _MainTex;
 		fixed4 _Color;
 		sampler2D _AlphaTex;
+		float _AlphaSplitEnabled;
+
 
 		struct Input
 		{

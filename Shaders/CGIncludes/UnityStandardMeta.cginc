@@ -30,11 +30,11 @@ v2f_meta vert_meta (VertexInput v)
 // Albedo for lightmapping should basically be diffuse color.
 // But rough metals (black diffuse) still scatter quite a lot of light around, so
 // we want to take some of that into account too.
-half3 UnityLightmappingAlbedo (half3 diffuse, half3 specular, half oneMinusRoughness)
+half3 UnityLightmappingAlbedo (half3 diffuse, half3 specular, half smoothness)
 {
-	half roughness = 1 - oneMinusRoughness;
+	half roughness = SmoothnessToRoughness(smoothness);
 	half3 res = diffuse;
-	res += specular * roughness * roughness * 0.5;
+	res += specular * roughness * 0.5;
 	return res;
 }
 
@@ -47,7 +47,7 @@ float4 frag_meta (v2f_meta i) : SV_Target
 	UnityMetaInput o;
 	UNITY_INITIALIZE_OUTPUT(UnityMetaInput, o);
 
-	o.Albedo = UnityLightmappingAlbedo (data.diffColor, data.specColor, data.oneMinusRoughness);
+	o.Albedo = UnityLightmappingAlbedo (data.diffColor, data.specColor, data.smoothness);
 	o.Emission = Emission(i.uv.xy);
 
 	return UnityMetaFragment(o);

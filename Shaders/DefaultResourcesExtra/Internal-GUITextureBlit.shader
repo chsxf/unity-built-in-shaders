@@ -24,6 +24,7 @@ Shader "Hidden/Internal-GUITextureBlit"
 				float4 vertex : POSITION;
 				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
 			struct v2f {
@@ -31,6 +32,7 @@ Shader "Hidden/Internal-GUITextureBlit"
 				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
 				float2 clipUV : TEXCOORD1;
+				UNITY_VERTEX_OUTPUT_STEREO
 			};
 
 			uniform float4 _MainTex_ST;
@@ -40,6 +42,8 @@ Shader "Hidden/Internal-GUITextureBlit"
 			v2f vert (appdata_t v)
 			{
 				v2f o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				float3 eyePos = UnityObjectToViewPos(v.vertex);
 				o.clipUV = mul(unity_GUIClipTextureMatrix, float4(eyePos.xy, 0, 1.0));

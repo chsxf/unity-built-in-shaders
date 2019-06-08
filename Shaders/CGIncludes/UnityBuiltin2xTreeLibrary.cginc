@@ -25,12 +25,14 @@ struct v2f {
 	float4 uv : TEXCOORD0;
 	half4 color : TEXCOORD1;
 	UNITY_FOG_COORDS(2)
+	UNITY_VERTEX_OUTPUT_STEREO
 };
 
 v2f leaves(appdata_tree v)
 {
 	v2f o;
-	
+	UNITY_SETUP_INSTANCE_ID(v);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 	TerrainAnimateTree(v.vertex, v.color.w);
 	
 	float3 viewpos = UnityObjectToViewPos(v.vertex);
@@ -75,7 +77,8 @@ v2f leaves(appdata_tree v)
 v2f bark(appdata_tree v)
 {
 	v2f o;
-	
+	UNITY_SETUP_INSTANCE_ID(v);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 	TerrainAnimateTree(v.vertex, v.color.w);
 	
 	float3 viewpos = UnityObjectToViewPos(v.vertex);

@@ -43,7 +43,7 @@ sampler2D _MainTex;
 	half4 _HueVariation;
 #endif
 
-#ifdef EFFECT_BUMP
+#if defined(EFFECT_BUMP) && !defined(LIGHTMAP_ON)
 	sampler2D _BumpMap;
 #endif
 
@@ -81,7 +81,7 @@ void SpeedTreeVert(inout SpeedTreeVB IN, out Input OUT)
 
 // Fragment processing
 
-#ifdef EFFECT_BUMP
+#if defined(EFFECT_BUMP) && !defined(LIGHTMAP_ON)
 	#define SPEEDTREE_DATA_NORMAL			fixed3 Normal;
 	#define SPEEDTREE_COPY_NORMAL(to, from)	to.Normal = from.Normal;
 #else
@@ -130,8 +130,12 @@ void SpeedTreeFrag(Input IN, out SpeedTreeFragOut OUT)
 
 	OUT.Albedo = diffuseColor.rgb * IN.color.rgb;
 
-	#ifdef EFFECT_BUMP
+	#if defined(EFFECT_BUMP) && !defined(LIGHTMAP_ON)
 		OUT.Normal = UnpackNormal(tex2D(_BumpMap, IN.mainTexUV));
+		#ifdef GEOM_TYPE_BRANCH_DETAIL
+			half3 detailNormal = UnpackNormal(tex2D(_BumpMap, IN.Detail.xy));
+			OUT.Normal = lerp(OUT.Normal, detailNormal, IN.Detail.z < 2.0f ? saturate(IN.Detail.z) : detailColor.a);
+		#endif
 	#endif
 }
 

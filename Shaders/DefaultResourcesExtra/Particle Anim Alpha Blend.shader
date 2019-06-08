@@ -1,4 +1,4 @@
-Shader "Particles/~Additive-Multiply" {
+Shader "Particles/Anim Alpha Blended" {
 Properties {
 	_TintColor ("Tint Color", Color) = (0.5,0.5,0.5,0.5)
 	_MainTex ("Particle Texture", 2D) = "white" {}
@@ -7,10 +7,10 @@ Properties {
 
 Category {
 	Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" "PreviewType"="Plane" }
-	Blend One OneMinusSrcAlpha
+	Blend SrcAlpha OneMinusSrcAlpha
 	ColorMask RGB
 	Cull Off Lighting Off ZWrite Off
-	
+
 	SubShader {
 		Pass {
 		
@@ -20,7 +20,7 @@ Category {
 			#pragma target 2.0
 			#pragma multi_compile_particles
 			#pragma multi_compile_fog
-
+			
 			#include "UnityCG.cginc"
 
 			sampler2D _MainTex;
@@ -30,6 +30,7 @@ Category {
 				float4 vertex : POSITION;
 				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
+				float4 texcoordBlendFrame : TEXCOORD1;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -37,27 +38,31 @@ Category {
 				float4 vertex : SV_POSITION;
 				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
-				UNITY_FOG_COORDS(1)
+				float2 texcoord2 : TEXCOORD1;
+				fixed blend : TEXCOORD2;
+				UNITY_FOG_COORDS(3)
 				#ifdef SOFTPARTICLES_ON
-				float4 projPos : TEXCOORD2;
+				float4 projPos : TEXCOORD4;
 				#endif
 				UNITY_VERTEX_OUTPUT_STEREO
 			};
-
-			float4 _MainTex_ST;
 			
+			float4 _MainTex_ST;
+
 			v2f vert (appdata_t v)
 			{
 				v2f o;
 				UNITY_SETUP_INSTANCE_ID(v);
-				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o); 
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				#ifdef SOFTPARTICLES_ON
 				o.projPos = ComputeScreenPos (o.vertex);
 				COMPUTE_EYEDEPTH(o.projPos.z);
 				#endif
-				o.color = v.color;
+				o.color = v.color * _TintColor;
 				o.texcoord = TRANSFORM_TEX(v.texcoord,_MainTex);
+				o.texcoord2 = TRANSFORM_TEX(v.texcoordBlendFrame.xy,_MainTex);
+				o.blend = v.texcoordBlendFrame.z;
 				UNITY_TRANSFER_FOG(o,o.vertex);
 				return o;
 			}
@@ -71,19 +76,17 @@ Category {
 				float sceneZ = LinearEyeDepth (SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(i.projPos)));
 				float partZ = i.projPos.z;
 				float fade = saturate (_InvFade * (sceneZ-partZ));
-				i.color *= fade;
+				i.color.a *= fade;
 				#endif
 				
-				fixed4 tex = tex2D(_MainTex, i.texcoord);
-				fixed4 col;
-				col.rgb = _TintColor.rgb * tex.rgb * i.color.rgb * 2.0f;
-				col.a = (1 - tex.a) * (_TintColor.a * i.color.a * 2.0f);
-				UNITY_APPLY_FOG_COLOR(i.fogCoord, col, fixed4(0,0,0,0)); // fog towards black due to our blend mode
+				fixed4 colA = tex2D(_MainTex, i.texcoord);
+				fixed4 colB = tex2D(_MainTex, i.texcoord2);
+				fixed4 col = 2.0f * i.color * lerp(colA, colB, i.blend);
+				UNITY_APPLY_FOG(i.fogCoord, col);
 				return col;
 			}
 			ENDCG 
 		}
-	} 	
-
+	}	
 }
 }
