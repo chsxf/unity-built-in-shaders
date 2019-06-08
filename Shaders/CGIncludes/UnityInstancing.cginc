@@ -46,6 +46,12 @@
     #define UNITY_INSTANCING_SUPPORT_FLEXIBLE_ARRAY_SIZE
 #endif
 
+// Switch shader compilation defines SHADER_API_GLCORE but in 2018.1 and below we don't support flexible arrays.
+#if defined(SHADER_API_SWITCH)
+    #undef UNITY_INSTANCING_AOS
+    #undef UNITY_INSTANCING_SUPPORT_FLEXIBLE_ARRAY_SIZE
+#endif
+
 #if defined(SHADER_TARGET_SURFACE_ANALYSIS) && defined(UNITY_SUPPORT_INSTANCING)
     #undef UNITY_SUPPORT_INSTANCING
 #endif
