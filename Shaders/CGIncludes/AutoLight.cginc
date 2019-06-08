@@ -27,11 +27,18 @@ UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 
 inline fixed unitySampleShadow (unityShadowCoord4 shadowCoord)
 {
+	//shadowCoord are computed in the vertex shader and we don't have 
+	//worldpos -> using UX coords to prevent incorrect shadowing outside
+	//of the area covered by the shadowmap. bug 866230.
+	fixed2 coordCheck = abs(shadowCoord.xy * 2.0 - 1.0);
+	fixed2 outsideOfShadowmap = (coordCheck.xy > 1.0)?1.0:0.0;
+	outsideOfShadowmap.x += outsideOfShadowmap.y;
+
 	#if defined(SHADOWS_NATIVE)
 
 	fixed shadow = UNITY_SAMPLE_SHADOW(_ShadowMapTexture, shadowCoord.xyz);
 	shadow = _LightShadowData.r + shadow * (1-_LightShadowData.r);
-	return shadow;
+	return saturate(shadow + outsideOfShadowmap);
 
 	#else
 
@@ -41,7 +48,7 @@ inline fixed unitySampleShadow (unityShadowCoord4 shadowCoord)
 	// with "ambiguous overloaded function reference max(mediump float, float)"
 	unityShadowCoord lightShadowDataX = _LightShadowData.x;
 	unityShadowCoord threshold = shadowCoord.z;
-	return max(dist > threshold, lightShadowDataX);
+	return saturate(max(dist > threshold, lightShadowDataX) + outsideOfShadowmap);
 
 	#endif
 }

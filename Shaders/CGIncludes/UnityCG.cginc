@@ -460,7 +460,7 @@ struct v2f_vertex_lit {
 	float2 uv	: TEXCOORD0;
 	fixed4 diff	: COLOR0;
 	fixed4 spec	: COLOR1;
-};  
+};
 
 inline fixed4 VertexLight( v2f_vertex_lit i, sampler2D mainTex )
 {
@@ -494,20 +494,19 @@ half LinearRgbToLuminance(half3 linearRgb)
 	return dot(linearRgb, half3(0.2126729f,  0.7151522f, 0.0721750f));
 }
 
-half4 UnityEncodeRGBM (half3 rgb, float maxRGBM)
+half4 UnityEncodeRGBM (half3 color, float maxRGBM)
 {
 	float kOneOverRGBMMaxRange = 1.0 / maxRGBM;
 	const float kMinMultiplier = 2.0 * 1e-2;
 
-	float4 rgbm = float4(rgb * kOneOverRGBMMaxRange, 1.0f);
-	rgbm.a = max(max(rgbm.r, rgbm.g), max(rgbm.b, kMinMultiplier));
-	rgbm.a = ceil(rgbm.a * 255.0) / 255.0;
+	float3 rgb = color * kOneOverRGBMMaxRange;
+	float alpha = max(max(rgb.r, rgb.g), max(rgb.b, kMinMultiplier));
+	alpha = ceil(alpha * 255.0) / 255.0;
 	
 	// Division-by-zero warning from d3d9, so make compiler happy.
-	rgbm.a = max(rgbm.a, kMinMultiplier);
-	
-	rgbm.rgb /= rgbm.a;
-	return rgbm;
+	alpha = max(alpha, kMinMultiplier);
+
+	return half4(rgb / alpha, alpha);
 }
 
 // Decodes HDR textures
@@ -593,36 +592,6 @@ inline half3 DecodeDirectionalLightmap (half3 color, fixed4 dirTex, half3 normal
 
 	return color * halfLambert / max(1e-4h, dirTex.w);
 }
-
-// Helpers used in image effects. Most image effects use the same
-// minimal vertex shader (vert_img).
-
-struct appdata_img
-{
-	float4 vertex : POSITION;
-	half2 texcoord : TEXCOORD0;
-};
-
-struct v2f_img
-{
-	float4 pos : SV_POSITION;
-	half2 uv : TEXCOORD0;
-};
-
-float2 MultiplyUV (float4x4 mat, float2 inUV) {
-	float4 temp = float4 (inUV.x, inUV.y, 0, 0);
-	temp = mul (mat, temp);
-	return temp.xy;
-}
-
-v2f_img vert_img( appdata_img v )
-{
-	v2f_img o;
-	o.pos = UnityObjectToClipPos (v.vertex);
-	o.uv = v.texcoord;
-	return o;
-}
-
 
 // Encoding/decoding [0..1) floats into 8 bit/channel RGBA. Note that 1.0 will not be encoded properly.
 inline float4 EncodeFloatRGBA( float v )
@@ -733,7 +702,7 @@ float2 TransformStereoScreenSpaceTex(float2 uv, float w)
 #ifdef UNITY_SINGLE_PASS_STEREO
 inline float2 UnityStereoScreenSpaceUVAdjustInternal(float2 uv, float4 scaleAndOffset)
 {
-	return saturate(uv.xy) * scaleAndOffset.xy + scaleAndOffset.zw;
+	return uv.xy * scaleAndOffset.xy + scaleAndOffset.zw;
 }
 
 inline float4 UnityStereoScreenSpaceUVAdjustInternal(float4 uv, float4 scaleAndOffset)
@@ -763,6 +732,34 @@ inline float4 UnityStereoTransformScreenSpaceTex(float4 uv)
 #define COMPUTE_DEPTH_01 -(UnityObjectToViewPos( v.vertex ).z * _ProjectionParams.w)
 #define COMPUTE_VIEW_NORMAL normalize(mul((float3x3)UNITY_MATRIX_IT_MV, v.normal))
 
+// Helpers used in image effects. Most image effects use the same
+// minimal vertex shader (vert_img).
+
+struct appdata_img
+{
+	float4 vertex : POSITION;
+	half2 texcoord : TEXCOORD0;
+};
+
+struct v2f_img
+{
+	float4 pos : SV_POSITION;
+	half2 uv : TEXCOORD0;
+};
+
+float2 MultiplyUV (float4x4 mat, float2 inUV) {
+	float4 temp = float4 (inUV.x, inUV.y, 0, 0);
+	temp = mul (mat, temp);
+	return temp.xy;
+}
+
+v2f_img vert_img( appdata_img v )
+{
+	v2f_img o;
+	o.pos = UnityObjectToClipPos (v.vertex);
+	o.uv = v.texcoord;
+	return o;
+}
 
 // Projected screen position helpers
 #define V2F_SCREEN_TYPE float4
@@ -790,6 +787,9 @@ inline float4 ComputeGrabScreenPos (float4 pos) {
 	#endif
 	float4 o = pos * 0.5f;
 	o.xy = float2(o.x, o.y*scale) + o.w;
+#ifdef UNITY_SINGLE_PASS_STEREO
+	o.xy = TransformStereoScreenSpaceTex(o.xy, pos.w);
+#endif
 	o.zw = pos.zw;
 	return o;
 }
@@ -835,7 +835,7 @@ float UnityDecodeCubeShadowDepth (float4 vals)
 float4 UnityClipSpaceShadowCasterPos(float3 vertex, float3 normal)
 {
 	float4 clipPos;
-    
+
     // Important to match MVP transform precision exactly while rendering
     // into the depth texture, so branch on normal bias being zero.
     if (unity_LightShadowBias.z != 0.0)
