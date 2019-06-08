@@ -369,10 +369,10 @@ half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 	// This correction is only applied with SmithJoint visibility function because artifacts are more visible in this case due to highlight edge of rough surface
 	half shiftAmount = dot(normal, viewDir);
 	normal = shiftAmount < 0.0f ? normal + viewDir * (-shiftAmount + 1e-5f) : normal;
-	// A re-normalization should be apply here but as the shift is small we don't do it to save ALU.
+	// A re-normalization should be applied here but as the shift is small we don't do it to save ALU.
 	//normal = normalize(normal);
 
-	// As we have modify the normal we need to recalculate the dot product nl. 
+	// As we have modified the normal we need to recalculate the dot product nl.
 	// Note that  light.ndotl is a clamped cosine and only the ForwardSimple mode use a specific ndotL with BRDF3
 	half nl = DotClamped(normal, light.dir);
 #else
@@ -406,13 +406,21 @@ half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 		specularTerm = sqrt(max(1e-4h, specularTerm));
 	specularTerm = max(0, specularTerm * nl);
 
+
+#if defined(_SPECULARHIGHLIGHTS_OFF)
+	specularTerm = 0.0;
+#endif
+
 	half diffuseTerm = disneyDiffuse * nl;
 
 	// surfaceReduction = Int D(NdotH) * NdotH * Id(NdotL>0) dH = 1/(realRoughness^2+1)
 	half realRoughness = roughness*roughness;		// need to square perceptual roughness
 	half surfaceReduction;
-	if (IsGammaSpace()) surfaceReduction = 1.0 - 0.28*realRoughness*roughness;		// 1-0.28*x^3 as approximation for (1/(x^4+1))^(1/2.2) on the domain [0;1]
+	if(IsGammaSpace()) surfaceReduction = 1.0-0.28*realRoughness*roughness;		// 1-0.28*x^3 as approximation for (1/(x^4+1))^(1/2.2) on the domain [0;1]
 	else surfaceReduction = 1.0 / (realRoughness*realRoughness + 1.0);			// fade \in [0.5;1]
+		
+	// To provide true Lambert lighting, we need to be able to kill specular completely.
+	specularTerm *= any(specColor) ? 1.0 : 0.0;
 
 	half grazingTerm = saturate(oneMinusRoughness + (1-oneMinusReflectivity));
     half3 color =	diffColor * (gi.diffuse + light.color * diffuseTerm)
@@ -458,14 +466,19 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 
 	// surfaceReduction = Int D(NdotH) * NdotH * Id(NdotL>0) dH = 1/(realRoughness^2+1)
 	half realRoughness = roughness*roughness;		// need to square perceptual roughness
+	
 	// 1-0.28*x^3 as approximation for (1/(x^4+1))^(1/2.2) on the domain [0;1]
 	// 1-x^3*(0.6-0.08*x)   approximation for 1/(x^4+1)
-	half surfaceReduction = IsGammaSpace() ? 0.28 : (0.6 - 0.08*roughness);
+	half surfaceReduction = IsGammaSpace() ? 0.28 : (0.6-0.08*roughness);
 	surfaceReduction = 1.0 - realRoughness*roughness*surfaceReduction;
-
+	
 	// Prevent FP16 overflow on mobiles
 #if SHADER_API_GLES || SHADER_API_GLES3
 	specular = clamp(specular, 0.0, 100.0);
+#endif
+
+#if defined(_SPECULARHIGHLIGHTS_OFF)
+	specular = 0.0;
 #endif
 
 	half grazingTerm = saturate(oneMinusRoughness + (1-oneMinusReflectivity));
@@ -482,6 +495,10 @@ half3 BRDF3_Direct(half3 diffColor, half3 specColor, half rlPow4, half oneMinusR
 	half LUT_RANGE = 16.0; // must match range in NHxRoughness() function in GeneratedTextures.cpp
 	// Lookup texture to save instructions
 	half specular = tex2D(unity_NHxRoughness, half2(rlPow4, 1-oneMinusRoughness)).UNITY_ATTEN_CHANNEL * LUT_RANGE;
+#if defined(_SPECULARHIGHLIGHTS_OFF)
+	specular = 0.0;
+#endif
+
 	return diffColor + specular * specColor;
 }
 

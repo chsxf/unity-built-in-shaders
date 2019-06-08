@@ -11,6 +11,7 @@ CGINCLUDE
 #include "UnityDeferredLibrary.cginc"
 
 sampler2D _CameraNormalsTexture;
+float4 _CameraNormalsTexture_ST;
 
 half4 CalculateLight (unity_v2f_deferred i)
 {
@@ -20,7 +21,7 @@ half4 CalculateLight (unity_v2f_deferred i)
 	float atten, fadeDist;
 	UnityDeferredCalculateLightParams (i, wpos, uv, lightDir, atten, fadeDist);
 
-	half4 nspec = tex2D (_CameraNormalsTexture, uv);
+	half4 nspec = tex2D (_CameraNormalsTexture, TRANSFORM_TEX(uv, _CameraNormalsTexture));
 	half3 normal = nspec.rgb * 2 - 1;
 	normal = normalize(normal);
 	

@@ -10,8 +10,7 @@
 // Default BRDF to use:
 #if !defined (UNITY_BRDF_PBS) // allow to explicitly override BRDF in custom shader
 	// still add safe net for low shader models, otherwise we might end up with shaders failing to compile
-	// the only exception is WebGL in 5.3 - it will be built with shader target 2.0 but we want it to get rid of constraints, as it is effectively desktop
-	#if SHADER_TARGET < 30 && !UNITY_53_SPECIFIC_TARGET_WEBGL
+	#if SHADER_TARGET < 30
 		#define UNITY_BRDF_PBS BRDF3_Unity_PBS
 	#elif UNITY_PBS_USE_BRDF3
 		#define UNITY_BRDF_PBS BRDF3_Unity_PBS

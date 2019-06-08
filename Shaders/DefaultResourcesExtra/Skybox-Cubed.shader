@@ -15,6 +15,7 @@ SubShader {
 		CGPROGRAM
 		#pragma vertex vert
 		#pragma fragment frag
+		#pragma target 2.0
 
 		#include "UnityCG.cginc"
 
@@ -24,13 +25,13 @@ SubShader {
 		half _Exposure;
 		float _Rotation;
 
-		float4 RotateAroundYInDegrees (float4 vertex, float degrees)
+		float3 RotateAroundYInDegrees (float3 vertex, float degrees)
 		{
 			float alpha = degrees * UNITY_PI / 180.0;
 			float sina, cosa;
 			sincos(alpha, sina, cosa);
 			float2x2 m = float2x2(cosa, -sina, sina, cosa);
-			return float4(mul(m, vertex.xz), vertex.yw).xzyw;
+			return float3(mul(m, vertex.xz), vertex.y).xzy;
 		}
 		
 		struct appdata_t {
@@ -45,7 +46,8 @@ SubShader {
 		v2f vert (appdata_t v)
 		{
 			v2f o;
-			o.vertex = mul(UNITY_MATRIX_MVP, RotateAroundYInDegrees(v.vertex, _Rotation));
+			float3 rotated = RotateAroundYInDegrees(v.vertex, _Rotation);
+			o.vertex = UnityObjectToClipPos(rotated);
 			o.texcoord = v.vertex.xyz;
 			return o;
 		}

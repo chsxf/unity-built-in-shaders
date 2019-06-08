@@ -3,6 +3,7 @@
 
 #include "UnityCG.cginc"
 #include "UnityShaderVariables.cginc"
+#include "UnityInstancing.cginc"
 #include "UnityStandardConfig.cginc"
 #include "UnityStandardInput.cginc"
 #include "UnityPBSLighting.cginc"
@@ -157,7 +158,7 @@ half3 PerPixelWorldNormal(float4 i_tex, half4 tangentToWorld[3])
 	#define IN_VIEWDIR4PARALLAX_FWDADD(i) half3(0,0,0)
 #endif
 
-#if UNITY_SPECCUBE_BOX_PROJECTION
+#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
 	#define IN_WORLDPOS(i) i.posWorld
 #else
 	#define IN_WORLDPOS(i) half3(0,0,0)
@@ -347,7 +348,7 @@ struct VertexOutputForwardBase
 	UNITY_FOG_COORDS(7)
 
 	// next ones would not fit into SM2.0 limits, but they are always for SM3.0+
-	#if UNITY_SPECCUBE_BOX_PROJECTION
+	#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
 		float3 posWorld					: TEXCOORD8;
 	#endif
 
@@ -358,18 +359,23 @@ struct VertexOutputForwardBase
 			half3 reflUVW				: TEXCOORD8;
 		#endif
 	#endif
+
+	UNITY_VERTEX_OUTPUT_STEREO
 };
 
 VertexOutputForwardBase vertForwardBase (VertexInput v)
 {
+	UNITY_SETUP_INSTANCE_ID(v);
 	VertexOutputForwardBase o;
 	UNITY_INITIALIZE_OUTPUT(VertexOutputForwardBase, o);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
-	float4 posWorld = mul(_Object2World, v.vertex);
-	#if UNITY_SPECCUBE_BOX_PROJECTION
+	float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
+	#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
 		o.posWorld = posWorld.xyz;
 	#endif
-	o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+	o.pos = UnityObjectToClipPos(v.vertex);
+		
 	o.tex = TexCoords(v);
 	o.eyeVec = NormalizePerVertexNormal(posWorld.xyz - _WorldSpaceCameraPos);
 	float3 normalWorld = UnityObjectToWorldNormal(v.normal);
@@ -449,15 +455,19 @@ struct VertexOutputForwardAdd
 #if defined(_PARALLAXMAP)
 	half3 viewDirForParallax			: TEXCOORD8;
 #endif
+
+	UNITY_VERTEX_OUTPUT_STEREO
 };
 
 VertexOutputForwardAdd vertForwardAdd (VertexInput v)
 {
 	VertexOutputForwardAdd o;
 	UNITY_INITIALIZE_OUTPUT(VertexOutputForwardAdd, o);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
-	float4 posWorld = mul(_Object2World, v.vertex);
-	o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+	float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
+	o.pos = UnityObjectToClipPos(v.vertex);
+
 	o.tex = TexCoords(v);
 	o.eyeVec = NormalizePerVertexNormal(posWorld.xyz - _WorldSpaceCameraPos);
 	float3 normalWorld = UnityObjectToWorldNormal(v.normal);
@@ -521,9 +531,11 @@ struct VertexOutputDeferred
 	half3 eyeVec 						: TEXCOORD1;
 	half4 tangentToWorldAndParallax[3]	: TEXCOORD2;	// [3x3:tangentToWorld | 1x3:viewDirForParallax]
 	half4 ambientOrLightmapUV			: TEXCOORD5;	// SH or Lightmap UVs			
-	#if UNITY_SPECCUBE_BOX_PROJECTION
+
+	#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
 		float3 posWorld						: TEXCOORD6;
 	#endif
+
 	#if UNITY_OPTIMIZE_TEXCUBELOD
 		#if UNITY_SPECCUBE_BOX_PROJECTION
 			half3 reflUVW				: TEXCOORD7;
@@ -532,19 +544,23 @@ struct VertexOutputDeferred
 		#endif
 	#endif
 
+	UNITY_VERTEX_OUTPUT_STEREO
 };
 
 
 VertexOutputDeferred vertDeferred (VertexInput v)
 {
+	UNITY_SETUP_INSTANCE_ID(v);
 	VertexOutputDeferred o;
 	UNITY_INITIALIZE_OUTPUT(VertexOutputDeferred, o);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
-	float4 posWorld = mul(_Object2World, v.vertex);
-	#if UNITY_SPECCUBE_BOX_PROJECTION
+	float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
+	#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
 		o.posWorld = posWorld;
 	#endif
-	o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+	o.pos = UnityObjectToClipPos(v.vertex);
+
 	o.tex = TexCoords(v);
 	o.eyeVec = NormalizePerVertexNormal(posWorld.xyz - _WorldSpaceCameraPos);
 	float3 normalWorld = UnityObjectToWorldNormal(v.normal);

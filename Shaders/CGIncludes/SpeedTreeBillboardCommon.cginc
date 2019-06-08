@@ -35,7 +35,7 @@ void SpeedTreeBillboardVert(inout SpeedTreeBillboardData IN, out Input OUT)
 	UNITY_INITIALIZE_OUTPUT(Input, OUT);
 
 	// assume no scaling & rotation
-	float3 worldPos = IN.vertex.xyz + float3(_Object2World[0].w, _Object2World[1].w, _Object2World[2].w);
+	float3 worldPos = IN.vertex.xyz + float3(unity_ObjectToWorld[0].w, unity_ObjectToWorld[1].w, unity_ObjectToWorld[2].w);
 
 #ifdef BILLBOARD_FACE_CAMERA_POS
 	float3 eyeVec = normalize(unity_BillboardCameraPosition - worldPos);

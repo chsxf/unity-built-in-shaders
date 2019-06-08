@@ -5,7 +5,6 @@
 		_Color ("Main Color", Color) = (1,1,1,1)
 		_SpecColor ("Specular Color", Color) = (0.5, 0.5, 0.5, 0)
 		_HueVariation ("Hue Variation", Color) = (1.0,0.5,0.0,0.1)
-		_Shininess ("Shininess", Range (0.01, 1)) = 0.078125
 		_MainTex ("Base (RGB)", 2D) = "white" {}
 		_BumpMap ("Normalmap", 2D) = "bump" {}
 		_Cutoff ("Alpha cutoff", Range(0,1)) = 0.5
@@ -70,7 +69,7 @@
 					v2f o;
 					SpeedTreeBillboardVert(v, o.data);
 					o.data.color.rgb *= ShadeVertexLightsFull(v.vertex, v.normal, 4, true);
-					o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+					o.vertex = UnityObjectToClipPos(v.vertex);
 					UNITY_TRANSFER_FOG(o,o.vertex);
 					return o;
 				}
@@ -134,7 +133,7 @@
 					v2f o;
 					SpeedTreeBillboardVert(v, o.data);
 					o.data.color.rgb *= ShadeVertexLightsFull(v.vertex, v.normal, 2, false);
-					o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+					o.vertex = UnityObjectToClipPos(v.vertex);
 					UNITY_TRANSFER_FOG(o,o.vertex);
 					return o;
 				}

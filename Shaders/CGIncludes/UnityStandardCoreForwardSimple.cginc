@@ -7,7 +7,7 @@
 #define GLOSSMAP (defined(_SPECGLOSSMAP) || defined(_METALLICGLOSSMAP))
 
 #ifndef SPECULAR_HIGHLIGHTS
-	#define SPECULAR_HIGHLIGHTS 1
+	#define SPECULAR_HIGHLIGHTS (!defined(_SPECULAR_HIGHLIGHTS_OFF))
 #endif
 
 struct VertexOutputBaseSimple
@@ -28,7 +28,7 @@ struct VertexOutputBaseSimple
 		half3 tangentSpaceEyeVec		: TEXCOORD7;
 	#endif
 #endif
-#if UNITY_SPECCUBE_BOX_PROJECTION
+#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
 	float3 posWorld						: TEXCOORD8;
 #endif
 };
@@ -74,14 +74,15 @@ void TangentSpaceLightingInput(half3 normalWorld, half4 vTangent, half3 lightDir
 
 VertexOutputBaseSimple vertForwardBaseSimple (VertexInput v)
 {
+	UNITY_SETUP_INSTANCE_ID(v);
 	VertexOutputBaseSimple o;
 	UNITY_INITIALIZE_OUTPUT(VertexOutputBaseSimple, o);
 
-	float4 posWorld = mul(_Object2World, v.vertex);
-#if UNITY_SPECCUBE_BOX_PROJECTION
+	float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
+#if UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME
 	o.posWorld = posWorld.xyz;
 #endif
-	o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+	o.pos = UnityObjectToClipPos(v.vertex);
 	o.tex = TexCoords(v);
 	
 	half3 eyeVec = normalize(posWorld.xyz - _WorldSpaceCameraPos);
@@ -248,8 +249,8 @@ VertexOutputForwardAddSimple vertForwardAddSimple (VertexInput v)
 	VertexOutputForwardAddSimple o;
 	UNITY_INITIALIZE_OUTPUT(VertexOutputForwardAddSimple, o);
 
-	float4 posWorld = mul(_Object2World, v.vertex);
-	o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+	float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
+	o.pos = UnityObjectToClipPos(v.vertex);
 	o.tex = TexCoords(v);
 
 	//We need this for shadow receiving

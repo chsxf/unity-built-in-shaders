@@ -3,13 +3,14 @@
 
 #include "UnityCG.cginc"
 #include "UnityShaderVariables.cginc"
+#include "UnityInstancing.cginc"
 #include "UnityStandardConfig.cginc"
 #include "UnityPBSLighting.cginc" // TBD: remove
 #include "UnityStandardUtils.cginc"
 
 //---------------------------------------
 // Directional lightmaps & Parallax require tangent space too
-#if (_NORMALMAP || !DIRLIGHTMAP_OFF || _PARALLAXMAP)
+#if (_NORMALMAP || DIRLIGHTMAP_COMBINED || DIRLIGHTMAP_SEPARATE || _PARALLAXMAP)
 	#define _TANGENT_TO_WORLD 1 
 #endif
 
@@ -38,6 +39,7 @@ sampler2D	_SpecGlossMap;
 sampler2D	_MetallicGlossMap;
 half		_Metallic;
 half		_Glossiness;
+half		_GlossMapScale;
 
 sampler2D	_OcclusionMap;
 half		_OcclusionStrength;
@@ -64,6 +66,7 @@ struct VertexInput
 #ifdef _TANGENT_TO_WORLD
 	half4 tangent	: TANGENT;
 #endif
+	UNITY_INSTANCE_ID
 };
 
 float4 TexCoords(VertexInput v)
@@ -106,7 +109,11 @@ half3 Albedo(float4 texcoords)
 
 half Alpha(float2 uv)
 {
+#if defined(_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A)
+	return _Color.a;
+#else
 	return tex2D(_MainTex, uv).a * _Color.a;
+#endif
 }		
 
 half Occlusion(float2 uv)
@@ -125,9 +132,20 @@ half4 SpecularGloss(float2 uv)
 {
 	half4 sg;
 #ifdef _SPECGLOSSMAP
-	sg = tex2D(_SpecGlossMap, uv.xy);
+	#if defined(_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A)
+		sg.rgb = tex2D(_SpecGlossMap, uv).rgb;
+		sg.a = tex2D(_MainTex, uv).a;
+	#else
+		sg = tex2D(_SpecGlossMap, uv);
+	#endif
+	sg.a *= _GlossMapScale;
 #else
-	sg = half4(_SpecColor.rgb, _Glossiness);
+	sg.rgb = _SpecColor.rgb;
+	#ifdef _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
+		sg.a = tex2D(_MainTex, uv).a * _GlossMapScale;
+	#else
+		sg.a = _Glossiness;
+	#endif
 #endif
 	return sg;
 }
@@ -135,10 +153,22 @@ half4 SpecularGloss(float2 uv)
 half2 MetallicGloss(float2 uv)
 {
 	half2 mg;
+	
 #ifdef _METALLICGLOSSMAP
-	mg = tex2D(_MetallicGlossMap, uv.xy).ra;
+	#ifdef _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
+		mg.r = tex2D(_MetallicGlossMap, uv).r;
+		mg.g = tex2D(_MainTex, uv).a;
+	#else
+		mg = tex2D(_MetallicGlossMap, uv).ra;
+	#endif
+	mg.g *= _GlossMapScale;
 #else
-	mg = half2(_Metallic, _Glossiness);
+	mg.r = _Metallic;
+	#ifdef _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
+		mg.g = tex2D(_MainTex, uv).a * _GlossMapScale;
+	#else
+		mg.g = _Glossiness;
+	#endif
 #endif
 	return mg;
 }
@@ -179,7 +209,11 @@ half3 NormalInTangentSpace(float4 texcoords)
 
 float4 Parallax (float4 texcoords, half3 viewDir)
 {
-#if !defined(_PARALLAXMAP) || (SHADER_TARGET < 30)
+// D3D9/SM30 supports up to 16 samplers, skip the parallax map in case we exceed the limit
+#define EXCEEDS_D3D9_SM3_MAX_SAMPLER_COUNT	(defined(LIGHTMAP_ON) && defined(DIRLIGHTMAP_SEPARATE) && defined(SHADOWS_SCREEN) && defined(_NORMALMAP) && \
+											 defined(_EMISSION) && defined(_DETAIL) && (defined(_METALLICGLOSSMAP) || defined(_SPECGLOSSMAP)))
+
+#if !defined(_PARALLAXMAP) || (SHADER_TARGET < 30) || (defined(SHADER_API_D3D9) && EXCEEDS_D3D9_SM3_MAX_SAMPLER_COUNT)
 	// SM20: instruction count limitation
 	// SM20: no parallax
 	return texcoords;
@@ -188,6 +222,8 @@ float4 Parallax (float4 texcoords, half3 viewDir)
 	float2 offset = ParallaxOffset1Step (h, _Parallax, viewDir);
 	return float4(texcoords.xy + offset, texcoords.zw + offset);
 #endif
+
+#undef EXCEEDS_D3D9_SM3_MAX_SAMPLER_COUNT
 }
 			
 #endif // UNITY_STANDARD_INPUT_INCLUDED

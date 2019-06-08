@@ -7,7 +7,7 @@
 
 float UnityCalcDistanceTessFactor (float4 vertex, float minDist, float maxDist, float tess)
 {
-	float3 wpos = mul(_Object2World,vertex).xyz;
+	float3 wpos = mul(unity_ObjectToWorld,vertex).xyz;
 	float dist = distance (wpos, _WorldSpaceCameraPos);
 	float f = clamp(1.0 - (dist - minDist) / (maxDist - minDist), 0.01, 1.0) * tess;
 	return f;
@@ -91,9 +91,9 @@ float4 UnityDistanceBasedTess (float4 v0, float4 v1, float4 v2, float minDist, f
 // Does not take viewing FOV into account, just flat out divides factor by distance.
 float4 UnityEdgeLengthBasedTess (float4 v0, float4 v1, float4 v2, float edgeLength)
 {
-	float3 pos0 = mul(_Object2World,v0).xyz;
-	float3 pos1 = mul(_Object2World,v1).xyz;
-	float3 pos2 = mul(_Object2World,v2).xyz;
+	float3 pos0 = mul(unity_ObjectToWorld,v0).xyz;
+	float3 pos1 = mul(unity_ObjectToWorld,v1).xyz;
+	float3 pos2 = mul(unity_ObjectToWorld,v2).xyz;
 	float4 tess;
 	tess.x = UnityCalcEdgeTessFactor (pos1, pos2, edgeLength);
 	tess.y = UnityCalcEdgeTessFactor (pos2, pos0, edgeLength);
@@ -107,9 +107,9 @@ float4 UnityEdgeLengthBasedTess (float4 v0, float4 v1, float4 v2, float edgeLeng
 // patches outside of camera's view are culled before GPU tessellation. Saves some wasted work.
 float4 UnityEdgeLengthBasedTessCull (float4 v0, float4 v1, float4 v2, float edgeLength, float maxDisplacement)
 {
-	float3 pos0 = mul(_Object2World,v0).xyz;
-	float3 pos1 = mul(_Object2World,v1).xyz;
-	float3 pos2 = mul(_Object2World,v2).xyz;
+	float3 pos0 = mul(unity_ObjectToWorld,v0).xyz;
+	float3 pos1 = mul(unity_ObjectToWorld,v1).xyz;
+	float3 pos2 = mul(unity_ObjectToWorld,v2).xyz;
 	float4 tess;
 
 	if (UnityWorldViewFrustumCull(pos0, pos1, pos2, maxDisplacement))

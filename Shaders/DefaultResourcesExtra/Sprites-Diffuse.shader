@@ -32,7 +32,6 @@ Shader "Sprites/Diffuse"
 		fixed4 _Color;
 		sampler2D _AlphaTex;
 
-
 		struct Input
 		{
 			float2 uv_MainTex;

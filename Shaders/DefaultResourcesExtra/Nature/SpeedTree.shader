@@ -3,9 +3,7 @@ Shader "Nature/SpeedTree"
 	Properties
 	{
 		_Color ("Main Color", Color) = (1,1,1,1)
-		_SpecColor ("Specular Color", Color) = (0,0,0,0)
 		_HueVariation ("Hue Variation", Color) = (1.0,0.5,0.0,0.1)
-		_Shininess ("Shininess", Range (0.01, 1)) = 0.1
 		_MainTex ("Base (RGB) Trans (A)", 2D) = "white" {}
 		_DetailTex ("Detail", 2D) = "black" {}
 		_BumpMap ("Normal Map", 2D) = "bump" {}
@@ -119,7 +117,7 @@ Shader "Nature/SpeedTree"
 					v2f o;
 					SpeedTreeVert(v, o.data);
 					o.data.color.rgb *= ShadeVertexLightsFull(v.vertex, v.normal, 4, true);
-					o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+					o.vertex = UnityObjectToClipPos(v.vertex);
 					UNITY_TRANSFER_FOG(o,o.vertex);
 					return o;
 				}
@@ -228,7 +226,7 @@ Shader "Nature/SpeedTree"
 					v2f o;
 					SpeedTreeVert(v, o.data);
 					o.data.color.rgb *= ShadeVertexLightsFull(v.vertex, v.normal, 2, false);
-					o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+					o.vertex = UnityObjectToClipPos(v.vertex);
 					UNITY_TRANSFER_FOG(o,o.vertex);
 					return o;
 				}

@@ -5,7 +5,7 @@ Shader "UI/Lit/Bumped"
 		_Color ("Main Color", Color) = (1,1,1,1)
 		_Specular ("Specular Color", Color) = (0,0,0,0)
 		_MainTex ("Diffuse (RGB), Alpha (A)", 2D) = "white" {}
-		_MainBump ("Diffuse Bump Map", 2D) = "bump" {}
+		[NoScaleOffset] _MainBump ("Diffuse Bump Map", 2D) = "bump" {}
 		_Shininess ("Shininess", Range(0.01, 1.0)) = 0.2
 		
 		_StencilComp ("Stencil Comparison", Float) = 8

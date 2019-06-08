@@ -5,7 +5,7 @@ Properties {
 }
 
 SubShader {
-	Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
+	Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" "PreviewType"="Plane" }
 	Tags { "LightMode" = "Vertex" }
 	Cull Off
 	Lighting On
