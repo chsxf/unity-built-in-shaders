@@ -276,8 +276,11 @@ CBUFFER_END
 // Light Probe Proxy Volume
 
 #ifndef UNITY_LIGHT_PROBE_PROXY_VOLUME
-// Requires quite modern graphics support (3D float textures with filtering), so explicitly disabled on SM2.0, DX9, etc.
-#define UNITY_LIGHT_PROBE_PROXY_VOLUME UNITY_SM40_PLUS_PLATFORM
+	// Requires quite modern graphics support (3D float textures with filtering)
+	// Note: Keep this in synch with the list from LightProbeProxyVolume::HasHardwareSupport
+	#if defined (SHADER_API_D3D11) || defined (SHADER_API_D3D12) || defined (SHADER_API_GLCORE) || defined (SHADER_API_XBOXONE) || defined (SHADER_API_PS4) || defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL)
+		#define UNITY_LIGHT_PROBE_PROXY_VOLUME 1
+	#endif
 #endif
 
 #if UNITY_LIGHT_PROBE_PROXY_VOLUME

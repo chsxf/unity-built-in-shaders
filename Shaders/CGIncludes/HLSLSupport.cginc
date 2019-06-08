@@ -163,6 +163,15 @@
 #endif
 
 
+// Special declaration macro for requiring the extended blend functionality
+#if defined(SHADER_API_GLES3)
+// Declare the need for the KHR_blend_equation_advanced extension plus the specific blend mode (see the extension spec for list or "all_equations" for all)
+#define UNITY_REQUIRE_ADVANCED_BLEND(mode) uint hlslcc_blend_support_##mode
+#else
+#define UNITY_REQUIRE_ADVANCED_BLEND(mode)
+#endif
+
+
 #if defined(SHADER_API_PSP2)
 	// For tex2Dproj the PSP2 cg compiler doesn't like casting half3/4 to
 	// float3/4 with swizzle (optimizer generates invalid assembly), so declare
