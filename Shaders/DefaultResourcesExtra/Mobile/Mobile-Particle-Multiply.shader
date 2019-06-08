@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 // Simplified Multiply Particle shader. Differences from regular Multiply Particle one:
 // - no Smooth particle support
 // - no AlphaTest

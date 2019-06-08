@@ -1,16 +1,16 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 #ifndef UNITY_STANDARD_INPUT_INCLUDED
 #define UNITY_STANDARD_INPUT_INCLUDED
 
 #include "UnityCG.cginc"
-#include "UnityShaderVariables.cginc"
-#include "UnityInstancing.cginc"
 #include "UnityStandardConfig.cginc"
 #include "UnityPBSLighting.cginc" // TBD: remove
 #include "UnityStandardUtils.cginc"
 
 //---------------------------------------
 // Directional lightmaps & Parallax require tangent space too
-#if (_NORMALMAP || DIRLIGHTMAP_COMBINED || DIRLIGHTMAP_SEPARATE || _PARALLAXMAP)
+#if (_NORMALMAP || DIRLIGHTMAP_COMBINED || _PARALLAXMAP)
     #define _TANGENT_TO_WORLD 1
 #endif
 
@@ -38,8 +38,8 @@ half        _DetailNormalMapScale;
 sampler2D   _SpecGlossMap;
 sampler2D   _MetallicGlossMap;
 half        _Metallic;
-half        _Glossiness;
-half        _GlossMapScale;
+float       _Glossiness;
+float       _GlossMapScale;
 
 sampler2D   _OcclusionMap;
 half        _OcclusionStrength;
@@ -186,9 +186,8 @@ half3 Emission(float2 uv)
 half3 NormalInTangentSpace(float4 texcoords)
 {
     half3 normalTangent = UnpackScaleNormal(tex2D (_BumpMap, texcoords.xy), _BumpScale);
-    // SM20: instruction count limitation
-    // SM20: no detail normalmaps
-#if _DETAIL && !defined(SHADER_API_MOBILE) && (SHADER_TARGET >= 30)
+
+#if _DETAIL && defined(UNITY_ENABLE_DETAIL_NORMALMAP)
     half mask = DetailMask(texcoords.xy);
     half3 detailNormalTangent = UnpackScaleNormal(tex2D (_DetailNormalMap, texcoords.zw), _DetailNormalMapScale);
     #if _DETAIL_LERP
@@ -203,6 +202,7 @@ half3 NormalInTangentSpace(float4 texcoords)
             mask);
     #endif
 #endif
+
     return normalTangent;
 }
 #endif
@@ -210,7 +210,7 @@ half3 NormalInTangentSpace(float4 texcoords)
 float4 Parallax (float4 texcoords, half3 viewDir)
 {
 // D3D9/SM30 supports up to 16 samplers, skip the parallax map in case we exceed the limit
-#define EXCEEDS_D3D9_SM3_MAX_SAMPLER_COUNT  (defined(LIGHTMAP_ON) && defined(DIRLIGHTMAP_SEPARATE) && defined(SHADOWS_SCREEN) && defined(_NORMALMAP) && \
+#define EXCEEDS_D3D9_SM3_MAX_SAMPLER_COUNT  (defined(LIGHTMAP_ON) && defined(SHADOWS_SHADOWMASK) && defined(SHADOWS_SCREEN) && defined(_NORMALMAP) && \
                                              defined(_EMISSION) && defined(_DETAIL) && (defined(_METALLICGLOSSMAP) || defined(_SPECGLOSSMAP)))
 
 #if !defined(_PARALLAXMAP) || (SHADER_TARGET < 30) || (defined(SHADER_API_D3D9) && EXCEEDS_D3D9_SM3_MAX_SAMPLER_COUNT)

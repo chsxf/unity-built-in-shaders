@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 #ifndef SPEEDTREE_VERTEX_INCLUDED
 #define SPEEDTREE_VERTEX_INCLUDED
 

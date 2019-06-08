@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 // Simplified Skybox shader. Differences from regular Skybox one:
 // - no tint color
 

@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Hidden/TerrainEngine/Splatmap/Diffuse-AddPass" {
 	Properties {
 		[HideInInspector] _Control ("Control (RGBA)", 2D) = "black" {}
@@ -12,7 +14,7 @@ Shader "Hidden/TerrainEngine/Splatmap/Diffuse-AddPass" {
 	}
 
 	CGINCLUDE
-		#pragma surface surf Lambert decal:add vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer
+		#pragma surface surf Lambert decal:add vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer noinstancing
 		#pragma multi_compile_fog
 		#define TERRAIN_SPLAT_ADDPASS
 		#include "TerrainSplatmapCommon.cginc"

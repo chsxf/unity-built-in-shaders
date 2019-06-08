@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 #ifndef UNITY_STANDARD_CONFIG_INCLUDED
 #define UNITY_STANDARD_CONFIG_INCLUDED
 
@@ -17,16 +19,25 @@
 #define UNITY_CONSERVE_ENERGY_MONOCHROME 1
 #endif
 
-// "platform caps" defines that were moved to editor, so they are set automatically when compiling shader
-// UNITY_SPECCUBE_BOX_PROJECTION
-// UNITY_SPECCUBE_BLENDING
+// "platform caps" defines: they are controlled from TierSettings (Editor will determine values and pass them to compiler)
+// UNITY_SPECCUBE_BOX_PROJECTION:                   TierSettings.reflectionProbeBoxProjection
+// UNITY_SPECCUBE_BLENDING:                         TierSettings.reflectionProbeBlending
+// UNITY_ENABLE_DETAIL_NORMALMAP:                   TierSettings.detailNormalMap
+// UNITY_USE_DITHER_MASK_FOR_ALPHABLENDED_SHADOWS:  TierSettings.semitransparentShadows
 
-// still add safe net for low shader models, otherwise we might end up with shaders failing to compile
+// disregarding what is set in TierSettings, some features have hardware restrictions
+// so we still add safety net, otherwise we might end up with shaders failing to compile
+
 #if SHADER_TARGET < 30
     #undef UNITY_SPECCUBE_BOX_PROJECTION
-    #define UNITY_SPECCUBE_BOX_PROJECTION 0
     #undef UNITY_SPECCUBE_BLENDING
-    #define UNITY_SPECCUBE_BLENDING 0
+    #undef UNITY_ENABLE_DETAIL_NORMALMAP
+    #ifdef _PARALLAXMAP
+        #undef _PARALLAXMAP
+    #endif
+#endif
+#if (SHADER_TARGET < 30) || defined(SHADER_API_GLES) || defined(SHADER_API_D3D11_9X) || defined (SHADER_API_PSP2)
+    #undef UNITY_USE_DITHER_MASK_FOR_ALPHABLENDED_SHADOWS
 #endif
 
 #ifndef UNITY_SAMPLE_FULL_SH_PER_PIXEL
@@ -51,20 +62,24 @@
 
 // Some extra optimizations
 
-// On PVR GPU there is an extra cost for dependent texture readback, especially hitting texCUBElod
-// These defines should be set as keywords or smth (at runtime depending on GPU).
-// for now we keep the code but disable it, as we want more optimization/cleanup passes
-
-#ifndef UNITY_OPTIMIZE_TEXCUBELOD
-    #define UNITY_OPTIMIZE_TEXCUBELOD 0
-#endif
-
 // Simplified Standard Shader is off by default and should not be used for Legacy Shaders
 #ifndef UNITY_STANDARD_SIMPLE
     #define UNITY_STANDARD_SIMPLE 0
 #endif
 
-// Setup a new define with meaniful name to know if we require world pos in fragment shader
-#define UNITY_REQUIRE_FRAG_WORLDPOS (UNITY_SPECCUBE_BOX_PROJECTION || UNITY_LIGHT_PROBE_PROXY_VOLUME)
+// Setup a new define with meaningful name to know if we require world pos in fragment shader
+#if UNITY_STANDARD_SIMPLE
+    #define UNITY_REQUIRE_FRAG_WORLDPOS 0
+#else
+    #define UNITY_REQUIRE_FRAG_WORLDPOS 1
+#endif
+
+// Should we pack worldPos along tangent (saving an interpolator)
+// We want to skip this on mobile platforms, because worldpos gets packed into mediump
+#if UNITY_REQUIRE_FRAG_WORLDPOS && !defined(_PARALLAXMAP) && !(defined(SHADER_API_MOBILE) && !defined(SHADER_API_D3D11_9X))
+    #define UNITY_PACK_WORLDPOS_WITH_TANGENT 1
+#else
+    #define UNITY_PACK_WORLDPOS_WITH_TANGENT 0
+#endif
 
 #endif // UNITY_STANDARD_CONFIG_INCLUDED

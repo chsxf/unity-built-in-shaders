@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Nature/SpeedTree"
 {
 	Properties
@@ -26,10 +28,9 @@ Shader "Nature/SpeedTree"
 		Cull [_Cull]
 
 		CGPROGRAM
-			#pragma surface surf Lambert vertex:SpeedTreeVert nodirlightmap nodynlightmap
+			#pragma surface surf Lambert vertex:SpeedTreeVert nodirlightmap nodynlightmap noshadowmask
 			#pragma target 3.0
 			#pragma multi_compile __ LOD_FADE_PERCENTAGE LOD_FADE_CROSSFADE
-			#pragma multi_compile_instancing
 			#pragma instancing_options assumeuniformscaling lodfade maxcount:50
 			#pragma shader_feature GEOM_TYPE_BRANCH GEOM_TYPE_BRANCH_DETAIL GEOM_TYPE_FROND GEOM_TYPE_LEAF GEOM_TYPE_MESH
 			#pragma shader_feature EFFECT_BUMP
@@ -166,7 +167,7 @@ Shader "Nature/SpeedTree"
 		Cull [_Cull]
 
 		CGPROGRAM
-			#pragma surface surf Lambert vertex:SpeedTreeVert nodirlightmap nodynlightmap
+			#pragma surface surf Lambert vertex:SpeedTreeVert nodirlightmap nodynlightmap noshadowmask
 			#pragma multi_compile __ LOD_FADE_PERCENTAGE
 			#pragma shader_feature GEOM_TYPE_BRANCH GEOM_TYPE_BRANCH_DETAIL GEOM_TYPE_FROND GEOM_TYPE_LEAF GEOM_TYPE_MESH
 			#include "SpeedTreeCommon.cginc"

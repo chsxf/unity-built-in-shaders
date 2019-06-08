@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 // Unlit shader. Simplest possible colored shader.
 // - no lighting
 // - no lightmap support

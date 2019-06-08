@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Hidden/Internal-MotionVectors"
 {
 	SubShader
@@ -65,7 +67,7 @@ Shader "Hidden/Internal-MotionVectors"
 		}
 
 		//Camera rendering things
-		sampler2D_float _CameraDepthTexture;
+		UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 
 		struct CamMotionVectors
 		{

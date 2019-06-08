@@ -1,5 +1,11 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Hidden/BlitCopy" {
-	Properties { _MainTex ("Texture", any) = "" {} }
+	Properties
+	{
+		_MainTex ("Texture", any) = "" {}
+		_Color("Multiplicative color", Color) = (1.0, 1.0, 1.0, 1.0)
+	}
 	SubShader { 
 		Pass {
  			ZTest Always Cull Off ZWrite Off
@@ -13,6 +19,7 @@ Shader "Hidden/BlitCopy" {
 
 			sampler2D _MainTex;
 			uniform float4 _MainTex_ST;
+			uniform float4 _Color;
 
 			struct appdata_t {
 				float4 vertex : POSITION;
@@ -34,7 +41,7 @@ Shader "Hidden/BlitCopy" {
 
 			fixed4 frag (v2f i) : SV_Target
 			{
-				return tex2D(_MainTex, i.texcoord);
+				return tex2D(_MainTex, i.texcoord) * _Color;
 			}
 			ENDCG 
 

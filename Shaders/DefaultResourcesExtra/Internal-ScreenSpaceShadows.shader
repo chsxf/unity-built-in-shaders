@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 // Collects cascaded shadows into screen space buffer
 Shader "Hidden/Internal-ScreenSpaceShadows" {
 Properties {
@@ -6,6 +8,7 @@ Properties {
 
 CGINCLUDE
 #include "UnityCG.cginc"
+#include "UnityShadowLibrary.cginc"
 
 // Configuration
 
@@ -26,10 +29,17 @@ CGINCLUDE
 struct appdata {
 	float4 vertex : POSITION;
 	float2 texcoord : TEXCOORD0;
-	float3 normal : NORMAL;
+#ifdef UNITY_STEREO_INSTANCING_ENABLED
+	float3 ray[2] : TEXCOORD1;
+#else
+	float3 ray : TEXCOORD1;
+#endif
+	UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 struct v2f {
+
+	float4 pos : SV_POSITION;
 
 	// xy uv / zw screenpos
 	float4 uv : TEXCOORD0;
@@ -38,13 +48,16 @@ struct v2f {
 	// Orthographic view space positions (need xy as well for oblique matrices)
 	float3 orthoPosNear : TEXCOORD2;
 	float3 orthoPosFar  : TEXCOORD3;
-
-	float4 pos : SV_POSITION;
+	UNITY_VERTEX_INPUT_INSTANCE_ID
+	UNITY_VERTEX_OUTPUT_STEREO
 };
 
 v2f vert (appdata v)
 {
 	v2f o;
+	UNITY_SETUP_INSTANCE_ID(v);
+	UNITY_TRANSFER_INSTANCE_ID(v, o);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 	float4 clipPos = UnityObjectToClipPos(v.vertex);
 	o.pos = clipPos;
 	o.uv.xy = v.texcoord;
@@ -53,7 +66,11 @@ v2f vert (appdata v)
 	o.uv.zw = ComputeNonStereoScreenPos(clipPos);
 
 	// Perspective case
-	o.ray = v.normal;
+#ifdef UNITY_STEREO_INSTANCING_ENABLED
+	o.ray = v.ray[unity_StereoEyeIndex];
+#else
+	o.ray = v.ray;
+#endif
 
 	// To compute view space position from Z buffer for orthographic case,
 	// we need different code than for perspective case. We want to avoid
@@ -66,13 +83,14 @@ v2f vert (appdata v)
 	float3 orthoPosFar  = mul(unity_CameraInvProjection, float4(clipPos.x,clipPos.y, 1,1)).xyz;
 	orthoPosNear.z *= -1;
 	orthoPosFar.z *= -1;
-    o.orthoPosNear = orthoPosNear;
+	o.orthoPosNear = orthoPosNear;
 	o.orthoPosFar = orthoPosFar;
 
 	return o;
 }
 
-sampler2D_float _CameraDepthTexture;
+UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
+
 // sizes of cascade projections, relative to first one
 float4 unity_ShadowCascadeScales;
 
@@ -84,10 +102,8 @@ float4 _ShadowMapTexture_TexelSize;
 //
 #if defined (SHADOWS_SPLIT_SPHERES)
 	#define GET_CASCADE_WEIGHTS(wpos, z)    getCascadeWeights_splitSpheres(wpos)
-	#define GET_SHADOW_FADE(wpos, z)		getShadowFade_SplitSpheres(wpos)
 #else
 	#define GET_CASCADE_WEIGHTS(wpos, z)	getCascadeWeights( wpos, z )
-	#define GET_SHADOW_FADE(wpos, z)		getShadowFade(z)
 #endif
 
 #if defined (SHADOWS_SINGLE_CASCADE)
@@ -100,8 +116,6 @@ float4 _ShadowMapTexture_TexelSize;
 inline float3 computeCameraSpacePosFromDepth(v2f i);
 inline fixed4 getCascadeWeights(float3 wpos, float z);		// calculates the cascade weights based on the world position of the fragment and plane positions
 inline fixed4 getCascadeWeights_splitSpheres(float3 wpos);	// calculates the cascade weights based on world pos and split spheres positions
-inline float  getShadowFade_SplitSpheres( float3 wpos );	
-inline float  getShadowFade( float3 wpos, float z );
 inline float4 getShadowCoord_SingleCascade( float4 wpos );	// converts the shadow coordinates for shadow map using the world position of fragment (optimized for single fragment)
 inline float4 getShadowCoord( float4 wpos, fixed4 cascadeWeights );// converts the shadow coordinates for shadow map using the world position of fragment
 half 		  sampleShadowmap_PCF5x5 (float4 coord);		// samples the shadowmap based on PCF filtering (5x5 kernel)
@@ -133,24 +147,6 @@ inline fixed4 getCascadeWeights_splitSpheres(float3 wpos)
 	fixed4 weights = float4(distances2 < unity_ShadowSplitSqRadii);
 	weights.yzw = saturate(weights.yzw - weights.xyz);
 	return weights;
-}
-
-/**
- * Returns the shadow fade based on the 'z' position of the fragment
- */
-inline float getShadowFade( float z )
-{
-	return saturate(z * _LightShadowData.z + _LightShadowData.w);
-}
-
-/**
- * Returns the shadow fade based on the world position of the fragment, and the distance from the shadow fade center
- */
-inline float getShadowFade_SplitSpheres( float3 wpos )
-{	
-	float sphereDist = distance(wpos.xyz, unity_ShadowFadeCenterAndType.xyz);
-	half shadowFade = saturate(sphereDist * _LightShadowData.z + _LightShadowData.w);
-	return shadowFade;	
 }
 
 /**
@@ -372,13 +368,14 @@ half unity_sampleShadowmap( float4 coord )
  */
 fixed4 frag_hard (v2f i) : SV_Target
 {
+    UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i); // required for sampling the correct slice of the shadow map render texture array
+
 	float3 vpos = computeCameraSpacePosFromDepth(i);
 
 	float4 wpos = mul (unity_CameraToWorld, float4(vpos,1));
 
 	fixed4 cascadeWeights = GET_CASCADE_WEIGHTS (wpos, vpos.z);
 	half shadow = unity_sampleShadowmap( GET_SHADOW_COORDINATES(wpos, cascadeWeights) );
-	shadow += GET_SHADOW_FADE(wpos, vpos.z);
 
 	fixed4 res = shadow;
 	return res;
@@ -389,6 +386,8 @@ fixed4 frag_hard (v2f i) : SV_Target
  */
 fixed4 frag_pcf5x5(v2f i) : SV_Target
 {
+    UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i); // required for sampling the correct slice of the shadow map render texture array
+
 	float3 vpos = computeCameraSpacePosFromDepth(i);
 
 	// sample the cascade the pixel belongs to
@@ -451,7 +450,6 @@ fixed4 frag_pcf5x5(v2f i) : SV_Target
 		}
 #endif
 
-	shadow += GET_SHADOW_FADE(wpos, vpos.z);
 	return shadow;
 }
 ENDCG

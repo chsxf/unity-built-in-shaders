@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 // Simplified Bumped shader. Differences from regular Bumped one:
 // - no Main Color
 // - Normalmap uses Tiling/Offset of the Base texture

@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 #ifndef UNITY_STANDARD_META_INCLUDED
 #define UNITY_STANDARD_META_INCLUDED
 
@@ -47,7 +49,12 @@ float4 frag_meta (v2f_meta i) : SV_Target
     UnityMetaInput o;
     UNITY_INITIALIZE_OUTPUT(UnityMetaInput, o);
 
+#if defined(EDITOR_VISUALIZATION)
+    o.Albedo = data.diffColor;
+#else
     o.Albedo = UnityLightmappingAlbedo (data.diffColor, data.specColor, data.smoothness);
+#endif
+    o.SpecularColor = data.specColor;
     o.Emission = Emission(i.uv.xy);
 
     return UnityMetaFragment(o);

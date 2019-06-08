@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 #ifndef UNITY_LIGHTING_COMMON_INCLUDED
 #define UNITY_LIGHTING_COMMON_INCLUDED
 
@@ -20,14 +22,6 @@ struct UnityIndirect
 struct UnityGI
 {
     UnityLight light;
-    #ifdef DIRLIGHTMAP_SEPARATE
-        #ifdef LIGHTMAP_ON
-            UnityLight light2;
-        #endif
-        #ifdef DYNAMICLIGHTMAP_ON
-            UnityLight light3;
-        #endif
-    #endif
     UnityIndirect indirect;
 };
 
@@ -45,10 +39,10 @@ struct UnityGIInput
     // also be full float precision to avoid data loss before sampling a texture.
     float4 lightmapUV; // .xy = static lightmap UV, .zw = dynamic lightmap UV
 
-    #if UNITY_SPECCUBE_BLENDING || UNITY_SPECCUBE_BOX_PROJECTION
+    #if defined(UNITY_SPECCUBE_BLENDING) || defined(UNITY_SPECCUBE_BOX_PROJECTION) || defined(UNITY_ENABLE_REFLECTION_BUFFERS)
     float4 boxMin[2];
     #endif
-    #if UNITY_SPECCUBE_BOX_PROJECTION
+    #ifdef UNITY_SPECCUBE_BOX_PROJECTION
     float4 boxMax[2];
     float4 probePosition[2];
     #endif

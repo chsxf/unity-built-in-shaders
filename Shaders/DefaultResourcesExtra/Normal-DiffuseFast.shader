@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 // Does not do anything in 3.x
 Shader "Legacy Shaders/Diffuse Fast" {
 Properties {

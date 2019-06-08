@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Particles/Additive (Soft)" {
 Properties {
 	_MainTex ("Particle Texture", 2D) = "white" {}
@@ -61,7 +63,7 @@ Category {
 				return o;
 			}
 
-			sampler2D_float _CameraDepthTexture;
+			UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 			float _InvFade;
 			
 			fixed4 frag (v2f i) : SV_Target

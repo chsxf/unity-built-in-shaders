@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Sprites/Diffuse"
 {
 	Properties
@@ -5,6 +7,10 @@ Shader "Sprites/Diffuse"
 		[PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
 		_Color ("Tint", Color) = (1,1,1,1)
 		[MaterialToggle] PixelSnap ("Pixel snap", Float) = 0
+		[HideInInspector] _RendererColor ("RendererColor", Color) = (1,1,1,1)
+		[HideInInspector] _Flip ("Flip", Vector) = (1,1,1,1)
+		[PerRendererData] _AlphaTex ("External Alpha", 2D) = "white" {}
+		[PerRendererData] _EnableExternalAlpha ("Enable External Alpha", Float) = 0
 	}
 
 	SubShader
@@ -24,16 +30,10 @@ Shader "Sprites/Diffuse"
 		Blend One OneMinusSrcAlpha
 
 		CGPROGRAM
-		#pragma surface surf Lambert vertex:vert nofog keepalpha
+		#pragma surface surf Lambert vertex:vert nofog nolightmap nodynlightmap keepalpha noinstancing
 		#pragma multi_compile _ PIXELSNAP_ON
 		#pragma multi_compile _ ETC1_EXTERNAL_ALPHA
-
-		sampler2D _MainTex;
-		fixed4 _Color;
-		sampler2D _AlphaTex;
-		float _AlphaSplitEnabled;
-		float _EnableExternalAlpha;
-
+		#include "UnitySprites.cginc"
 
 		struct Input
 		{
@@ -43,24 +43,14 @@ Shader "Sprites/Diffuse"
 		
 		void vert (inout appdata_full v, out Input o)
 		{
+			v.vertex.xy *= _Flip.xy;
+
 			#if defined(PIXELSNAP_ON)
 			v.vertex = UnityPixelSnap (v.vertex);
 			#endif
 			
 			UNITY_INITIALIZE_OUTPUT(Input, o);
-			o.color = v.color * _Color;
-		}
-
-		fixed4 SampleSpriteTexture (float2 uv)
-		{
-			fixed4 color = tex2D (_MainTex, uv);
-
-#if ETC1_EXTERNAL_ALPHA
-			fixed4 alpha = tex2D (_AlphaTex, uv);
-			color.a = lerp (color.a, alpha.r, _EnableExternalAlpha);
-#endif //ETC1_EXTERNAL_ALPHA
-
-			return color;
+			o.color = v.color * _Color * _RendererColor;
 		}
 
 		void surf (Input IN, inout SurfaceOutput o)

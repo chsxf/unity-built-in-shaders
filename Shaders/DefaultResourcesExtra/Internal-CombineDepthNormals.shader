@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Hidden/Internal-CombineDepthNormals" {
 SubShader {
 	
@@ -30,7 +32,7 @@ v2f vert (appdata v)
 	o.uv = TRANSFORM_TEX(v.texcoord,_CameraNormalsTexture);
 	return o;
 }
-sampler2D_float _CameraDepthTexture;
+UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 sampler2D _CameraNormalsTexture;
 
 fixed4 frag (v2f i) : SV_Target

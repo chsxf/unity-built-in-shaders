@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Hidden/TerrainEngine/Details/WavingDoublePass" {
 Properties {
 	_WavingTint ("Fade Color", Color) = (.7,.6,.5, 0)

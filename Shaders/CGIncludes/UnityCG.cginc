@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 #ifndef UNITY_CG_INCLUDED
 #define UNITY_CG_INCLUDED
 
@@ -11,6 +13,7 @@
 #define UNITY_INV_HALF_PI   0.636619772367f
 
 #include "UnityShaderVariables.cginc"
+#include "UnityShaderUtilities.cginc"
 #include "UnityInstancing.cginc"
 
 #ifdef UNITY_COLORSPACE_GAMMA
@@ -76,7 +79,7 @@ struct appdata_full {
 inline bool IsGammaSpace()
 {
     #ifdef UNITY_COLORSPACE_GAMMA
-    return true;
+        return true;
     #else
         return false;
     #endif
@@ -123,22 +126,6 @@ inline half3 LinearToGammaSpace (half3 linRGB)
     //return half3(LinearToGammaSpaceExact(linRGB.r), LinearToGammaSpaceExact(linRGB.g), LinearToGammaSpaceExact(linRGB.b));
 }
 
-// Tranforms position from object to homogenous space
-inline float4 UnityObjectToClipPos( in float3 pos )
-{
-#ifdef UNITY_USE_PREMULTIPLIED_MATRICES
-    return mul(UNITY_MATRIX_MVP, float4(pos, 1.0));
-#else
-    // More efficient than computing M*VP matrix product
-    return mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(pos, 1.0)));
-#endif
-}
-inline float4 UnityObjectToClipPos(float4 pos) // overload for float4; avoids "implicit truncation" warning for existing shaders
-{
-    return UnityObjectToClipPos(pos.xyz);
-}
-
-
 // Tranforms position from world to homogenous space
 inline float4 UnityWorldToClipPos( in float3 pos )
 {
@@ -154,11 +141,7 @@ inline float4 UnityViewToClipPos( in float3 pos )
 // Tranforms position from object to camera space
 inline float3 UnityObjectToViewPos( in float3 pos )
 {
-#ifdef UNITY_USE_PREMULTIPLIED_MATRICES
-    return mul(UNITY_MATRIX_MV, float4(pos, 1.0)).xyz;
-#else
     return mul(UNITY_MATRIX_V, mul(unity_ObjectToWorld, float4(pos, 1.0))).xyz;
-#endif
 }
 inline float3 UnityObjectToViewPos(float4 pos) // overload for float4; avoids "implicit truncation" warning for existing shaders
 {
@@ -402,10 +385,10 @@ half3 SHEvalLinearL0L1_SampleProbeVolume (half4 normal, float3 worldPos)
     const float transformToLocal = unity_ProbeVolumeParams.y;
     const float texelSizeX = unity_ProbeVolumeParams.z;
 
-    //The SH coefficients textures are packed into 1 atlas. Only power of 2 textures allowed. X texture will be unused.
-    //-----------------
-    //| R | G | B | X |
-    //-----------------
+    //The SH coefficients textures and probe occlusion are packed into 1 atlas.
+    //-------------------------
+    //| ShR | ShG | ShB | Occ |
+    //-------------------------
 
     float3 position = (transformToLocal == 1.0f) ? mul(unity_ProbeVolumeWorldToObject, float4(worldPos, 1.0)).xyz : worldPos;
     float3 texCoord = (position - unity_ProbeVolumeMin.xyz) * unity_ProbeVolumeSizeInv.xyz;
@@ -510,7 +493,7 @@ half4 UnityEncodeRGBM (half3 color, float maxRGBM)
 }
 
 // Decodes HDR textures
-// handles dLDR, RGBM formats, Compressed(BC6H, BC1), and Uncompressed(RGBAHalf, RGBA32)
+// handles dLDR, RGBM formats
 inline half3 DecodeHDR (half4 data, half4 decodeInstructions)
 {
     // Take into account texture alpha if decodeInstructions.w is true(the alpha value affects the RGB channels)
@@ -696,15 +679,6 @@ inline float LinearEyeDepth( float z )
 }
 
 
-#if defined(UNITY_SINGLE_PASS_STEREO) || defined(STEREO_INSTANCING_ON)
-float2 TransformStereoScreenSpaceTex(float2 uv, float w)
-{
-    float4 scaleOffset = unity_StereoScaleOffset[unity_StereoEyeIndex];
-    return uv.xy * scaleOffset.xy + scaleOffset.zw * w;
-}
-#endif
-
-#ifdef UNITY_SINGLE_PASS_STEREO
 inline float2 UnityStereoScreenSpaceUVAdjustInternal(float2 uv, float4 scaleAndOffset)
 {
     return uv.xy * scaleAndOffset.xy + scaleAndOffset.zw;
@@ -717,6 +691,13 @@ inline float4 UnityStereoScreenSpaceUVAdjustInternal(float4 uv, float4 scaleAndO
 
 #define UnityStereoScreenSpaceUVAdjust(x, y) UnityStereoScreenSpaceUVAdjustInternal(x, y)
 
+#if defined(UNITY_SINGLE_PASS_STEREO)
+float2 TransformStereoScreenSpaceTex(float2 uv, float w)
+{
+    float4 scaleOffset = unity_StereoScaleOffset[unity_StereoEyeIndex];
+    return uv.xy * scaleOffset.xy + scaleOffset.zw * w;
+}
+
 inline float2 UnityStereoTransformScreenSpaceTex(float2 uv)
 {
     return TransformStereoScreenSpaceTex(saturate(uv), 1.0);
@@ -727,7 +708,7 @@ inline float4 UnityStereoTransformScreenSpaceTex(float4 uv)
     return float4(UnityStereoTransformScreenSpaceTex(uv.xy), UnityStereoTransformScreenSpaceTex(uv.zw));
 }
 #else
-#define UnityStereoScreenSpaceUVAdjust(x, y) x
+#define TransformStereoScreenSpaceTex(uv, w) uv
 #define UnityStereoTransformScreenSpaceTex(uv) uv
 #endif
 
@@ -778,7 +759,7 @@ inline float4 ComputeNonStereoScreenPos(float4 pos) {
 
 inline float4 ComputeScreenPos(float4 pos) {
     float4 o = ComputeNonStereoScreenPos(pos);
-#if defined(UNITY_SINGLE_PASS_STEREO) || defined(STEREO_INSTANCING_ON)
+#if defined(UNITY_SINGLE_PASS_STEREO)
     o.xy = TransformStereoScreenSpaceTex(o.xy, pos.w);
 #endif
     return o;
@@ -843,17 +824,14 @@ float UnityDecodeCubeShadowDepth (float4 vals)
 }
 
 
-float4 UnityClipSpaceShadowCasterPos(float3 vertex, float3 normal)
+float4 UnityClipSpaceShadowCasterPos(float4 vertex, float3 normal)
 {
-    float4 clipPos;
+    float4 wPos = mul(unity_ObjectToWorld, vertex);
 
-    // Important to match MVP transform precision exactly while rendering
-    // into the depth texture, so branch on normal bias being zero.
     if (unity_LightShadowBias.z != 0.0)
     {
-        float3 wPos = mul(unity_ObjectToWorld, float4(vertex,1)).xyz;
         float3 wNormal = UnityObjectToWorldNormal(normal);
-        float3 wLight = normalize(UnityWorldSpaceLightDir(wPos));
+        float3 wLight = normalize(UnityWorldSpaceLightDir(wPos.xyz));
 
         // apply normal offset bias (inset position along the normal)
         // bias needs to be scaled by sine between normal and light direction
@@ -866,15 +844,15 @@ float4 UnityClipSpaceShadowCasterPos(float3 vertex, float3 normal)
         float shadowSine = sqrt(1-shadowCos*shadowCos);
         float normalBias = unity_LightShadowBias.z * shadowSine;
 
-        wPos -= wNormal * normalBias;
+        wPos.xyz -= wNormal * normalBias;
+    }
 
-        clipPos = mul(UNITY_MATRIX_VP, float4(wPos,1));
-    }
-    else
-    {
-        clipPos = UnityObjectToClipPos(vertex);
-    }
-    return clipPos;
+    return mul(UNITY_MATRIX_VP, wPos);
+}
+// Legacy, not used anymore; kept around to not break existing user shaders
+float4 UnityClipSpaceShadowCasterPos(float3 vertex, float3 normal)
+{
+    return UnityClipSpaceShadowCasterPos(float4(vertex, 1), normal);
 }
 
 
@@ -910,7 +888,7 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
         opos = UnityObjectToClipPos(v.vertex.xyz); \
         opos = UnityApplyLinearShadowBias(opos);
     #define TRANSFER_SHADOW_CASTER_NOPOS(o,opos) \
-        opos = UnityClipSpaceShadowCasterPos(v.vertex.xyz, v.normal); \
+        opos = UnityClipSpaceShadowCasterPos(v.vertex, v.normal); \
         opos = UnityApplyLinearShadowBias(opos);
     #define SHADOW_CASTER_FRAGMENT(i) return 0;
 #endif

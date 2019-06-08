@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 ﻿Shader "Nature/SpeedTree Billboard"
 {
 	Properties
@@ -23,7 +25,7 @@
 		LOD 400
 
 		CGPROGRAM
-			#pragma surface surf Lambert vertex:SpeedTreeBillboardVert nolightmap addshadow
+			#pragma surface surf Lambert vertex:SpeedTreeBillboardVert nolightmap addshadow noinstancing
 			#pragma target 3.0
 			#pragma multi_compile __ LOD_FADE_CROSSFADE
 			#pragma multi_compile __ BILLBOARD_FACE_CAMERA_POS
@@ -99,7 +101,7 @@
 		LOD 400
 
 		CGPROGRAM
-			#pragma surface surf Lambert vertex:SpeedTreeBillboardVert nolightmap
+			#pragma surface surf Lambert vertex:SpeedTreeBillboardVert nolightmap noinstancing
 			#pragma shader_feature EFFECT_BUMP
 			#include "SpeedTreeBillboardCommon.cginc"
 
