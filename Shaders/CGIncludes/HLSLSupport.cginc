@@ -206,6 +206,7 @@
 	float4 tex2Dproj(sampler2D s, in float3 t)		{ return tex2D(s, t.xy / t.z); }
 	float4 tex2Dproj(sampler2D_float s, in float3 t)		{ return tex2D(s, t.xy / t.z); }
 	float4 tex2Dproj(sampler2D s, in float4 t)		{ return tex2D(s, t.xy / t.w); }
+	float4 tex2Dproj(sampler2D_float s, in float4 t)		{ return tex2D(s, t.xy / t.w); }
 	float4 tex3Dproj(sampler3D s, in float4 t)		{ return tex3D(s, t.xyz / t.w); }
 	float4 texCUBEproj(samplerCUBE s, in float4 t)	{ return texCUBE(s, t.xyz / t.w); }
 #elif defined(SHADER_API_PSP2) && !defined(SHADER_API_PSM)
