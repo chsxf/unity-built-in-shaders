@@ -534,15 +534,20 @@ inline half3 DecodeLightmapDoubleLDR( fixed4 color )
     return 2.0 * color.rgb;
 }
 
-half4 unity_Lightmap_HDR;
-
-inline half3 DecodeLightmap( fixed4 color )
+inline half3 DecodeLightmap( fixed4 color, half4 decodeInstructions)
 {
 #if defined(UNITY_NO_RGBM)
     return DecodeLightmapDoubleLDR( color );
 #else
-    return DecodeLightmapRGBM( color, unity_Lightmap_HDR );
+    return DecodeLightmapRGBM( color, decodeInstructions );
 #endif
+}
+
+half4 unity_Lightmap_HDR;
+
+inline half3 DecodeLightmap( fixed4 color )
+{
+    return DecodeLightmap( color, unity_Lightmap_HDR );
 }
 
 half4 unity_DynamicLightmap_HDR;
@@ -674,13 +679,6 @@ inline float LinearEyeDepth( float z )
 }
 
 
-#if defined(UNITY_SINGLE_PASS_STEREO)
-float2 TransformStereoScreenSpaceTex(float2 uv, float w)
-{
-    float4 scaleOffset = unity_StereoScaleOffset[unity_StereoEyeIndex];
-    return uv.xy * scaleOffset.xy + scaleOffset.zw * w;
-}
-
 inline float2 UnityStereoScreenSpaceUVAdjustInternal(float2 uv, float4 scaleAndOffset)
 {
     return uv.xy * scaleAndOffset.xy + scaleAndOffset.zw;
@@ -693,6 +691,13 @@ inline float4 UnityStereoScreenSpaceUVAdjustInternal(float4 uv, float4 scaleAndO
 
 #define UnityStereoScreenSpaceUVAdjust(x, y) UnityStereoScreenSpaceUVAdjustInternal(x, y)
 
+#if defined(UNITY_SINGLE_PASS_STEREO)
+float2 TransformStereoScreenSpaceTex(float2 uv, float w)
+{
+    float4 scaleOffset = unity_StereoScaleOffset[unity_StereoEyeIndex];
+    return uv.xy * scaleOffset.xy + scaleOffset.zw * w;
+}
+
 inline float2 UnityStereoTransformScreenSpaceTex(float2 uv)
 {
     return TransformStereoScreenSpaceTex(saturate(uv), 1.0);
@@ -704,7 +709,6 @@ inline float4 UnityStereoTransformScreenSpaceTex(float4 uv)
 }
 #else
 #define TransformStereoScreenSpaceTex(uv, w) uv
-#define UnityStereoScreenSpaceUVAdjust(x, y) x
 #define UnityStereoTransformScreenSpaceTex(uv) uv
 #endif
 

@@ -63,7 +63,7 @@ Category {
 				return o;
 			}
 
-			sampler2D_float _CameraDepthTexture;
+			UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 			float _InvFade;
 			
 			fixed4 frag (v2f i) : SV_Target

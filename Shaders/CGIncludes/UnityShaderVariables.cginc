@@ -187,6 +187,12 @@ CBUFFER_START(UnityStereoGlobals)
 CBUFFER_END
 #endif
 
+#if defined(USING_STEREO_MATRICES) && defined(UNITY_STEREO_MULTIVIEW_ENABLED)
+CBUFFER_START(UnityStereoEyeIndices)
+    float4 unity_StereoEyeIndices[2];
+CBUFFER_END
+#endif
+
 #if defined(UNITY_STEREO_MULTIVIEW_ENABLED) && defined(SHADER_STAGE_VERTEX)
     #define unity_StereoEyeIndex UNITY_VIEWID
     UNITY_DECLARE_MULTIVIEW(2);
@@ -218,6 +224,7 @@ CBUFFER_START(UnityPerFrame)
     float4x4 unity_MatrixV;
     float4x4 unity_MatrixInvV;
     float4x4 unity_MatrixVP;
+    float4 unity_StereoScaleOffset;
     int unity_StereoEyeIndex;
 #endif
 

@@ -545,7 +545,7 @@
 #define VFACE S_FRONT_FACE
 #endif
 // Is VFACE affected by flipped projection?
-#if defined(SHADER_API_D3D9) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D9)
 #define UNITY_VFACE_AFFECTED_BY_PROJECTION 1
 #endif
 
