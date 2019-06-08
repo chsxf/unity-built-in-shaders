@@ -29,6 +29,7 @@ Shader "Sprites/Default"
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile _ PIXELSNAP_ON
+			#pragma multi_compile _ UNITY_ETC1_EXTERNAL_ALPHA
 			#include "UnityCG.cginc"
 			
 			struct appdata_t
@@ -67,8 +68,11 @@ Shader "Sprites/Default"
 			fixed4 SampleSpriteTexture (float2 uv)
 			{
 				fixed4 color = tex2D (_MainTex, uv);
+
+#if UNITY_ETC1_EXTERNAL_ALPHA
 				if (_AlphaSplitEnabled)
 					color.a = tex2D (_AlphaTex, uv).r;
+#endif //UNITY_ETC1_EXTERNAL_ALPHA
 
 				return color;
 			}
