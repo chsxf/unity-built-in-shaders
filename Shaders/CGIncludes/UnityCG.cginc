@@ -870,7 +870,9 @@ float4 UnityClipSpaceShadowCasterPos(float3 vertex, float3 normal)
 float4 UnityApplyLinearShadowBias(float4 clipPos)
 {
 #if defined(UNITY_REVERSED_Z)
-	clipPos.z += clamp(unity_LightShadowBias.x/clipPos.w, -1, 0);
+	// We use max/min instead of clamp to ensure proper handling of the rare case
+	// where both numerator and denominator are zero and the fraction becomes NaN.
+	clipPos.z += max(-1, min(unity_LightShadowBias.x / clipPos.w, 0));
 	float clamped = min(clipPos.z, clipPos.w*UNITY_NEAR_CLIP_VALUE);
 #else 
 	clipPos.z += saturate(unity_LightShadowBias.x/clipPos.w);

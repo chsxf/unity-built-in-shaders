@@ -364,8 +364,8 @@ struct VertexOutputForwardBase
 
 VertexOutputForwardBase vertForwardBase (VertexInput v)
 {
-	UNITY_SETUP_INSTANCE_ID(v);
 	VertexOutputForwardBase o;
+	UNITY_SETUP_INSTANCE_ID(v);
 	UNITY_INITIALIZE_OUTPUT(VertexOutputForwardBase, o);
 	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
@@ -461,6 +461,7 @@ struct VertexOutputForwardAdd
 VertexOutputForwardAdd vertForwardAdd (VertexInput v)
 {
 	VertexOutputForwardAdd o;
+	UNITY_SETUP_INSTANCE_ID(v);
 	UNITY_INITIALIZE_OUTPUT(VertexOutputForwardAdd, o);
 	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
@@ -549,8 +550,8 @@ struct VertexOutputDeferred
 
 VertexOutputDeferred vertDeferred (VertexInput v)
 {
-	UNITY_SETUP_INSTANCE_ID(v);
 	VertexOutputDeferred o;
+	UNITY_SETUP_INSTANCE_ID(v);
 	UNITY_INITIALIZE_OUTPUT(VertexOutputDeferred, o);
 	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 

@@ -31,6 +31,8 @@ struct VertexOutputBaseSimple
 #if UNITY_REQUIRE_FRAG_WORLDPOS
 	float3 posWorld						: TEXCOORD8;
 #endif
+
+	UNITY_VERTEX_OUTPUT_STEREO
 };
 
 // UNIFORM_REFLECTIVITY(): workaround to get (uniform) reflecivity based on UNITY_SETUP_BRDF_INPUT
@@ -74,9 +76,10 @@ void TangentSpaceLightingInput(half3 normalWorld, half4 vTangent, half3 lightDir
 
 VertexOutputBaseSimple vertForwardBaseSimple (VertexInput v)
 {
-	UNITY_SETUP_INSTANCE_ID(v);
 	VertexOutputBaseSimple o;
+	UNITY_SETUP_INSTANCE_ID(v);
 	UNITY_INITIALIZE_OUTPUT(VertexOutputBaseSimple, o);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
 	float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
 #if UNITY_REQUIRE_FRAG_WORLDPOS
@@ -245,12 +248,16 @@ struct VertexOutputForwardAddSimple
 #else
 	half3 normalWorld					: TEXCOORD5;
 #endif
+
+	UNITY_VERTEX_OUTPUT_STEREO
 };
 
 VertexOutputForwardAddSimple vertForwardAddSimple (VertexInput v)
 {
 	VertexOutputForwardAddSimple o;
+	UNITY_SETUP_INSTANCE_ID(v);
 	UNITY_INITIALIZE_OUTPUT(VertexOutputForwardAddSimple, o);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
 	float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
 	o.pos = UnityObjectToClipPos(v.vertex);

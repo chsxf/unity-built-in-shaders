@@ -19,8 +19,7 @@ Shader "GUI/Text Shader" {
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma multi_compile _ STEREO_INSTANCING_ON 
-			#pragma multi_compile _ UNITY_SINGLE_PASS_STEREO
+			#pragma multi_compile _ STEREO_INSTANCING_ON UNITY_SINGLE_PASS_STEREO
 
 			#include "UnityCG.cginc"
 

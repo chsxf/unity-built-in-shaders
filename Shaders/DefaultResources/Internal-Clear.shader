@@ -6,8 +6,7 @@ Shader "Hidden/InternalClear" {
 	#pragma vertex vert
 	#pragma fragment frag
 	#pragma target 2.0
-	#pragma multi_compile _ UNITY_SINGLE_PASS_STEREO
-	#pragma multi_compile ___ STEREO_INSTANCING_ON 
+	#pragma multi_compile _ STEREO_INSTANCING_ON  UNITY_SINGLE_PASS_STEREO
 	#include "UnityCG.cginc"
 
 	struct appdata_t {
