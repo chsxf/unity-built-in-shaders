@@ -129,7 +129,8 @@ void UnityDeferredCalculateLightParams (
 		half3 lightDir = normalize (tolight);
 		
 		float4 uvCookie = mul (_LightMatrix0, float4(wpos,1));
-		float atten = tex2Dproj (_LightTexture0, UNITY_PROJ_COORD(uvCookie)).w;
+		// negative bias because http://aras-p.info/blog/2010/01/07/screenspace-vs-mip-mapping/
+		float atten = tex2Dbias (_LightTexture0, float4(uvCookie.xy / uvCookie.w, 0, -8)).w;
 		atten *= uvCookie.w < 0;
 		float att = dot(tolight, tolight) * _LightPos.w;
 		atten *= tex2D (_LightTextureB0, att.rr).UNITY_ATTEN_CHANNEL;
@@ -144,7 +145,7 @@ void UnityDeferredCalculateLightParams (
 		atten *= UnityDeferredComputeShadow (wpos, fadeDist, uv);
 		
 		#if defined (DIRECTIONAL_COOKIE)
-		atten *= tex2D (_LightTexture0, mul(_LightMatrix0, half4(wpos,1)).xy).w;
+		atten *= tex2Dbias (_LightTexture0, float4(mul(_LightMatrix0, half4(wpos,1)).xy, 0, -8)).w;
 		#endif //DIRECTIONAL_COOKIE
 	
 	// point light case	
@@ -158,7 +159,7 @@ void UnityDeferredCalculateLightParams (
 		atten *= UnityDeferredComputeShadow (tolight, fadeDist, uv);
 		
 		#if defined (POINT_COOKIE)
-		atten *= texCUBE(_LightTexture0, mul(_LightMatrix0, half4(wpos,1)).xyz).w;
+		atten *= texCUBEbias(_LightTexture0, float4(mul(_LightMatrix0, half4(wpos,1)).xyz, -8)).w;
 		#endif //POINT_COOKIE	
 	#else
 		half3 lightDir = 0;

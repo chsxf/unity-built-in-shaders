@@ -2,17 +2,23 @@
 #define SPEEDTREE_BILLBOARD_COMMON_INCLUDED
 
 #define SPEEDTREE_ALPHATEST
-uniform fixed _Cutoff;
+fixed _Cutoff;
 
 #include "SpeedTreeCommon.cginc"
 
-uniform float3 _BillboardNormal;
-uniform float3 _BillboardTangent;
-uniform float _CameraXZAngle;
+CBUFFER_START(UnityBillboardPerCamera)
+	float3 unity_BillboardNormal;
+	float3 unity_BillboardTangent;
+	float4 unity_BillboardCameraParams;
+	#define unity_BillboardCameraPosition (unity_BillboardCameraParams.xyz)
+	#define unity_BillboardCameraXZAngle (unity_BillboardCameraParams.w)
+CBUFFER_END
 
-uniform float4 _TreeInfo[4];			// x: num of billboard slices; y: 1.0f / (delta angle between slices)
-uniform float4 _TreeSize[4];
-uniform float4 _ImageTexCoords[32];
+CBUFFER_START(UnityBillboardPerBatch)
+	float4 unity_BillboardInfo; // x: num of billboard slices; y: 1.0f / (delta angle between slices)
+	float4 unity_BillboardSize; // x: width; y: height; z: bottom
+	float4 unity_BillboardImageTexCoords[16];
+CBUFFER_END
 
 struct SpeedTreeBillboardData
 {
@@ -28,23 +34,19 @@ void SpeedTreeBillboardVert(inout SpeedTreeBillboardData IN, out Input OUT)
 {
 	UNITY_INITIALIZE_OUTPUT(Input, OUT);
 
-	float treeType = IN.color.a * 255.0f;
-	float4 treeInfo = _TreeInfo[treeType];
-	float4 treeSize = _TreeSize[treeType];
-
 	// assume no scaling & rotation
 	float3 worldPos = IN.vertex.xyz + float3(_Object2World[0].w, _Object2World[1].w, _Object2World[2].w);
 
 #ifdef BILLBOARD_FACE_CAMERA_POS
-	float3 eyeVec = normalize(_WorldSpaceCameraPos - worldPos);
+	float3 eyeVec = normalize(unity_BillboardCameraPosition - worldPos);
 	float3 billboardTangent = normalize(float3(-eyeVec.z, 0, eyeVec.x));			// cross(eyeVec, {0,1,0})
 	float3 billboardNormal = float3(billboardTangent.z, 0, -billboardTangent.x);	// cross({0,1,0},billboardTangent)
 	float3 angle = atan2(billboardNormal.z, billboardNormal.x);						// signed angle between billboardNormal to {0,0,1}
 	angle += angle < 0 ? 2 * UNITY_PI : 0;
 #else
-	float3 billboardTangent = _BillboardTangent;
-	float3 billboardNormal = _BillboardNormal;
-	float angle = _CameraXZAngle;
+	float3 billboardTangent = unity_BillboardTangent;
+	float3 billboardNormal = unity_BillboardNormal;
+	float angle = unity_BillboardCameraXZAngle;
 #endif
 
 	float widthScale = IN.texcoord1.x;
@@ -52,8 +54,8 @@ void SpeedTreeBillboardVert(inout SpeedTreeBillboardData IN, out Input OUT)
 	float rotation = IN.texcoord1.z;
 
 	float2 percent = IN.texcoord.xy;
-	float3 billboardPos = (percent.x - 0.5f) * treeSize.x * widthScale * billboardTangent;
-	billboardPos.y += (percent.y * treeSize.y + treeSize.z) * heightScale;
+	float3 billboardPos = (percent.x - 0.5f) * unity_BillboardSize.x * widthScale * billboardTangent;
+	billboardPos.y += (percent.y * unity_BillboardSize.y + unity_BillboardSize.z) * heightScale;
 
 #ifdef ENABLE_WIND
 	if (_WindQuality * _WindEnabled > 0)
@@ -65,12 +67,12 @@ void SpeedTreeBillboardVert(inout SpeedTreeBillboardData IN, out Input OUT)
 	IN.normal = billboardNormal.xyz;
 	IN.tangent = float4(billboardTangent.xyz,-1);
 
-	float slices = treeInfo.x;
-	float invDelta = treeInfo.y;
+	float slices = unity_BillboardInfo.x;
+	float invDelta = unity_BillboardInfo.y;
 	angle += rotation;
 
 	float imageIndex = fmod(floor(angle * invDelta + 0.5f), slices);
-	float4 imageTexCoords = _ImageTexCoords[treeInfo.z + imageIndex];
+	float4 imageTexCoords = unity_BillboardImageTexCoords[imageIndex];
 	if (imageTexCoords.w < 0)
 	{
 		OUT.mainTexUV = imageTexCoords.xy - imageTexCoords.zw * percent.yx;

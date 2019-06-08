@@ -15,6 +15,8 @@
 		_StencilReadMask ("Stencil Read Mask", Float) = 255
 
 		_ColorMask ("Color Mask", Float) = 15
+		
+		[Toggle(UNITY_UI_ALPHACLIP)] _UseUIAlphaClip ("Use Alpha Clip", Float) = 0
 	}
 	
 	SubShader
@@ -53,6 +55,8 @@
 		
 			#include "UnityCG.cginc"
 			#include "UnityUI.cginc"
+
+			#pragma multi_compile __ UNITY_UI_ALPHACLIP
 
 			struct appdata_t
 			{
@@ -110,11 +114,11 @@
 				color.rgb = lerp(color.rgb, color.rgb * detail.rgb, detail.a * _Strength);
 				color = color * _Color;
 				
-				if (_UseClipRect)
-					color *= UnityGet2DClipping(i.worldPosition.xy, _ClipRect);
+				color.a *= UnityGet2DClipping(i.worldPosition.xy, _ClipRect);
 				
-				if (_UseAlphaClip)
-					clip (color.a - 0.001);
+				#ifdef UNITY_UI_ALPHACLIP
+				clip (color.a - 0.001);
+				#endif
 				
 				return color;
 			}

@@ -116,15 +116,16 @@ internal class StandardShaderGUI : ShaderGUI
 		m_MaterialEditor = materialEditor;
 		Material material = materialEditor.target as Material;
 
-		ShaderPropertiesGUI (material);
-
 		// Make sure that needed keywords are set up if we're switching some existing
 		// material to a standard shader.
+		// Do this before any GUI code has been issued to prevent layout issues in subsequent GUILayout statements (case 780071)
 		if (m_FirstTimeApply)
 		{
 			SetMaterialKeywords (material, m_WorkflowMode);
 			m_FirstTimeApply = false;
 		}
+
+		ShaderPropertiesGUI (material);
 	}
 
 	public void ShaderPropertiesGUI (Material material)
@@ -179,6 +180,13 @@ internal class StandardShaderGUI : ShaderGUI
 
 	public override void AssignNewShaderToMaterial (Material material, Shader oldShader, Shader newShader)
 	{
+        // _Emission property is lost after assigning Standard shader to the material
+        // thus transfer it before assigning the new shader
+        if (material.HasProperty("_Emission"))
+        {
+            material.SetColor("_EmissionColor", material.GetColor("_Emission"));
+        }
+
 		base.AssignNewShaderToMaterial(material, oldShader, newShader);
 
 		if (oldShader == null || !oldShader.name.Contains("Legacy Shaders/"))

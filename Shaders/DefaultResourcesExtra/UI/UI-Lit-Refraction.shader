@@ -17,6 +17,8 @@ Shader "UI/Lit/Refraction"
 		_StencilReadMask ("Stencil Read Mask", Float) = 255
 
 		_ColorMask ("Color Mask", Float) = 15
+
+		[Toggle(UNITY_UI_ALPHACLIP)] _UseUIAlphaClip ("Use Alpha Clip", Float) = 0
 	}
 	
 	SubShader
@@ -60,6 +62,8 @@ Shader "UI/Lit/Refraction"
 			#include "UnityCG.cginc"
 			#include "UnityUI.cginc"
 
+			#pragma multi_compile __ UNITY_UI_ALPHACLIP
+
 			struct appdata_t
 			{
 				float4 vertex : POSITION;
@@ -93,11 +97,7 @@ Shader "UI/Lit/Refraction"
 			half _Focus;
 
 			fixed4 _TextureSampleAdd;
-
-			bool _UseClipRect;
 			float4 _ClipRect;
-				
-			bool _UseAlphaClip;
 				
 			void vert (inout appdata_t v, out Input o)
 			{
@@ -136,11 +136,11 @@ Shader "UI/Lit/Refraction"
 				o.Gloss = _Shininess * mask.g;
 				o.Alpha = col.a;
 				
-				if (_UseClipRect)
-					o.Alpha *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
+				o.Alpha *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
 				
-				if (_UseAlphaClip)
-					clip (o.Alpha - 0.001);
+				#ifdef UNITY_UI_ALPHACLIP
+				clip (o.Alpha - 0.001);
+				#endif
 			}
 
 			half4 LightingPPL (SurfaceOutput s, half3 lightDir, half3 viewDir, half atten)

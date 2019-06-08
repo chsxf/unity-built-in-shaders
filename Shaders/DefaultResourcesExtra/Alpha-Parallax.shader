@@ -12,7 +12,7 @@ SubShader {
 	LOD 500
 	
 CGPROGRAM
-#pragma surface surf Lambert alpha:blend
+#pragma surface surf Lambert alpha:fade
 
 sampler2D _MainTex;
 sampler2D _BumpMap;

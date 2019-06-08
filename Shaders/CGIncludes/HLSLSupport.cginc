@@ -61,6 +61,11 @@
 
 #if defined(SHADER_API_PSSL)
 // compute shader defines for PS4
+
+#define Buffer DataBuffer
+#define RWBuffer RW_DataBuffer
+#define ByteAddressBuffer ByteBuffer
+#define RWByteAddressBuffer RW_ByteBuffer
 #define StructuredBuffer RegularBuffer
 #define RWStructuredBuffer RW_RegularBuffer
 #define AppendStructuredBuffer AppendRegularBuffer
@@ -128,9 +133,14 @@
 #define min10float4 fixed4
 #endif
 
+#if defined(SHADER_API_PSSL)
+#define SAMPLER_UNIFORM uniform
+#else
+#define SAMPLER_UNIFORM
+#endif
+
 
 #if defined(SHADER_API_PSSL)
-#define uniform
 #define half float
 #define half2 float2
 #define half3 float3
@@ -153,6 +163,16 @@
 #define RWTexture2D RW_Texture2D
 #define RWTexture3D RW_Texture3D
 
+#define InterlockedAdd AtomicAdd
+#define InterlockedMin AtomicMin
+#define InterlockedMax AtomicMax
+#define InterlockedAnd AtomicAnd
+#define InterlockedOr AtomicOr
+#define InterlockedXor AtomicXor
+#define InterlockedExchange AtomicExchange
+#define InterlockedCompareStore AtomicCmpStore
+#define InterlockedCompareExchange AtomicCmpExchange
+
 #define CBUFFER_START(name) ConstantBuffer name {
 #define CBUFFER_END };
 #elif !(defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)) && (defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X))
@@ -165,7 +185,11 @@
 
 
 #if defined(SHADER_API_PSSL)
+
 	// PS4 shader compiler emulation of legacy DX9-like HLSL
+
+#define SampleLevel SampleLOD
+#define SampleGrad SampleGradient
 
 	struct sampler1D { Texture1D t; SamplerState s; };
 	struct sampler2D { Texture2D t; SamplerState s; };
@@ -458,21 +482,19 @@
 
 
 // "platform caps" defines that were moved to editor, so they are set automatically when compiling shader
-// UNITY_NO_DXT5nm
-// UNITY_NO_RGBM
-// UNITY_NO_SCREENSPACE_SHADOWS
-// UNITY_NO_LINEAR_COLORSPACE
+// UNITY_NO_DXT5nm				- no DXT5NM support, so normal maps will encoded in rgb
+// UNITY_NO_RGBM				- no RGBM support, so doubleLDR
+// UNITY_NO_SCREENSPACE_SHADOWS	- no screenspace cascaded shadowmaps
+// UNITY_NO_LINEAR_COLORSPACE	- no linear color space support
+// UNITY_FRAMEBUFFER_FETCH_AVAILABLE	- framebuffer fetch
+// UNITY_ENABLE_REFLECTION_BUFFERS - render reflection probes in deferred way, when using deferred shading
+
 
 #if defined(SHADER_API_PSP2)
 // To get acceptable precision from the SGX interpolators when decoding RGBM type
 // textures we have to disable sRGB reads and then convert to gamma space in the shader
 // explicitly.
 #define UNITY_FORCE_LINEAR_READ_FOR_RGBM
-#endif
-
-// Platforms which can support "framebuffer fetch" on some devices
-#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL)
-#define UNITY_FRAMEBUFFER_FETCH_AVAILABLE
 #endif
 
 
@@ -572,8 +594,6 @@
 	#define UNITY_LOOP
 	#define UNITY_FASTOPT
 #endif
-
-//#define USE_INCONSISTENT_LIGHTING_FOR_BACKWARDS_COMPATIBILITY 0
 
 
 // Unity 4.x had HDR_LIGHT_PREPASS_ON keyword in deferred lighting; 5.0 renamed it to UNITY_HDR_ON.

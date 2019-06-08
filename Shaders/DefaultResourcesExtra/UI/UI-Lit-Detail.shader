@@ -18,6 +18,8 @@ Shader "UI/Lit/Detail"
 		_StencilReadMask ("Stencil Read Mask", Float) = 255
 
 		_ColorMask ("Color Mask", Float) = 15
+
+		[Toggle(UNITY_UI_ALPHACLIP)] _UseUIAlphaClip ("Use Alpha Clip", Float) = 0
 	}
 	
 	SubShader
@@ -53,6 +55,8 @@ Shader "UI/Lit/Detail"
 			
 			#include "UnityCG.cginc"
 			#include "UnityUI.cginc"
+
+			#pragma multi_compile __ UNITY_UI_ALPHACLIP
 	
 			struct appdata_t
 			{
@@ -82,13 +86,8 @@ Shader "UI/Lit/Detail"
 			fixed4 _Specular;
 			half _Strength;
 			half _Shininess;
-			
 			fixed4 _TextureSampleAdd;
-
-			bool _UseClipRect;
 			float4 _ClipRect;
-
-			bool _UseAlphaClip;
 
 			void vert (inout appdata_t v, out Input o)
 			{
@@ -122,11 +121,11 @@ Shader "UI/Lit/Detail"
 				o.Gloss = _Shininess;
 				o.Alpha = col.a;
 
-				if (_UseClipRect)
-					o.Alpha *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
+				o.Alpha *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
 				
-				if (_UseAlphaClip)
-					clip (o.Alpha - 0.001);
+				#ifdef UNITY_UI_ALPHACLIP
+				clip (o.Alpha - 0.001);
+				#endif
 			}
 
 			half4 LightingPPL (SurfaceOutput s, half3 lightDir, half3 viewDir, half atten)

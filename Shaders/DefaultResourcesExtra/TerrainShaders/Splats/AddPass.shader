@@ -30,7 +30,6 @@ Shader "Hidden/TerrainEngine/Splatmap/Diffuse-AddPass" {
 
 	Category {
 		Tags {
-			"SplatCount" = "4"
 			"Queue" = "Geometry-99"
 			"IgnoreProjector"="True"
 			"RenderType" = "Opaque"

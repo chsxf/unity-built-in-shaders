@@ -11,50 +11,51 @@
 
 // ----------------------------------------------------------------------------
 
+
 CBUFFER_START(UnityPerCamera)
 	// Time (t = time since current level load) values from Unity
-	uniform float4 _Time; // (t/20, t, t*2, t*3)
-	uniform float4 _SinTime; // sin(t/8), sin(t/4), sin(t/2), sin(t)
-	uniform float4 _CosTime; // cos(t/8), cos(t/4), cos(t/2), cos(t)
-	uniform float4 unity_DeltaTime; // dt, 1/dt, smoothdt, 1/smoothdt
+	float4 _Time; // (t/20, t, t*2, t*3)
+	float4 _SinTime; // sin(t/8), sin(t/4), sin(t/2), sin(t)
+	float4 _CosTime; // cos(t/8), cos(t/4), cos(t/2), cos(t)
+	float4 unity_DeltaTime; // dt, 1/dt, smoothdt, 1/smoothdt
 	
-	uniform float3 _WorldSpaceCameraPos;
+	float3 _WorldSpaceCameraPos;
 	
 	// x = 1 or -1 (-1 if projection is flipped)
 	// y = near plane
 	// z = far plane
 	// w = 1/far plane
-	uniform float4 _ProjectionParams;
+	float4 _ProjectionParams;
 	
 	// x = width
 	// y = height
 	// z = 1 + 1.0/width
 	// w = 1 + 1.0/height
-	uniform float4 _ScreenParams;
+	float4 _ScreenParams;
 	
 	// Values used to linearize the Z buffer (http://www.humus.name/temp/Linearize%20depth.txt)
 	// x = 1-far/near
 	// y = far/near
 	// z = x/far
 	// w = y/far
-	uniform float4 _ZBufferParams;
+	float4 _ZBufferParams;
 
 	// x = orthographic camera's width
 	// y = orthographic camera's height
 	// z = unused
 	// w = 1.0 if camera is ortho, 0.0 if perspective
-	uniform float4 unity_OrthoParams;
+	float4 unity_OrthoParams;
 CBUFFER_END
 
 
 CBUFFER_START(UnityPerCameraRare)
-	uniform float4 unity_CameraWorldClipPlanes[6];
+	float4 unity_CameraWorldClipPlanes[6];
 
 	// Projection matrices of the camera. Note that this might be different from projection matrix
 	// that is set right now, e.g. while rendering shadows the matrices below are still the projection
 	// of original camera.
-	uniform float4x4 unity_CameraProjection;
-	uniform float4x4 unity_CameraInvProjection;
+	float4x4 unity_CameraProjection;
+	float4x4 unity_CameraInvProjection;
 CBUFFER_END
 
 
@@ -64,12 +65,12 @@ CBUFFER_END
 CBUFFER_START(UnityLighting)
 
 	#ifdef USING_DIRECTIONAL_LIGHT
-	uniform half4 _WorldSpaceLightPos0;
+	half4 _WorldSpaceLightPos0;
 	#else
-	uniform float4 _WorldSpaceLightPos0;
+	float4 _WorldSpaceLightPos0;
 	#endif
 
-	uniform float4 _LightPositionRange; // xyz = pos, w = 1/range
+	float4 _LightPositionRange; // xyz = pos, w = 1/range
 
 	float4 unity_4LightPosX0;
 	float4 unity_4LightPosY0;
@@ -131,10 +132,10 @@ CBUFFER_START(UnityPerDraw)
 	#define UNITY_MATRIX_MV glstate_matrix_modelview0
 	#define UNITY_MATRIX_IT_MV glstate_matrix_invtrans_modelview0
 	
-	uniform float4x4 _Object2World;
-	uniform float4x4 _World2Object;
-	uniform float4 unity_LODFade; // x is the fade value ranging within [0,1]. y is x quantized into 16 levels
-	uniform float4 unity_WorldTransformParams; // w is usually 1.0, or -1.0 for odd-negative scale transforms
+	float4x4 _Object2World;
+	float4x4 _World2Object;
+	float4 unity_LODFade; // x is the fade value ranging within [0,1]. y is x quantized into 16 levels
+	float4 unity_WorldTransformParams; // w is usually 1.0, or -1.0 for odd-negative scale transforms
 CBUFFER_END
 
 
@@ -172,12 +173,12 @@ CBUFFER_END
 // ----------------------------------------------------------------------------
 
 CBUFFER_START(UnityFog)
-	uniform fixed4 unity_FogColor;
+	fixed4 unity_FogColor;
 	// x = density / sqrt(ln(2)), useful for Exp2 mode
 	// y = density / ln(2), useful for Exp mode
 	// z = -1/(end-start), useful for Linear mode
 	// w = end/(end-start), useful for Linear mode
-	uniform float4 unity_FogParams;
+	float4 unity_FogParams;
 CBUFFER_END
 
 

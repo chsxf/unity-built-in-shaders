@@ -9,7 +9,7 @@ SubShader {
 	LOD 200
 
 CGPROGRAM
-#pragma surface surf Lambert alpha:blend
+#pragma surface surf Lambert alpha:fade
 
 sampler2D _MainTex;
 fixed4 _Color;

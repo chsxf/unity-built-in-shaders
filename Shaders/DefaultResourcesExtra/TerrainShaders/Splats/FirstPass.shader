@@ -32,7 +32,6 @@ Shader "Nature/Terrain/Diffuse" {
 
 	Category {
 		Tags {
-			"SplatCount" = "4"
 			"Queue" = "Geometry-99"
 			"RenderType" = "Opaque"
 		}

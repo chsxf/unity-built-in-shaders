@@ -5,10 +5,10 @@
 
 #include "UnityShaderVariables.cginc"
 
-uniform fixed4 unity_ColorSpaceGrey;
-uniform fixed4 unity_ColorSpaceDouble;
-uniform half4  unity_ColorSpaceDielectricSpec;
-uniform half4  unity_ColorSpaceLuminance;
+fixed4 unity_ColorSpaceGrey;
+fixed4 unity_ColorSpaceDouble;
+half4  unity_ColorSpaceDielectricSpec;
+half4  unity_ColorSpaceLuminance;
 
 // -------------------------------------------------------------------
 //  helper functions and macros used in many standard shaders
@@ -56,6 +56,57 @@ struct appdata_full {
 #endif
 	fixed4 color : COLOR;
 };
+
+inline bool IsGammaSpace()
+{
+#if defined(UNITY_NO_LINEAR_COLORSPACE)
+	return true;
+#else
+	// unity_ColorSpaceLuminance.w == 1 when in Linear space, otherwise == 0
+	return unity_ColorSpaceLuminance.w == 0;
+#endif
+}
+
+inline float GammaToLinearSpaceExact (float value)
+{
+	if (value <= 0.04045F)
+		return value / 12.92F;
+	else if (value < 1.0F)
+		return pow((value + 0.055F)/1.055F, 2.4F);
+	else
+		return pow(value, 2.2F);
+}
+
+inline half3 GammaToLinearSpace (half3 sRGB)
+{
+	// Approximate version from http://chilliant.blogspot.com.au/2012/08/srgb-approximations-for-hlsl.html?m=1
+	return sRGB * (sRGB * (sRGB * 0.305306011h + 0.682171111h) + 0.012522878h);
+
+	// Precise version, useful for debugging.
+	//return half3(GammaToLinearSpaceExact(sRGB.r), GammaToLinearSpaceExact(sRGB.g), GammaToLinearSpaceExact(sRGB.b));
+}
+
+inline float LinearToGammaSpaceExact (float value)
+{
+	if (value <= 0.0F)
+		return 0.0F;
+	else if (value <= 0.0031308F)
+		return 12.92F * value;
+	else if (value < 1.0F)
+		return 1.055F * pow(value, 0.4166667F) - 0.055F;
+	else
+		return pow(value, 0.45454545F);
+}
+
+inline half3 LinearToGammaSpace (half3 linRGB)
+{
+	linRGB = max(linRGB, half3(0.h, 0.h, 0.h));
+	// An almost-perfect approximation from http://chilliant.blogspot.com.au/2012/08/srgb-approximations-for-hlsl.html?m=1
+	return max(1.055h * pow(linRGB, 0.416666667h) - 0.055h, 0.h);
+	
+	// Exact version, useful for debugging.
+	//return half3(LinearToGammaSpaceExact(linRGB.r), LinearToGammaSpaceExact(linRGB.g), LinearToGammaSpaceExact(linRGB.b));
+}
 
 // Transforms direction from object to world space
 inline float3 UnityObjectToWorldDir( in float3 dir )
@@ -210,56 +261,71 @@ float3 ShadeVertexLights (float4 vertex, float3 normal)
 }
 
 // normal should be normalized, w=1.0
-half3 ShadeSH9 (half4 normal)
+half3 SHEvalLinearL0L1 (half4 normal)
 {
-	half3 x1, x2, x3;
-	
-	// Linear + constant polynomial terms
-	x1.r = dot(unity_SHAr,normal);
-	x1.g = dot(unity_SHAg,normal);
-	x1.b = dot(unity_SHAb,normal);
-	
-	// 4 of the quadratic polynomials
-	half4 vB = normal.xyzz * normal.yzzx;
-	x2.r = dot(unity_SHBr,vB);
-	x2.g = dot(unity_SHBg,vB);
-	x2.b = dot(unity_SHBb,vB);
-	
-	// Final quadratic polynomial
-	half vC = normal.x*normal.x - normal.y*normal.y;
-	x3 = unity_SHC.rgb * vC;
-	return x2 + x3 + x1;
-} 
+	half3 x;
+
+	// Linear (L1) + constant (L0) polynomial terms
+	x.r = dot(unity_SHAr,normal);
+	x.g = dot(unity_SHAg,normal);
+	x.b = dot(unity_SHAb,normal);
+
+	return x;
+}
 
 // normal should be normalized, w=1.0
+half3 SHEvalLinearL2 (half4 normal)
+{
+	half3 x1, x2;
+	// 4 of the quadratic (L2) polynomials
+	half4 vB = normal.xyzz * normal.yzzx;
+	x1.r = dot(unity_SHBr,vB);
+	x1.g = dot(unity_SHBg,vB);
+	x1.b = dot(unity_SHBb,vB);
+
+	// Final (5th) quadratic (L2) polynomial
+	half vC = normal.x*normal.x - normal.y*normal.y;
+	x2 = unity_SHC.rgb * vC;
+
+	return x1 + x2;
+}
+
+// normal should be normalized, w=1.0
+// output in active color space
+half3 ShadeSH9 (half4 normal)
+{
+	// Linear + constant polynomial terms
+	half3 res = SHEvalLinearL0L1 (normal);
+
+	// Quadratic polynomials
+	res += SHEvalLinearL2 (normal);
+
+	if (IsGammaSpace())
+		res = LinearToGammaSpace (res);
+
+	return res;
+}
+
+// OBSOLETE: for backwards compatibility with 5.0
 half3 ShadeSH3Order(half4 normal)
 {
-	half3 x2, x3;
-	// 4 of the quadratic polynomials
-	half4 vB = normal.xyzz * normal.yzzx;
-	x2.r = dot(unity_SHBr,vB);
-	x2.g = dot(unity_SHBg,vB);
-	x2.b = dot(unity_SHBb,vB);
-	
-	// Final quadratic polynomial
-	half vC = normal.x*normal.x - normal.y*normal.y;
-	x3 = unity_SHC.rgb * vC;
+	// Quadratic polynomials
+	half3 res = SHEvalLinearL2 (normal);
+	if (IsGammaSpace())
+		res = LinearToGammaSpace (res);
 
-	return x2 + x3;
+	return res;
 }
 
 // normal should be normalized, w=1.0
 half3 ShadeSH12Order (half4 normal)
 {
-	half3 x1;
-	
 	// Linear + constant polynomial terms
-	x1.r = dot(unity_SHAr,normal);
-	x1.g = dot(unity_SHAg,normal);
-	x1.b = dot(unity_SHAb,normal);
+	half3 res = SHEvalLinearL0L1 (normal);
+	if (IsGammaSpace())
+		res = LinearToGammaSpace (res);
 
-	// Final linear term
-	return x1;
+	return res;
 }
 
 // Transforms 2D UV by scale/bias property
@@ -299,10 +365,6 @@ inline float2 ParallaxOffset( half h, half height, half3 viewDir )
 // Converts color to luminance (grayscale)
 inline half Luminance( half3 c )
 {
-#if defined (USE_INCONSISTENT_LIGHTING_FOR_BACKWARDS_COMPATIBILITY)
-	return dot( c, fixed3(0.22, 0.707, 0.071) );
-#endif
-
 	#if defined(UNITY_NO_LINEAR_COLORSPACE)
 		// In Gamma space equation is simple
 		return dot(c, unity_ColorSpaceLuminance.rgb);
@@ -341,17 +403,6 @@ half4 UnityEncodeRGBM (half3 rgb, float maxRGBM)
 	
 	rgbm.rgb /= rgbm.a;
 	return rgbm;
-}
-
-// From http://chilliant.blogspot.com.au/2012/08/srgb-approximations-for-hlsl.html?m=1
-inline half3 GammaToLinearSpace (half3 sRGB)
-{
-	return sRGB * (sRGB * (sRGB * 0.305306011 + 0.682171111) + 0.012522878);
-}
-
-inline half3 LinearToGammaSpace (half3 linRGB)
-{
-	return max(1.055 * pow(linRGB, 0.416666667) - 0.055, 0);
 }
 
 // Decodes HDR textures
@@ -428,7 +479,7 @@ inline half3 DecodeDirectionalLightmap (half3 color, fixed4 dirTex, half3 normal
 	
 	half halfLambert = dot(normalWorld, dirTex.xyz - 0.5) + 0.5;
 
-	return color * halfLambert / dirTex.w;
+	return color * halfLambert / max(1e-4h, dirTex.w);
 }
 
 // Helpers used in image effects. Most image effects use the same
@@ -691,7 +742,7 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 	#define V2F_SHADOW_CASTER_NOPOS float3 vec : TEXCOORD0;
 	#define TRANSFER_SHADOW_CASTER_NOPOS_LEGACY(o,opos) o.vec = mul(_Object2World, v.vertex).xyz - _LightPositionRange.xyz; opos = mul(UNITY_MATRIX_MVP, v.vertex);
 	#define TRANSFER_SHADOW_CASTER_NOPOS(o,opos) o.vec = mul(_Object2World, v.vertex).xyz - _LightPositionRange.xyz; opos = mul(UNITY_MATRIX_MVP, v.vertex);
-	#define SHADOW_CASTER_FRAGMENT(i) return UnityEncodeCubeShadowDepth (length(i.vec) * _LightPositionRange.w);
+	#define SHADOW_CASTER_FRAGMENT(i) return UnityEncodeCubeShadowDepth ((length(i.vec) + unity_LightShadowBias.x) * _LightPositionRange.w);
 #else
 	// Rendering into directional or spot light shadows
 	#if defined(UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE)
@@ -770,15 +821,17 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 	#define UNITY_CALC_FOG_FACTOR(coord) float unityFogFactor = 0.0
 #endif
 
+#define UNITY_FOG_COORDS_PACKED(idx, vectype) vectype fogCoord : TEXCOORD##idx;
 
 #if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)
-	#define UNITY_FOG_COORDS(idx) float fogCoord : TEXCOORD##idx;
+	#define UNITY_FOG_COORDS(idx) UNITY_FOG_COORDS_PACKED(idx, float1)
+
 	#if (SHADER_TARGET < 30) || defined(SHADER_API_MOBILE)
 		// mobile or SM2.0: calculate fog factor per-vertex
-		#define UNITY_TRANSFER_FOG(o,outpos) UNITY_CALC_FOG_FACTOR((outpos).z); o.fogCoord = unityFogFactor
+		#define UNITY_TRANSFER_FOG(o,outpos) UNITY_CALC_FOG_FACTOR((outpos).z); o.fogCoord.x = unityFogFactor
 	#else
 		// SM3.0 and PC/console: calculate fog distance per-vertex, and fog factor per-pixel
-		#define UNITY_TRANSFER_FOG(o,outpos) o.fogCoord = (outpos).z
+		#define UNITY_TRANSFER_FOG(o,outpos) o.fogCoord.x = (outpos).z
 	#endif
 #else
 	#define UNITY_FOG_COORDS(idx)
@@ -791,10 +844,10 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 #if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)
 	#if (SHADER_TARGET < 30) || defined(SHADER_API_MOBILE)
 		// mobile or SM2.0: fog factor was already calculated per-vertex, so just lerp the color
-		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_FOG_LERP_COLOR(col,fogCol,coord)
+		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_FOG_LERP_COLOR(col,fogCol,(coord).x)
 	#else
 		// SM3.0 and PC/console: calculate fog factor and lerp fog color
-		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_CALC_FOG_FACTOR(coord); UNITY_FOG_LERP_COLOR(col,fogCol,unityFogFactor)
+		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_CALC_FOG_FACTOR((coord).x); UNITY_FOG_LERP_COLOR(col,fogCol,unityFogFactor)
 	#endif
 #else
 	#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol)
@@ -821,7 +874,7 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 		return screenPos;
 	}
 	#define UNITY_APPLY_DITHER_CROSSFADE(i)					ApplyDitherCrossFade(i.ditherScreenPos);
-	uniform sampler2D _DitherMaskLOD2D;
+	sampler2D _DitherMaskLOD2D;
 	void ApplyDitherCrossFade(half3 ditherScreenPos)
 	{
 		half2 projUV = ditherScreenPos.xy / ditherScreenPos.z;

@@ -26,9 +26,12 @@ Shader "Sprites/Diffuse"
 		CGPROGRAM
 		#pragma surface surf Lambert vertex:vert nofog keepalpha
 		#pragma multi_compile _ PIXELSNAP_ON
+		#pragma multi_compile _ ETC1_EXTERNAL_ALPHA
 
 		sampler2D _MainTex;
 		fixed4 _Color;
+		sampler2D _AlphaTex;
+
 
 		struct Input
 		{
@@ -46,9 +49,20 @@ Shader "Sprites/Diffuse"
 			o.color = v.color * _Color;
 		}
 
+		fixed4 SampleSpriteTexture (float2 uv)
+		{
+			fixed4 color = tex2D (_MainTex, uv);
+
+#if ETC1_EXTERNAL_ALPHA
+			color.a = tex2D (_AlphaTex, uv).r;
+#endif //ETC1_EXTERNAL_ALPHA
+
+			return color;
+		}
+
 		void surf (Input IN, inout SurfaceOutput o)
 		{
-			fixed4 c = tex2D(_MainTex, IN.uv_MainTex) * IN.color;
+			fixed4 c = SampleSpriteTexture (IN.uv_MainTex) * IN.color;
 			o.Albedo = c.rgb * c.a;
 			o.Alpha = c.a;
 		}

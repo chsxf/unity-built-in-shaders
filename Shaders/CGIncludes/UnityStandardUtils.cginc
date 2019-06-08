@@ -126,13 +126,59 @@ half3x3 CreateTangentToWorldPerVertex(half3 normal, half3 tangent, half tangentS
 }
 
 //-------------------------------------------------------------------------------------
-inline half3 BoxProjectedCubemapDirection (half3 worldNormal, float3 worldPos, float4 cubemapCenter, float4 boxMin, float4 boxMax)
+half3 ShadeSHPerVertex (half3 normal, half3 ambient)
+{
+	#if UNITY_SAMPLE_FULL_SH_PER_PIXEL
+		// Completely per-pixel
+		// nothing to do here
+	#elif (SHADER_TARGET < 30) || UNITY_STANDARD_SIMPLE
+		// Completely per-vertex
+		ambient += max(half3(0, 0, 0), ShadeSH9(half4(normal, 1.0)));
+	#else
+		// L2 per-vertex, L0..L1 & gamma-correction per-pixel
+
+		// NOTE: SH data is always in Linear AND calculation is split between vertex & pixel
+		// Convert ambient to Linear and do final gamma-correction at the end (per-pixel)
+		if (IsGammaSpace())
+			ambient = GammaToLinearSpace (ambient);
+		ambient += SHEvalLinearL2 (half4(normal, 1.0)); // no max since this is only L2 contribution
+	#endif
+
+	return ambient;
+}
+
+half3 ShadeSHPerPixel (half3 normal, half3 ambient)
+{
+	half3 ambient_contrib = 0.0;
+
+	#if UNITY_SAMPLE_FULL_SH_PER_PIXEL
+		// Completely per-pixel
+		ambient_contrib = ShadeSH9(half4(normal, 1.0));
+		ambient += max(half3(0, 0, 0), ambient_contrib);
+	#elif (SHADER_TARGET < 30) || UNITY_STANDARD_SIMPLE
+		// Completely per-vertex
+		// nothing to do here
+	#else
+		// L2 per-vertex, L0..L1 & gamma-correction per-pixel
+		
+		// Ambient in this case is expected to be always Linear, see ShadeSHPerVertex()
+		ambient_contrib = SHEvalLinearL0L1(half4(normal, 1.0));
+		ambient = max(half3(0, 0, 0), ambient + ambient_contrib);		// include L2 contribution in vertex shader before clamp.
+		if (IsGammaSpace())
+			ambient = LinearToGammaSpace (ambient);
+	#endif
+
+	return ambient;
+}
+
+//-------------------------------------------------------------------------------------
+inline half3 BoxProjectedCubemapDirection (half3 worldRefl, float3 worldPos, float4 cubemapCenter, float4 boxMin, float4 boxMax)
 {
 	// Do we have a valid reflection probe?
 	UNITY_BRANCH
 	if (cubemapCenter.w > 0.0)
 	{
-		half3 nrdir = normalize(worldNormal);
+		half3 nrdir = normalize(worldRefl);
 
 		#if 1				
 			half3 rbmax = (boxMax.xyz - worldPos) / nrdir;
@@ -151,13 +197,10 @@ inline half3 BoxProjectedCubemapDirection (half3 worldNormal, float3 worldPos, f
 
 		half fa = min(min(rbminmax.x, rbminmax.y), rbminmax.z);
 
-		float3 aabbCenter = (boxMax.xyz + boxMin.xyz) * 0.5;
-		float3 offset = aabbCenter - cubemapCenter.xyz;
-		float3 posonbox = offset + worldPos + nrdir * fa;
-
-		worldNormal = posonbox - aabbCenter;
+		worldPos -= cubemapCenter.xyz;
+		worldRefl = worldPos + nrdir * fa;
 	}
-	return worldNormal;
+	return worldRefl;
 }
 
 

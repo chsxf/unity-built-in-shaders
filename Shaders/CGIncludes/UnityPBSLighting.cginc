@@ -9,17 +9,24 @@
 //-------------------------------------------------------------------------------------
 // Default BRDF to use:
 #if !defined (UNITY_BRDF_PBS) // allow to explicitly override BRDF in custom shader
-	#if (SHADER_TARGET < 30) || defined(SHADER_API_PSP2)
-		// Fallback to low fidelity one for pre-SM3.0
+	// still add safe net for low shader models, otherwise we might end up with shaders failing to compile
+	// the only exception is WebGL in 5.3 - it will be built with shader target 2.0 but we want it to get rid of constraints, as it is effectively desktop
+	#if SHADER_TARGET < 30 && !UNITY_53_SPECIFIC_TARGET_WEBGL
 		#define UNITY_BRDF_PBS BRDF3_Unity_PBS
-	#elif defined(SHADER_API_MOBILE)
-		// Somewhat simplified for mobile
+	#elif UNITY_PBS_USE_BRDF3
+		#define UNITY_BRDF_PBS BRDF3_Unity_PBS
+	#elif UNITY_PBS_USE_BRDF2
 		#define UNITY_BRDF_PBS BRDF2_Unity_PBS
-	#else
-		// Full quality for SM3+ PC / consoles
+	#elif UNITY_PBS_USE_BRDF1
 		#define UNITY_BRDF_PBS BRDF1_Unity_PBS
+	#elif defined(SHADER_TARGET_SURFACE_ANALYSIS)
+		// we do preprocess pass during shader analysis and we dont actually care about brdf as we need only inputs/outputs
+		#define UNITY_BRDF_PBS BRDF1_Unity_PBS
+	#else
+		#error something broke in auto-choosing BRDF
 	#endif
 #endif
+
 
 //-------------------------------------------------------------------------------------
 // BRDF for lights extracted from *indirect* directional lightmaps (baked and realtime).

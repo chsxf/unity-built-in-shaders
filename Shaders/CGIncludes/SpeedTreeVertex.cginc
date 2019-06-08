@@ -39,8 +39,8 @@ struct SpeedTreeVB
 #define WIND_QUALITY_BEST		4
 #define WIND_QUALITY_PALM		5
 
-uniform half _WindQuality;
-uniform half _WindEnabled;
+half _WindQuality;
+half _WindEnabled;
 
 #include "SpeedTreeWind.cginc"
 

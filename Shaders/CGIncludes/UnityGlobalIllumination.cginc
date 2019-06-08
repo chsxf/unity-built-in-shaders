@@ -23,7 +23,7 @@ inline half3 DecodeDirectionalSpecularLightmap (half3 color, fixed4 dirTex, half
 		// Realtime directional lightmaps' intensity needs to be divided by N.L
 		// to get the incoming light intensity. Baked directional lightmaps are already
 		// output like that (including the max() to prevent div by zero).
-		half3 realtimeNormal = realtimeNormalTex.zyx * 2 - 1;
+		half3 realtimeNormal = realtimeNormalTex.xyz * 2 - 1;
 		o_light.color /= max(0.125, dot(realtimeNormal, o_light.dir));
 	}
 	#endif
@@ -87,19 +87,9 @@ inline UnityGI UnityGI_Base(UnityGIInput data, half occlusion, half3 normalWorld
 		o_gi.light.color *= data.atten;
 	#endif
 
-
 	#if UNITY_SHOULD_SAMPLE_SH
-		#if UNITY_SAMPLE_FULL_SH_PER_PIXEL
-			half3 sh = ShadeSH9(half4(normalWorld, 1.0));
-		#elif (SHADER_TARGET >= 30) && !UNITY_STANDARD_SIMPLE
-			half3 sh = data.ambient + ShadeSH12Order(half4(normalWorld, 1.0));
-		#else
-			half3 sh = data.ambient;
-		#endif
-
-		o_gi.indirect.diffuse = sh;
+		o_gi.indirect.diffuse = ShadeSHPerPixel (normalWorld, data.ambient);
 	#endif
-
 
 	#if defined(LIGHTMAP_ON)
 		// Baked lightmaps
