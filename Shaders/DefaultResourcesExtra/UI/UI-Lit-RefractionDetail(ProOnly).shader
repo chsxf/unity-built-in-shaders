@@ -1,4 +1,4 @@
-Shader "uGUI/Lit/Refraction Detail (Pro Only)"
+Shader "UI/Lit/Refraction Detail (Pro Only)"
 {
 	Properties
 	{
@@ -16,6 +16,9 @@ Shader "uGUI/Lit/Refraction Detail (Pro Only)"
 		_StencilComp ("Stencil Comparison", Float) = 8
 		_Stencil ("Stencil ID", Float) = 0
 		_StencilOp ("Stencil Operation", Float) = 0
+		_StencilWriteMask ("Stencil Write Mask", Float) = 255
+		_StencilReadMask ("Stencil Read Mask", Float) = 255
+
 		_ColorMask ("Color Mask", Float) = 15
 	}
 	
@@ -35,13 +38,16 @@ Shader "uGUI/Lit/Refraction Detail (Pro Only)"
 			"Queue" = "Transparent"
 			"IgnoreProjector" = "True"
 			"RenderType" = "Transparent"
+			"PreviewType"="Plane"
 		}
 
 		Stencil
 		{
 			Ref [_Stencil]
 			Comp [_StencilComp]
-			Pass [_StencilOp]
+			Pass [_StencilOp] 
+			ReadMask [_StencilReadMask]
+			WriteMask [_StencilWriteMask]
 		}
 		
 		Cull Off
@@ -72,11 +78,10 @@ Shader "uGUI/Lit/Refraction Detail (Pro Only)"
 	
 			struct Input
 			{
-				float4 vertex : SV_POSITION;
-				float4 texcoord1 : TEXCOORD0;
-				float4 texcoord2 : TEXCOORD1;
-				float2 texcoord3 : TEXCOORD2;
-				float4 proj : TEXCOORD3;
+				float4 texcoord1;
+				float4 texcoord2;
+				float2 texcoord3;
+				float4 proj;
 				fixed4 color : COLOR;
 			};
 
@@ -106,20 +111,21 @@ Shader "uGUI/Lit/Refraction Detail (Pro Only)"
 
 			void vert (inout appdata_t v, out Input o)
 			{
-				o.vertex		= mul(UNITY_MATRIX_MVP, v.vertex);
+				UNITY_INITIALIZE_OUTPUT(Input, o);
+
 				o.texcoord1.xy	= TRANSFORM_TEX(v.texcoord1, _MainTex);
 				o.texcoord1.zw	= TRANSFORM_TEX(v.texcoord1, _MainBump);
 				o.texcoord2.xy	= TRANSFORM_TEX(v.texcoord2 * _DetailTex_TexelSize.xy, _DetailTex);
 				o.texcoord2.zw	= TRANSFORM_TEX(v.texcoord2 * _DetailBump_TexelSize.xy, _DetailBump);
 				o.texcoord3		= TRANSFORM_TEX(v.texcoord2 * _DetailMask_TexelSize.xy, _DetailMask);
-				o.color			= v.color;
+
 
 			#if UNITY_UV_STARTS_AT_TOP
-				o.proj.xy = (float2(o.vertex.x, -o.vertex.y) + o.vertex.w) * 0.5;
+				o.proj.xy = (float2(v.vertex.x, -v.vertex.y) + v.vertex.w) * 0.5;
 			#else
-				o.proj.xy = (float2(o.vertex.x, o.vertex.y) + o.vertex.w) * 0.5;
+				o.proj.xy = (float2(v.vertex.x, v.vertex.y) + v.vertex.w) * 0.5;
 			#endif
-				o.proj.zw = o.vertex.zw;
+				o.proj.zw = v.vertex.zw;
 			}
 
 			void surf (Input IN, inout SurfaceOutput o)
@@ -175,5 +181,5 @@ Shader "uGUI/Lit/Refraction Detail (Pro Only)"
 			}
 		ENDCG
 	}
-	Fallback "GUI/Lit/Detail"
+	Fallback "UI/Lit/Detail"
 }

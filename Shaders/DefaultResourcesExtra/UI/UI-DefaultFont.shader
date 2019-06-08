@@ -1,4 +1,4 @@
-Shader "uGUI/Default Font" {
+Shader "UI/Default Font" {
 	Properties {
 		_MainTex ("Font Texture", 2D) = "white" {}
 		_Color ("Text Color", Color) = (1,1,1,1)
@@ -6,6 +6,9 @@ Shader "uGUI/Default Font" {
 		_StencilComp ("Stencil Comparison", Float) = 8
 		_Stencil ("Stencil ID", Float) = 0
 		_StencilOp ("Stencil Operation", Float) = 0
+		_StencilWriteMask ("Stencil Write Mask", Float) = 255
+		_StencilReadMask ("Stencil Read Mask", Float) = 255
+
 		_ColorMask ("Color Mask", Float) = 15
 	}
 
@@ -23,7 +26,9 @@ Shader "uGUI/Default Font" {
 		{
 			Ref [_Stencil]
 			Comp [_StencilComp]
-			Pass [_StencilOp]
+			Pass [_StencilOp] 
+			ReadMask [_StencilReadMask]
+			WriteMask [_StencilWriteMask]
 		}
 		
 		Lighting Off 
@@ -63,7 +68,10 @@ Shader "uGUI/Default Font" {
 				v2f o;
 				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
 				o.color = v.color * _Color;
-				o.texcoord = TRANSFORM_TEX(v.texcoord,_MainTex);
+				o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
+#ifdef UNITY_HALF_TEXEL_OFFSET
+				o.vertex.xy += (_ScreenParams.zw-1.0)*float2(-1,1);
+#endif
 				return o;
 			}
 

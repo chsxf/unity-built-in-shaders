@@ -213,11 +213,11 @@ float4 tex2Dproj(in sampler2D s, in float3 t)
 #define UNITY_HALF_TEXEL_OFFSET
 #endif
 
-#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3) || defined(SHADER_API_FLASH) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3) || defined(SHADER_API_FLASH) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL)
 #define UNITY_UV_STARTS_AT_TOP 1
 #endif
 
-#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3) || defined(SHADER_API_FLASH) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X)
+#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3) || defined(SHADER_API_FLASH) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_METAL)
 #define UNITY_NEAR_CLIP_VALUE (0.0)
 #else
 #define UNITY_NEAR_CLIP_VALUE (-1.0)
@@ -234,6 +234,23 @@ float4 tex2Dproj(in sampler2D s, in float3 t)
 #define UNITY_PROJ_COORD(a) (a).xyw
 #else
 #define UNITY_PROJ_COORD(a) a
+#endif
+
+
+// Platforms which do not use cascaded/screenspace shadow maps: more or less "mobile" platforms
+#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL)
+#define UNITY_NO_SCREENSPACE_SHADOWS
+#endif
+
+// Platforms which do not use RGBM lightmap compression, or DXT5nm normal map compression
+#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL)
+#define UNITY_NO_RGBM
+#define UNITY_NO_DXT5nm
+#endif
+
+// Platforms which can support "framebuffer fetch" on some devices
+#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL)
+#define UNITY_FRAMEBUFFER_FETCH_AVAILABLE
 #endif
 
 

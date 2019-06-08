@@ -19,7 +19,7 @@ Category {
 			Name "BASE"
 			Tags {"LightMode" = "Always"}
 CGPROGRAM
-#pragma exclude_renderers gles xbox360 ps3 gles3
+#pragma exclude_renderers shaderonly
 #pragma vertex vert
 #pragma fragment frag
 #include "UnityCG.cginc"

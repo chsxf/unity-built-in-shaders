@@ -1,14 +1,16 @@
-Shader "uGUI/Default"
+Shader "UI/Default"
 {
 	Properties
 	{
 		[PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
 		_Color ("Tint", Color) = (1,1,1,1)
-		[MaterialToggle] PixelSnap ("Pixel snap", Float) = 0
 		
 		_StencilComp ("Stencil Comparison", Float) = 8
 		_Stencil ("Stencil ID", Float) = 0
 		_StencilOp ("Stencil Operation", Float) = 0
+		_StencilWriteMask ("Stencil Write Mask", Float) = 255
+		_StencilReadMask ("Stencil Read Mask", Float) = 255
+
 		_ColorMask ("Color Mask", Float) = 15
 	}
 
@@ -28,6 +30,8 @@ Shader "uGUI/Default"
 			Ref [_Stencil]
 			Comp [_StencilComp]
 			Pass [_StencilOp] 
+			ReadMask [_StencilReadMask]
+			WriteMask [_StencilWriteMask]
 		}
 
 		Cull Off
@@ -43,7 +47,6 @@ Shader "uGUI/Default"
 		CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma multi_compile DUMMY PIXELSNAP_ON
 			#include "UnityCG.cginc"
 			
 			struct appdata_t
@@ -67,11 +70,10 @@ Shader "uGUI/Default"
 				v2f OUT;
 				OUT.vertex = mul(UNITY_MATRIX_MVP, IN.vertex);
 				OUT.texcoord = IN.texcoord;
+#ifdef UNITY_HALF_TEXEL_OFFSET
+				OUT.vertex.xy += (_ScreenParams.zw-1.0)*float2(-1,1);
+#endif
 				OUT.color = IN.color * _Color;
-				#ifdef PIXELSNAP_ON
-				OUT.vertex = UnityPixelSnap (OUT.vertex);
-				#endif
-
 				return OUT;
 			}
 

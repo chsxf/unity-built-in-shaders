@@ -1,4 +1,4 @@
-Shader "uGUI/Unlit/Text"
+Shader "UI/Unlit/Text"
 {
 	Properties
 	{
@@ -8,6 +8,9 @@ Shader "uGUI/Unlit/Text"
 		_StencilComp ("Stencil Comparison", Float) = 8
 		_Stencil ("Stencil ID", Float) = 0
 		_StencilOp ("Stencil Operation", Float) = 0
+		_StencilWriteMask ("Stencil Write Mask", Float) = 255
+		_StencilReadMask ("Stencil Read Mask", Float) = 255
+
 		_ColorMask ("Color Mask", Float) = 15
 	}
 
@@ -20,13 +23,16 @@ Shader "uGUI/Unlit/Text"
 			"Queue" = "Transparent"
 			"IgnoreProjector" = "True"
 			"RenderType" = "Transparent"
+			"PreviewType"="Plane"
 		}
 
 		Stencil
 		{
 			Ref [_Stencil]
 			Comp [_StencilComp]
-			Pass [_StencilOp]
+			Pass [_StencilOp] 
+			ReadMask [_StencilReadMask]
+			WriteMask [_StencilWriteMask]
 		}
 
 		Cull Off
@@ -69,6 +75,9 @@ Shader "uGUI/Unlit/Text"
 					o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
 					o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
 					o.color = v.color;
+#ifdef UNITY_HALF_TEXEL_OFFSET
+					o.vertex.xy += (_ScreenParams.zw-1.0)*float2(-1,1);
+#endif
 					return o;
 				}
 
