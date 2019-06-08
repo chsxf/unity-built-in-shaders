@@ -294,12 +294,19 @@ CBUFFER_END
 // ----------------------------------------------------------------------------
 // Light Probe Proxy Volume
 
-#ifndef UNITY_LIGHT_PROBE_PROXY_VOLUME
+// UNITY_LIGHT_PROBE_PROXY_VOLUME is used as a shader keyword coming from tier settings and may be also disabled with nolppv pragma.
+// We need to convert it to 0/1 and doing a second check for safety.
+#ifdef UNITY_LIGHT_PROBE_PROXY_VOLUME
+    #undef UNITY_LIGHT_PROBE_PROXY_VOLUME
     // Requires quite modern graphics support (3D float textures with filtering)
     // Note: Keep this in synch with the list from LightProbeProxyVolume::HasHardwareSupport && SurfaceCompiler::IsLPPVAvailableForAnyTargetPlatform
-    #if defined (SHADER_API_D3D11) || defined (SHADER_API_D3D12) || defined (SHADER_API_GLCORE) || defined (SHADER_API_XBOXONE) || defined (SHADER_API_PSSL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL)
+    #if !defined(UNITY_NO_LPPV) && (defined (SHADER_API_D3D11) || defined (SHADER_API_D3D12) || defined (SHADER_API_GLCORE) || defined (SHADER_API_XBOXONE) || defined (SHADER_API_PSSL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL))
         #define UNITY_LIGHT_PROBE_PROXY_VOLUME 1
+    #else
+        #define UNITY_LIGHT_PROBE_PROXY_VOLUME 0
     #endif
+#else
+    #define UNITY_LIGHT_PROBE_PROXY_VOLUME 0
 #endif
 
 #if UNITY_LIGHT_PROBE_PROXY_VOLUME
