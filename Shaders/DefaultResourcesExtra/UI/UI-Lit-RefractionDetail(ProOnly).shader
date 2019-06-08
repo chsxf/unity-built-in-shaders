@@ -1,4 +1,4 @@
-Shader "uGUI/Lit/Refraction Detail (Pro Only)"
+Shader "UI/Lit/Refraction Detail (Pro Only)"
 {
 	Properties
 	{
@@ -16,6 +16,9 @@ Shader "uGUI/Lit/Refraction Detail (Pro Only)"
 		_StencilComp ("Stencil Comparison", Float) = 8
 		_Stencil ("Stencil ID", Float) = 0
 		_StencilOp ("Stencil Operation", Float) = 0
+		_StencilWriteMask ("Stencil Write Mask", Float) = 255
+		_StencilReadMask ("Stencil Read Mask", Float) = 255
+
 		_ColorMask ("Color Mask", Float) = 15
 	}
 	
@@ -35,13 +38,16 @@ Shader "uGUI/Lit/Refraction Detail (Pro Only)"
 			"Queue" = "Transparent"
 			"IgnoreProjector" = "True"
 			"RenderType" = "Transparent"
+			"PreviewType"="Plane"
 		}
 
 		Stencil
 		{
 			Ref [_Stencil]
 			Comp [_StencilComp]
-			Pass [_StencilOp]
+			Pass [_StencilOp] 
+			ReadMask [_StencilReadMask]
+			WriteMask [_StencilWriteMask]
 		}
 		
 		Cull Off
@@ -114,6 +120,10 @@ Shader "uGUI/Lit/Refraction Detail (Pro Only)"
 				o.texcoord3		= TRANSFORM_TEX(v.texcoord2 * _DetailMask_TexelSize.xy, _DetailMask);
 				o.color			= v.color;
 
+#ifdef UNITY_HALF_TEXEL_OFFSET
+				o.vertex.xy -= (_ScreenParams.zw-1.0);
+#endif
+
 			#if UNITY_UV_STARTS_AT_TOP
 				o.proj.xy = (float2(o.vertex.x, -o.vertex.y) + o.vertex.w) * 0.5;
 			#else
@@ -175,5 +185,5 @@ Shader "uGUI/Lit/Refraction Detail (Pro Only)"
 			}
 		ENDCG
 	}
-	Fallback "GUI/Lit/Detail"
+	Fallback "UI/Lit/Detail"
 }
