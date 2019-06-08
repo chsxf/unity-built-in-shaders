@@ -14,8 +14,7 @@ SubShader {
 	ZWrite Off
 	ColorMask RGB
 	Blend SrcAlpha OneMinusSrcAlpha
-	AlphaTest Greater .001
-	Pass { 
+	Pass {
 		SetTexture [_MainTex] { combine primary * texture }
 	}
 }

@@ -26,7 +26,7 @@ Shader "Nature/Terrain/Specular" {
 		}
 
 		CGPROGRAM
-		#pragma surface surf BlinnPhong vertex:SplatmapVert finalcolor:myfinal exclude_path:prepass exclude_path:deferred
+		#pragma surface surf BlinnPhong vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer
 		#pragma multi_compile_fog
 		#pragma multi_compile __ _TERRAIN_NORMAL_MAP
 		#pragma target 3.0
@@ -48,13 +48,6 @@ Shader "Nature/Terrain/Specular" {
 			o.Gloss = mixedDiffuse.a;
 			o.Specular = _Shininess;
 		}
-
-		void myfinal(Input IN, SurfaceOutput o, inout fixed4 color)
-		{
-			SplatmapApplyWeight(color, o.Alpha);
-			SplatmapApplyFog(color, IN);
-		}
-
 		ENDCG
 	}
 

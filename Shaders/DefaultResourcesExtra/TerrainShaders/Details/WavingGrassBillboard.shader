@@ -37,9 +37,10 @@ ENDCG
 		}
 		Cull Off
 		LOD 200
+		ColorMask RGB
 				
 CGPROGRAM
-#pragma surface surf Lambert vertex:WavingGrassBillboardVert addshadow
+#pragma surface surf Lambert vertex:WavingGrassBillboardVert addshadow exclude_path:deferred
 			
 sampler2D _MainTex;
 fixed _Cutoff;

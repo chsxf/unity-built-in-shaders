@@ -5,7 +5,7 @@
 
 #define SPEEDTREE_Y_UP
 
-#if defined(GEOM_TYPE_BRANCH_DETAIL) || defined(GEOM_TYPE_BRANCH_BLEND)
+#ifdef GEOM_TYPE_BRANCH_DETAIL
 	#define GEOM_TYPE_BRANCH
 #endif
 
@@ -17,7 +17,7 @@ struct Input
 {
 	fixed4 color;
 	half3 interpolator1;
-	#if defined(GEOM_TYPE_BRANCH_DETAIL) || defined(GEOM_TYPE_BRANCH_BLEND)
+	#ifdef GEOM_TYPE_BRANCH_DETAIL
 		half3 interpolator2;
 	#endif
 	UNITY_DITHER_CROSSFADE_COORDS
@@ -29,12 +29,8 @@ struct Input
 uniform sampler2D _MainTex;
 
 #ifdef GEOM_TYPE_BRANCH_DETAIL
-	#define Detail interpolator2.xy
+	#define Detail interpolator2
 	uniform sampler2D _DetailTex;
-#endif
-
-#ifdef GEOM_TYPE_BRANCH_BLEND
-	#define BranchBlend interpolator2
 #endif
 
 #if defined(GEOM_TYPE_FROND) || defined(GEOM_TYPE_LEAF) || defined(GEOM_TYPE_FACING_LEAF)
@@ -71,11 +67,12 @@ void SpeedTreeVert(inout SpeedTreeVB IN, out Input OUT)
 	#endif
 
 	#ifdef GEOM_TYPE_BRANCH_DETAIL
-		OUT.Detail = IN.texcoord2.xy;
-	#endif
-
-	#ifdef GEOM_TYPE_BRANCH_BLEND
-		OUT.BranchBlend = float3(IN.texcoord2.zw, IN.texcoord1.w);
+		// The two types are always in different sub-range of the mesh so no interpolation (between detail and blend) problem.
+		OUT.Detail.xy = IN.texcoord2.xy;
+		if (IN.color.a == 0) // Blend
+			OUT.Detail.z = IN.texcoord2.z;
+		else // Detail texture
+			OUT.Detail.z = 2.5f; // stay out of Blend's .z range
 	#endif
 
 	OffsetSpeedTreeVertex(IN, unity_LODFade.x);
@@ -121,14 +118,8 @@ void SpeedTreeFrag(Input IN, out SpeedTreeFragOut OUT)
 	#endif
 
 	#ifdef GEOM_TYPE_BRANCH_DETAIL
-		half4 detailColor = tex2D(_DetailTex, IN.Detail);
-		diffuseColor.rgb = lerp(diffuseColor.rgb, detailColor.rgb, detailColor.a);
-	#endif
-
-	#ifdef GEOM_TYPE_BRANCH_BLEND
-		half4 blendColor = tex2D(_MainTex, IN.BranchBlend.xy);
-		half amount = saturate(IN.BranchBlend.z);
-		diffuseColor.rgb = lerp(blendColor.rgb, diffuseColor.rgb, amount);
+		half4 detailColor = tex2D(_DetailTex, IN.Detail.xy);
+		diffuseColor.rgb = lerp(diffuseColor.rgb, detailColor.rgb, IN.Detail.z < 2.0f ? saturate(IN.Detail.z) : detailColor.a);
 	#endif
 
 	#ifdef EFFECT_HUE_VARIATION

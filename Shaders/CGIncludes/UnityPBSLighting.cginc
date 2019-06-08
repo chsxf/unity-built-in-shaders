@@ -56,6 +56,24 @@ inline half3 BRDF_Unity_Indirect (half3 baseColor, half3 specColor, half oneMinu
 
 //-------------------------------------------------------------------------------------
 
+// little helpers for GI calculation
+
+#define UNITY_GLOSSY_ENV_FROM_SURFACE(x, s, data)				\
+	Unity_GlossyEnvironmentData g;								\
+	g.roughness		= 1 - s.Smoothness;							\
+	g.reflUVW		= reflect(-data.worldViewDir, s.Normal);	\
+
+
+#if defined(UNITY_PASS_DEFERRED) && UNITY_ENABLE_REFLECTION_BUFFERS
+	#define UNITY_GI(x, s, data) x = UnityGlobalIllumination (data, s.Occlusion, s.Normal);
+#else
+	#define UNITY_GI(x, s, data) 								\
+		UNITY_GLOSSY_ENV_FROM_SURFACE(g, s, data);				\
+		x = UnityGlobalIllumination (data, s.Occlusion, s.Normal, g);
+#endif
+
+
+//-------------------------------------------------------------------------------------
 
 
 // Surface shader output structure to be used with physically
@@ -115,7 +133,7 @@ inline void LightingStandard_GI (
 	UnityGIInput data,
 	inout UnityGI gi)
 {
-	gi = UnityGlobalIllumination (data, s.Occlusion, s.Smoothness, s.Normal);
+	UNITY_GI(gi, s, data);
 }
 
 //-------------------------------------------------------------------------------------
@@ -172,7 +190,7 @@ inline void LightingStandardSpecular_GI (
 	UnityGIInput data,
 	inout UnityGI gi)
 {
-	gi = UnityGlobalIllumination (data, s.Occlusion, s.Smoothness, s.Normal);
+	UNITY_GI(gi, s, data);
 }
 
 #endif // UNITY_PBS_LIGHTING_INCLUDED

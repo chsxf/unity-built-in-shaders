@@ -13,7 +13,7 @@ Properties {
 }
 
 SubShader { 
-	Tags { "RenderType"="TreeBark" }
+	Tags { "IgnoreProjector"="True" "RenderType"="TreeBark" }
 	LOD 200
 	
 CGPROGRAM

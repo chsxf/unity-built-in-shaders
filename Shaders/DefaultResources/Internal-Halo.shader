@@ -3,7 +3,6 @@ Shader "Hidden/Internal-Halo" {
 		Tags {"RenderType"="Overlay"}
 		ZWrite off Cull off	// NOTE: 'Cull off' is important as the halo meshes flip handedness each time... BUG: #1220
 		Blend OneMinusDstColor One
-		AlphaTest Greater 0
 		ColorMask RGB
 		Pass {
 			CGPROGRAM

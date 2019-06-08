@@ -30,16 +30,21 @@ inline half3 EnergyConservationBetweenDiffuseAndSpecular (half3 albedo, half3 sp
 	#endif
 }
 
-inline half3 DiffuseAndSpecularFromMetallic (half3 albedo, half metallic, out half3 specColor, out half oneMinusReflectivity)
+inline half OneMinusReflectivityFromMetallic(half metallic)
 {
-	specColor = lerp (unity_ColorSpaceDielectricSpec.rgb, albedo, metallic);
 	// We'll need oneMinusReflectivity, so
 	//   1-reflectivity = 1-lerp(dielectricSpec, 1, metallic) = lerp(1-dielectricSpec, 0, metallic)
 	// store (1-dielectricSpec) in unity_ColorSpaceDielectricSpec.a, then
 	//	 1-reflectivity = lerp(alpha, 0, metallic) = alpha + metallic*(0 - alpha) = 
 	//                  = alpha - metallic * alpha
 	half oneMinusDielectricSpec = unity_ColorSpaceDielectricSpec.a;
-	oneMinusReflectivity = oneMinusDielectricSpec - metallic * oneMinusDielectricSpec;
+	return oneMinusDielectricSpec - metallic * oneMinusDielectricSpec;
+}
+
+inline half3 DiffuseAndSpecularFromMetallic (half3 albedo, half metallic, out half3 specColor, out half oneMinusReflectivity)
+{
+	specColor = lerp (unity_ColorSpaceDielectricSpec.rgb, albedo, metallic);
+	oneMinusReflectivity = OneMinusReflectivityFromMetallic(metallic);
 	return albedo * oneMinusReflectivity;
 }
 
@@ -112,9 +117,11 @@ half3 BlendNormals(half3 n1, half3 n2)
 	return normalize(half3(n1.xy + n2.xy, n1.z*n2.z));
 }
 
-half3x3 CreateTangentToWorldPerVertex(half3 normal, half3 tangent, half3 flip)
+half3x3 CreateTangentToWorldPerVertex(half3 normal, half3 tangent, half tangentSign)
 {
-	half3 binormal = cross(normal, tangent) * flip;
+	// For odd-negative scale transforms we need to flip the sign
+	half sign = tangentSign * unity_WorldTransformParams.w;
+	half3 binormal = cross(normal, tangent) * sign;
 	return half3x3(tangent, binormal, normal);
 }
 

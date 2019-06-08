@@ -14,8 +14,6 @@ uniform float4 _TreeInfo[4];			// x: num of billboard slices; y: 1.0f / (delta a
 uniform float4 _TreeSize[4];
 uniform float4 _ImageTexCoords[32];
 
-uniform float4 _InstanceData;
-
 struct SpeedTreeBillboardData
 {
 	float4 vertex		: POSITION;
@@ -49,10 +47,9 @@ void SpeedTreeBillboardVert(inout SpeedTreeBillboardData IN, out Input OUT)
 	float angle = _CameraXZAngle;
 #endif
 
-	float4 instanceData = _InstanceData.x > 0 ? _InstanceData.xyzw : IN.texcoord1.xyzw;
-	float widthScale = instanceData.x;
-	float heightScale = instanceData.y;
-	float rotation = instanceData.z;
+	float widthScale = IN.texcoord1.x;
+	float heightScale = IN.texcoord1.y;
+	float rotation = IN.texcoord1.z;
 
 	float2 percent = IN.texcoord.xy;
 	float3 billboardPos = (percent.x - 0.5f) * treeSize.x * widthScale * billboardTangent;
@@ -60,7 +57,7 @@ void SpeedTreeBillboardVert(inout SpeedTreeBillboardData IN, out Input OUT)
 
 #ifdef ENABLE_WIND
 	if (_WindQuality * _WindEnabled > 0)
-		billboardPos = GlobalWind(billboardPos, worldPos, true, _ST_WindVector.xyz, instanceData.w);
+		billboardPos = GlobalWind(billboardPos, worldPos, true, _ST_WindVector.xyz, IN.texcoord1.w);
 #endif
 
 	IN.vertex.xyz += billboardPos;

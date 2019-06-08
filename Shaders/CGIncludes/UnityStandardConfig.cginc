@@ -46,4 +46,25 @@
 #define UNITY_TANGENT_ORTHONORMALIZE 0
 #endif
 
+#ifndef UNITY_ENABLE_REFLECTION_BUFFERS
+#define UNITY_ENABLE_REFLECTION_BUFFERS 1
+#endif
+
+// Some extra optimizations
+
+// On PVR GPU there is an extra cost for dependent texture readback, especially hitting texCUBElod
+// These defines should be set as keywords or smth (at runtime depending on GPU).
+// for now we keep the code but disable it, as we want more optimization/cleanup passes
+
+#ifndef UNITY_OPTIMIZE_TEXCUBELOD
+	#define UNITY_OPTIMIZE_TEXCUBELOD 0
+#endif
+
+// Simplified Standard Shader is off by default and should not be used for Legacy Shaders
+#ifndef UNITY_STANDARD_SIMPLE
+	#define UNITY_STANDARD_SIMPLE 0
+#endif
+
+
+
 #endif // UNITY_STANDARD_CONFIG_INCLUDED

@@ -38,11 +38,12 @@
 // ---- Screen space shadows
 #if defined (SHADOWS_SCREEN)
 
-UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 
 #define SHADOW_COORDS(idx1) unityShadowCoord4 _ShadowCoord : TEXCOORD##idx1;
 
 #if defined(UNITY_NO_SCREENSPACE_SHADOWS)
+
+UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 #define TRANSFER_SHADOW(a) a._ShadowCoord = mul( unity_World2Shadow[0], mul( _Object2World, v.vertex ) );
 
 inline fixed unitySampleShadow (unityShadowCoord4 shadowCoord)
@@ -67,6 +68,7 @@ inline fixed unitySampleShadow (unityShadowCoord4 shadowCoord)
 
 #else // UNITY_NO_SCREENSPACE_SHADOWS
 
+sampler2D _ShadowMapTexture;
 #define TRANSFER_SHADOW(a) a._ShadowCoord = ComputeScreenPos(a.pos);
 
 inline fixed unitySampleShadow (unityShadowCoord4 shadowCoord)

@@ -1,6 +1,8 @@
 Shader "Skybox/Procedural" {
 Properties {
-	_SunSize ("Sun size", Range(0,1)) = 0.04
+	[KeywordEnum(None, Simple, High Quality)] _SunDisk ("Sun", Int) = 2
+	_SunSize ("Sun Size", Range(0,1)) = 0.04
+	
 	_AtmosphereThickness ("Atmoshpere Thickness", Range(0,5)) = 1.0
 	_SkyTint ("Sky Tint", Color) = (.5, .5, .5, 1)
 	_GroundColor ("Ground", Color) = (.369, .349, .341, 1)
@@ -13,7 +15,7 @@ SubShader {
 	Cull Off ZWrite Off
 
 	Pass {
-		
+
 		CGPROGRAM
 		#pragma vertex vert
 		#pragma fragment frag
@@ -22,6 +24,7 @@ SubShader {
 		#include "Lighting.cginc"
 
 		#pragma multi_compile __ UNITY_COLORSPACE_GAMMA
+		#pragma multi_compile _SUNDISK_NONE _SUNDISK_SIMPLE _SUNDISK_HIGH_QUALITY
 
 		uniform half _Exposure;		// HDR exposure
 		uniform half3 _GroundColor;
@@ -29,18 +32,18 @@ SubShader {
 		uniform half3 _SkyTint;
 		uniform half _AtmosphereThickness;
 
-		#if defined(UNITY_COLORSPACE_GAMMA)
+	#if defined(UNITY_COLORSPACE_GAMMA)
 		#define GAMMA 2
 		#define COLOR_2_GAMMA(color) color
 		#define COLOR_2_LINEAR(color) color*color
 		#define LINEAR_2_OUTPUT(color) sqrt(color)
-		#else
+	#else
 		#define GAMMA 2.2
 		// HACK: to get gfx-tests in Gamma mode to agree until UNITY_ACTIVE_COLORSPACE_IS_GAMMA is working properly
 		#define COLOR_2_GAMMA(color) ((unity_ColorSpaceDouble.r>2.0) ? pow(color,1.0/GAMMA) : color)
 		#define COLOR_2_LINEAR(color) color
 		#define LINEAR_2_LINEAR(color) color
-		#endif
+	#endif
 
 		// RGB wavelengths
 		// .35 (.62=158), .43 (.68=174), .525 (.75=190)
@@ -72,22 +75,95 @@ SubShader {
 		#define MIE_G (-0.990)
 		#define MIE_G2 0.9801
 
+		#define SKY_GROUND_THRESHOLD 0.02
 
-		struct appdata_t {
+		// fine tuning of performance. You can override defines here if you want some specific setup
+		// or keep as is and allow later code to set it according to target api
+
+		// if set vprog will output color in final color space (instead of linear always)
+		// in case of rendering in gamma mode that means that we will do lerps in gamma mode too, so there will be tiny difference around horizon
+		// #define SKYBOX_COLOR_IN_TARGET_COLOR_SPACE 0
+
+		// sun disk rendering:
+		// no sun disk - the fastest option
+		#define SKYBOX_SUNDISK_NONE 0
+		// simplistic sun disk - without mie phase function
+		#define SKYBOX_SUNDISK_SIMPLE 1
+		// full calculation - uses mie phase function
+		#define SKYBOX_SUNDISK_HQ 2
+
+		// uncomment this line and change SKYBOX_SUNDISK_SIMPLE to override material settings
+		// #define SKYBOX_SUNDISK SKYBOX_SUNDISK_SIMPLE
+
+	#ifndef SKYBOX_SUNDISK
+		#if defined(_SUNDISK_NONE)
+			#define SKYBOX_SUNDISK SKYBOX_SUNDISK_NONE
+		#elif defined(_SUNDISK_SIMPLE)
+			#define SKYBOX_SUNDISK SKYBOX_SUNDISK_SIMPLE
+		#else
+			#define SKYBOX_SUNDISK SKYBOX_SUNDISK_HQ
+		#endif
+	#endif
+
+	#ifndef SKYBOX_COLOR_IN_TARGET_COLOR_SPACE
+		#if defined(SHADER_API_MOBILE)
+			#define SKYBOX_COLOR_IN_TARGET_COLOR_SPACE 1
+		#else
+			#define SKYBOX_COLOR_IN_TARGET_COLOR_SPACE 0
+		#endif
+	#endif
+
+		// Calculates the Rayleigh phase function
+		half getRayleighPhase(half eyeCos2)
+		{
+			return 0.75 + 0.75*eyeCos2;
+		}
+		half getRayleighPhase(half3 light, half3 ray)
+		{
+			half eyeCos	= dot(light, ray);
+			return getRayleighPhase(eyeCos * eyeCos);
+		}
+
+
+		struct appdata_t
+		{
 			float4 vertex : POSITION;
 		};
 
-		struct v2f {
-				float4 pos : SV_POSITION;
-				half3 rayDir : TEXCOORD0;	// Vector for incoming ray, normalized ( == -eyeRay )
-				half3 cIn : TEXCOORD1; 		// In-scatter coefficient
-				half3 cOut : TEXCOORD2;		// Out-scatter coefficient
-   		}; 
+		struct v2f
+		{
+			float4	pos				: SV_POSITION;
+
+		#if SKYBOX_SUNDISK == SKYBOX_SUNDISK_HQ
+			// for HQ sun disk, we need vertex itself to calculate ray-dir per-pixel
+			half3	vertex			: TEXCOORD0;
+		#elif SKYBOX_SUNDISK == SKYBOX_SUNDISK_SIMPLE
+			half3	rayDir			: TEXCOORD0;
+		#else
+			// as we dont need sun disk we need just rayDir.y (sky/ground threshold)
+			half	skyGroundFactor	: TEXCOORD0;
+		#endif
+
+			// calculate sky colors in vprog
+			half3	groundColor		: TEXCOORD1;
+			half3	skyColor		: TEXCOORD2;
+
+		#if SKYBOX_SUNDISK != SKYBOX_SUNDISK_NONE
+			half3	sunColor		: TEXCOORD3;
+		#endif
+		};
+
 
 		float scale(float inCos)
 		{
 			float x = 1.0 - inCos;
+		#if defined(SHADER_API_N3DS)
+			// The polynomial expansion here generates too many swizzle instructions for the 3DS vertex assembler
+			// Approximate by removing x^1 and x^2
+			return 0.25 * exp(-0.00287 + x*x*x*(-6.80 + x*5.25));
+		#else
 			return 0.25 * exp(-0.00287 + x*(0.459 + x*(3.83 + x*(-6.80 + x*5.25))));
+		#endif
 		}
 
 		v2f vert (appdata_t v)
@@ -106,13 +182,13 @@ SubShader {
 			float kKr4PI = kRAYLEIGH * 4.0 * 3.14159265;
 
 			float3 cameraPos = float3(0,kInnerRadius + kCameraHeight,0); 	// The camera's current position
-		
+
 			// Get the ray from the camera to the vertex and its length (which is the far point of the ray passing through the atmosphere)
 			float3 eyeRay = normalize(mul((float3x3)_Object2World, v.vertex.xyz));
 
-			OUT.rayDir = half3(-eyeRay);
-
 			float far = 0.0;
+			half3 cIn, cOut;
+
 			if(eyeRay.y >= 0.0)
 			{
 				// Sky
@@ -120,14 +196,14 @@ SubShader {
 				far = sqrt(kOuterRadius2 + kInnerRadius2 * eyeRay.y * eyeRay.y - kInnerRadius2) - kInnerRadius * eyeRay.y;
 
 				float3 pos = cameraPos + far * eyeRay;
-				
+
 				// Calculate the ray's starting position, then calculate its scattering offset
 				float height = kInnerRadius + kCameraHeight;
 				float depth = exp(kScaleOverScaleDepth * (-kCameraHeight));
 				float startAngle = dot(eyeRay, cameraPos) / height;
 				float startOffset = depth*scale(startAngle);
-				
-			
+
+
 				// Initialize the scattering loop variables
 				float sampleLength = far / kSamples;
 				float scaledLength = sampleLength * kScale;
@@ -166,8 +242,8 @@ SubShader {
 
 
 				// Finally, scale the Mie and Rayleigh colors and set up the varying variables for the pixel shader
-				OUT.cIn.xyz = frontColor * (kInvWavelength * kKrESun);
-				OUT.cOut = frontColor * kKmESun;
+				cIn = frontColor * (kInvWavelength * kKrESun);
+				cOut = frontColor * kKmESun;
 			}
 			else
 			{
@@ -184,13 +260,13 @@ SubShader {
 				float lightScale = scale(lightAngle);
 				float cameraOffset = depth*cameraScale;
 				float temp = (lightScale + cameraScale);
-				
+
 				// Initialize the scattering loop variables
 				float sampleLength = far / kSamples;
 				float scaledLength = sampleLength * kScale;
 				float3 sampleRay = eyeRay * sampleLength;
 				float3 samplePoint = cameraPos + sampleRay * 0.5;
-				
+
 				// Now loop through the sample rays
 				float3 frontColor = float3(0.0, 0.0, 0.0);
 				float3 attenuate;
@@ -203,14 +279,39 @@ SubShader {
 					frontColor += attenuate * (depth * scaledLength);
 					samplePoint += sampleRay;
 				}
-			
-				OUT.cIn.xyz = frontColor * (kInvWavelength * kKrESun + kKmESun);
-				OUT.cOut.xyz = clamp(attenuate, 0.0, 1.0);
 
+				cIn = frontColor * (kInvWavelength * kKrESun + kKmESun);
+				cOut = clamp(attenuate, 0.0, 1.0);
 			}
 
-			return OUT;
+		#if SKYBOX_SUNDISK == SKYBOX_SUNDISK_HQ
+			OUT.vertex 			= -v.vertex;
+		#elif SKYBOX_SUNDISK == SKYBOX_SUNDISK_SIMPLE
+			OUT.rayDir 			= half3(-eyeRay);
+		#else
+			OUT.skyGroundFactor	= -eyeRay.y / SKY_GROUND_THRESHOLD;
+		#endif
 
+			// if we want to calculate color in vprog:
+			// 1. in case of linear: multiply by _Exposure in here (even in case of lerp it will be common multiplier, so we can skip mul in fshader)
+			// 2. in case of gamma and SKYBOX_COLOR_IN_TARGET_COLOR_SPACE: do sqrt right away instead of doing that in fshader
+
+			OUT.groundColor	= _Exposure * (cIn + COLOR_2_LINEAR(_GroundColor) * cOut);
+			OUT.skyColor	= _Exposure * (cIn * getRayleighPhase(_WorldSpaceLightPos0.xyz, -eyeRay));
+
+		#if SKYBOX_SUNDISK != SKYBOX_SUNDISK_NONE
+			OUT.sunColor	= _Exposure * (cOut * _LightColor0.xyz);
+		#endif
+
+		#if defined(UNITY_COLORSPACE_GAMMA) && SKYBOX_COLOR_IN_TARGET_COLOR_SPACE
+			OUT.groundColor	= sqrt(OUT.groundColor);
+			OUT.skyColor	= sqrt(OUT.skyColor);
+			#if SKYBOX_SUNDISK != SKYBOX_SUNDISK_NONE
+				OUT.sunColor= sqrt(OUT.sunColor);
+			#endif
+		#endif
+
+			return OUT;
 		}
 
 
@@ -218,17 +319,13 @@ SubShader {
 		half getMiePhase(half eyeCos, half eyeCos2)
 		{
 			half temp = 1.0 + MIE_G2 - 2.0 * MIE_G * eyeCos;
-			// A somewhat rough approx for :
-			// temp = pow(temp, 1.5);
-			temp = smoothstep(0.0, 0.01, temp) * temp;
+			temp = pow(temp, pow(_SunSize,0.65) * 10);
 			temp = max(temp,1.0e-4); // prevent division by zero, esp. in half precision
-			return 1.5 * ((1.0 - MIE_G2) / (2.0 + MIE_G2)) * (1.0 + eyeCos2) / temp;
-		}
-
-		// Calculates the Rayleigh phase function
-		half getRayleighPhase(half eyeCos2)
-		{
-			return 0.75 + 0.75*eyeCos2;
+			temp = 1.5 * ((1.0 - MIE_G2) / (2.0 + MIE_G2)) * (1.0 + eyeCos2) / temp;
+			#if defined(UNITY_COLORSPACE_GAMMA) && SKYBOX_COLOR_IN_TARGET_COLOR_SPACE
+				temp = pow(temp, .454545);
+			#endif
+			return temp;
 		}
 
 		half calcSunSpot(half3 vec1, half3 vec2)
@@ -242,43 +339,48 @@ SubShader {
 		half4 frag (v2f IN) : SV_Target
 		{
 			half3 col = half3(0.0, 0.0, 0.0);
-			// < 0.0 means over horizon, add a bit because we need to lerp to hide the horizon line
-			if(IN.rayDir.y < 0.02)
+
+		// if y > 1 [eyeRay.y < -SKY_GROUND_THRESHOLD] - ground
+		// if y >= 0 and < 1 [eyeRay.y <= 0 and > -SKY_GROUND_THRESHOLD] - horizon
+		// if y < 0 [eyeRay.y > 0] - sky
+		#if SKYBOX_SUNDISK == SKYBOX_SUNDISK_HQ
+			half3 ray = normalize(mul((float3x3)_Object2World, IN.vertex));
+			half y = ray.y / SKY_GROUND_THRESHOLD;
+		#elif SKYBOX_SUNDISK == SKYBOX_SUNDISK_SIMPLE
+			half3 ray = IN.rayDir.xyz;
+			half y = ray.y / SKY_GROUND_THRESHOLD;
+		#else
+			half y = IN.skyGroundFactor;
+		#endif
+
+			// if we did precalculate color in vprog: just do lerp between them
+			col = lerp(IN.skyColor, IN.groundColor, saturate(y));
+
+		#if SKYBOX_SUNDISK != SKYBOX_SUNDISK_NONE
+			if(y < 0.0)
 			{
-				half3 ray = normalize(IN.rayDir.xyz);
+			#if SKYBOX_SUNDISK == SKYBOX_SUNDISK_SIMPLE
+				half mie = calcSunSpot(_WorldSpaceLightPos0.xyz, -ray);
+			#else // SKYBOX_SUNDISK_HQ
 				half eyeCos = dot(_WorldSpaceLightPos0.xyz, ray);
 				half eyeCos2 = eyeCos * eyeCos;
-
-				// half mie = getMiePhase(eyeCos, eyeCos2);
-				half mie = calcSunSpot(_WorldSpaceLightPos0.xyz, -ray);
-				col = getRayleighPhase(eyeCos2) * IN.cIn.xyz;
-				// If over horizon, add sun spot. otherwise lerp with ground
-				if(IN.rayDir.y < 0.0)
-					col += mie * IN.cOut * _LightColor0.xyz;
-				else
-				{
-					half3 groundColor = IN.cIn.xyz + COLOR_2_LINEAR(_GroundColor) * IN.cOut;
-					col = lerp(col, groundColor, IN.rayDir.y / 0.02);
-				}
-			}
-			else
-			{
-				col = IN.cIn.xyz + COLOR_2_LINEAR(_GroundColor) * IN.cOut;
-			}
-
-			//Adjust color from HDR
-			col *= _Exposure; 
-
-			#if defined(UNITY_COLORSPACE_GAMMA)
-				col = LINEAR_2_OUTPUT(col);
+				half mie = getMiePhase(eyeCos, eyeCos2);
 			#endif
- 
+
+				col += mie * IN.sunColor;
+			}
+		#endif
+
+		#if defined(UNITY_COLORSPACE_GAMMA) && !SKYBOX_COLOR_IN_TARGET_COLOR_SPACE
+			col = LINEAR_2_OUTPUT(col);
+		#endif
+
 			return half4(col,1.0);
 
 		}
-		ENDCG 
+		ENDCG
 	}
-} 	
+}
 
 
 Fallback Off

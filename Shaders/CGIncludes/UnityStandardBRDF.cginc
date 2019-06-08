@@ -17,7 +17,7 @@ inline half DotClamped (half3 a, half3 b)
 	#if (SHADER_TARGET < 30)
 		return saturate(dot(a, b));
 	#else
-		return max(0.0f, dot(a, b));
+		return max(0.0h, dot(a, b));
 	#endif
 }
 
@@ -247,16 +247,33 @@ inline half3 DecodeHDR_NoLinearSupportInSM2 (half4 data, half4 decodeInstruction
 	#endif
 }
 
-half3 Unity_GlossyEnvironment (UNITY_ARGS_TEXCUBE(tex), half4 hdr, half3 worldNormal, half roughness)
+struct
+Unity_GlossyEnvironmentData
 {
-#if !UNITY_GLOSS_MATCHES_MARMOSET_TOOLBAG2 || (SHADER_TARGET < 30)
-	float mip = roughness * UNITY_SPECCUBE_LOD_STEPS;
-#else
+	half	roughness;
+	half3	reflUVW;
+};
+
+half3 Unity_GlossyEnvironment (UNITY_ARGS_TEXCUBE(tex), half4 hdr, Unity_GlossyEnvironmentData glossIn)
+{
+#if UNITY_GLOSS_MATCHES_MARMOSET_TOOLBAG2 && (SHADER_TARGET >= 30)
 	// TODO: remove pow, store cubemap mips differently
-	float mip = pow(roughness,3.0/4.0) * UNITY_SPECCUBE_LOD_STEPS;
+	half roughness = pow(glossIn.roughness, 3.0/4.0);
+#else
+	half roughness = glossIn.roughness;
 #endif
 
-	half4 rgbm = UNITY_SAMPLE_TEXCUBE_LOD(tex, worldNormal.xyz, mip);
+#if UNITY_OPTIMIZE_TEXCUBELOD
+	half4 rgbm = UNITY_SAMPLE_TEXCUBE_LOD(tex, glossIn.reflUVW, 4);
+	if(roughness > 0.5)
+		rgbm = lerp(rgbm, UNITY_SAMPLE_TEXCUBE_LOD(tex, glossIn.reflUVW, 8), 2*roughness-1);
+	else
+		rgbm = lerp(UNITY_SAMPLE_TEXCUBE(tex, glossIn.reflUVW), rgbm, 2*roughness);
+#else
+	half mip = roughness * UNITY_SPECCUBE_LOD_STEPS;
+	half4 rgbm = UNITY_SAMPLE_TEXCUBE_LOD(tex, glossIn.reflUVW, mip);
+#endif
+
 	return DecodeHDR_NoLinearSupportInSM2 (rgbm, hdr);
 }
 
@@ -357,7 +374,7 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 
 	half invV = lh * lh * oneMinusRoughness + roughness * roughness; // approx ModifiedKelemenVisibilityTerm(lh, 1-oneMinusRoughness);
 	half invF = lh;
-	half specular = ((specularPower + 1) * pow (nh, specularPower)) / (unity_LightGammaCorrectionConsts_8 * invV * invF + 1e-4f); // @TODO: might still need saturate(nl*specular) on Adreno/Mali
+	half specular = ((specularPower + 1) * pow (nh, specularPower)) / (unity_LightGammaCorrectionConsts_8 * invV * invF + 1e-4h); // @TODO: might still need saturate(nl*specular) on Adreno/Mali
 
 	// Prevent FP16 overflow on mobiles
 #if SHADER_API_GLES || SHADER_API_GLES3
@@ -372,6 +389,22 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 	return half4(color, 1);
 }
 
+sampler2D unity_NHxRoughness;
+half3 BRDF3_Direct(half3 diffColor, half3 specColor, half rlPow4, half oneMinusRoughness)
+{
+	half LUT_RANGE = 16.0; // must match range in NHxRoughness() function in GeneratedTextures.cpp
+	// Lookup texture to save instructions
+	half specular = tex2D(unity_NHxRoughness, half2(rlPow4, 1-oneMinusRoughness)).UNITY_ATTEN_CHANNEL * LUT_RANGE;
+	return diffColor + specular * specColor;
+}
+
+half3 BRDF3_Indirect(half3 diffColor, half3 specColor, UnityIndirect indirect, half grazingTerm, half fresnelTerm)
+{
+	half3 c = indirect.diffuse * diffColor;
+	c += indirect.specular * lerp (specColor, grazingTerm, fresnelTerm);
+	return c;
+}
+
 // Old school, not microfacet based Modified Normalized Blinn-Phong BRDF
 // Implementation uses Lookup texture for performance
 //
@@ -380,18 +413,13 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 // * No Fresnel term
 //
 // TODO: specular is too weak in Linear rendering mode
-sampler2D unity_NHxRoughness;
 half4 BRDF3_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivity, half oneMinusRoughness,
 	half3 normal, half3 viewDir,
 	UnityLight light, UnityIndirect gi)
 {
-	half LUT_RANGE = 16.0; // must match range in NHxRoughness() function in GeneratedTextures.cpp
-
 	half3 reflDir = reflect (viewDir, normal);
-	half3 halfDir = Unity_SafeNormalize (light.dir + viewDir);
 
 	half nl = light.ndotl;
-	half nh = BlinnTerm (normal, halfDir);
 	half nv = DotClamped (normal, viewDir);
 
 	// Vectorize Pow4 to save instructions
@@ -399,21 +427,26 @@ half4 BRDF3_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 	half rlPow4 = rlPow4AndFresnelTerm.x; // power exponent must match kHorizontalWarpExp in NHxRoughness() function in GeneratedTextures.cpp
 	half fresnelTerm = rlPow4AndFresnelTerm.y;
 
-#if 1 // Lookup texture to save instructions
-	half specular = tex2D(unity_NHxRoughness, half2(rlPow4, 1-oneMinusRoughness)).UNITY_ATTEN_CHANNEL * LUT_RANGE;
-#else
-	half roughness = 1-oneMinusRoughness;
-	half n = RoughnessToSpecPower (roughness) * .25;
-	half specular = (n + 2.0) / (2.0 * UNITY_PI * UNITY_PI) * pow(dot(reflDir, light.dir), n) * nl;// / unity_LightGammaCorrectionConsts_PI;
-	//half specular = (1.0/(UNITY_PI*roughness*roughness)) * pow(dot(reflDir, light.dir), n) * nl;// / unity_LightGammaCorrectionConsts_PI;
-#endif
 	half grazingTerm = saturate(oneMinusRoughness + (1-oneMinusReflectivity));
 
-    half3 color =	(diffColor + specular * specColor) * light.color * nl
-    				+ gi.diffuse * diffColor
-					+ gi.specular * lerp (specColor, grazingTerm, fresnelTerm);
+	half3 color = BRDF3_Direct(diffColor, specColor, rlPow4, oneMinusRoughness);
+	color *= light.color * nl;
+	color += BRDF3_Indirect(diffColor, specColor, gi, grazingTerm, fresnelTerm);
 
 	return half4(color, 1);
+}
+
+
+//
+// Old Unity_GlossyEnvironment signature. Kept only for backward compatibility and will be removed soon
+//
+half3 Unity_GlossyEnvironment (UNITY_ARGS_TEXCUBE(tex), half4 hdr, half3 worldNormal, half roughness)
+{
+	Unity_GlossyEnvironmentData g;
+	g.roughness	= roughness;
+	g.reflUVW	= worldNormal;
+	return Unity_GlossyEnvironment (UNITY_PASS_TEXCUBE(tex), hdr, g);
+
 }
 
 
