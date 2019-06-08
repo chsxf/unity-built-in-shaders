@@ -80,6 +80,8 @@
 #endif
 
 
+// Define "fixed" precision to be half on non-GLSL platforms,
+// and sampler*_prec to be just simple samplers.
 #if !defined(SHADER_TARGET_GLSL) && !defined(SHADER_API_PSSL)
 #define fixed half
 #define fixed2 half2
@@ -93,6 +95,22 @@
 #define samplerCUBE_half samplerCUBE
 #define samplerCUBE_float samplerCUBE
 #endif
+
+// Define min16float/min10float to be half/fixed on non-D3D11 platforms.
+// This allows people to use min16float and friends in their shader code if they
+// really want to (making that will make shaders not load before DX11.1, e.g. on Win7,
+// but if they target WSA/WP exclusively that's fine).
+#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X)
+#define min16float half
+#define min16float2 half2
+#define min16float3 half3
+#define min16float4 half4
+#define min10float fixed
+#define min10float2 fixed2
+#define min10float3 fixed3
+#define min10float4 fixed4
+#endif
+
 
 #if defined(SHADER_API_PSSL)
 #define uniform
@@ -166,6 +184,7 @@
 	float4 tex1Dproj(sampler1D s, in float4 t)		{ return tex1D(s, t.x / t.w); }
 	float4 tex2Dproj(sampler2D s, in float3 t)		{ return tex2D(s, t.xy / t.z); }
 	float4 tex2Dproj(sampler2D_float s, in float3 t)		{ return tex2D(s, t.xy / t.z); }
+	float4 tex2Dproj(sampler2D_float s, in float4 t)		{ return tex2D(s, t.xy / t.w); }
 	float4 tex2Dproj(sampler2D s, in float4 t)		{ return tex2D(s, t.xy / t.w); }
 	float4 tex3Dproj(sampler3D s, in float4 t)		{ return tex3D(s, t.xyz / t.w); }
 	float4 texCUBEproj(samplerCUBE s, in float4 t)	{ return texCUBE(s, t.xyz / t.w); }
@@ -346,6 +365,7 @@
 #define texCUBEgrad texCUBE
 #define tex3Dgrad tex3D
 #endif
+
 
 // Data type to be used for "screen space position" pixel shader input semantic;
 // D3D9 needs it to be float2, unlike all other platforms.
@@ -529,6 +549,15 @@
 #if defined(UNITY_HDR_ON)
 #define HDR_LIGHT_PREPASS_ON 1
 #endif
+
+
+// Unity 4.x shaders used to mostly work if someone used WPOS semantic,
+// which was accepted by Cg. The correct semantic to use is "VPOS",
+// so define that so that old shaders keep on working.
+#if !defined(UNITY_COMPILER_CG)
+#define WPOS VPOS
+#endif
+
 
 
 #endif // HLSL_SUPPORT_INCLUDED

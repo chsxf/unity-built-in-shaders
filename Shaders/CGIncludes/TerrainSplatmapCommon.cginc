@@ -32,7 +32,11 @@ void SplatmapVert(inout appdata_full v, out Input data)
 #endif
 }
 
+#ifdef TERRAIN_STANDARD_SHADER
+void SplatmapMix(Input IN, half4 defaultAlpha, out half4 splat_control, out half weight, out fixed4 mixedDiffuse, inout fixed3 mixedNormal)
+#else
 void SplatmapMix(Input IN, out half4 splat_control, out half weight, out fixed4 mixedDiffuse, inout fixed3 mixedNormal)
+#endif
 {
 	splat_control = tex2D(_Control, IN.tc_Control);
 	weight = dot(splat_control, half4(1,1,1,1));
@@ -50,10 +54,18 @@ void SplatmapMix(Input IN, out half4 splat_control, out half weight, out fixed4 
 	#endif
 
 	mixedDiffuse = 0.0f;
-	mixedDiffuse += splat_control.r * tex2D(_Splat0, IN.uv_Splat0);
-	mixedDiffuse += splat_control.g * tex2D(_Splat1, IN.uv_Splat1);
-	mixedDiffuse += splat_control.b * tex2D(_Splat2, IN.uv_Splat2);
-	mixedDiffuse += splat_control.a * tex2D(_Splat3, IN.uv_Splat3);
+	
+	#ifdef TERRAIN_STANDARD_SHADER
+		mixedDiffuse += splat_control.r * tex2D(_Splat0, IN.uv_Splat0) * half4(1.0, 1.0, 1.0, defaultAlpha.r);
+		mixedDiffuse += splat_control.g * tex2D(_Splat1, IN.uv_Splat1) * half4(1.0, 1.0, 1.0, defaultAlpha.g);
+		mixedDiffuse += splat_control.b * tex2D(_Splat2, IN.uv_Splat2) * half4(1.0, 1.0, 1.0, defaultAlpha.b);
+		mixedDiffuse += splat_control.a * tex2D(_Splat3, IN.uv_Splat3) * half4(1.0, 1.0, 1.0, defaultAlpha.a);
+	#else
+		mixedDiffuse += splat_control.r * tex2D(_Splat0, IN.uv_Splat0);
+		mixedDiffuse += splat_control.g * tex2D(_Splat1, IN.uv_Splat1);
+		mixedDiffuse += splat_control.b * tex2D(_Splat2, IN.uv_Splat2);
+		mixedDiffuse += splat_control.a * tex2D(_Splat3, IN.uv_Splat3);
+	#endif
 
 	#ifdef _TERRAIN_NORMAL_MAP
 		fixed4 nrm = 0.0f;
