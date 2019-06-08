@@ -133,7 +133,7 @@ half3 ShadeSHPerVertex (half3 normal, half3 ambient)
 		// nothing to do here
 	#elif (SHADER_TARGET < 30) || UNITY_STANDARD_SIMPLE
 		// Completely per-vertex
-		ambient += ShadeSH9 (half4(normal, 1.0));
+		ambient += max(half3(0, 0, 0), ShadeSH9(half4(normal, 1.0)));
 	#else
 		// L2 per-vertex, L0..L1 & gamma-correction per-pixel
 
@@ -141,7 +141,7 @@ half3 ShadeSHPerVertex (half3 normal, half3 ambient)
 		// Convert ambient to Linear and do final gamma-correction at the end (per-pixel)
 		if (IsGammaSpace())
 			ambient = GammaToLinearSpace (ambient);
-		ambient += SHEvalLinearL2 (half4(normal, 1.0));
+		ambient += SHEvalLinearL2 (half4(normal, 1.0)); // no max since this is only L2 contribution
 	#endif
 
 	return ambient;
@@ -149,9 +149,12 @@ half3 ShadeSHPerVertex (half3 normal, half3 ambient)
 
 half3 ShadeSHPerPixel (half3 normal, half3 ambient)
 {
+	half3 ambient_contrib = 0.0;
+
 	#if UNITY_SAMPLE_FULL_SH_PER_PIXEL
 		// Completely per-pixel
-		ambient += ShadeSH9 (half4(normal, 1.0));
+		ambient_contrib = ShadeSH9(half4(normal, 1.0));
+		ambient += max(half3(0, 0, 0), ambient_contrib);
 	#elif (SHADER_TARGET < 30) || UNITY_STANDARD_SIMPLE
 		// Completely per-vertex
 		// nothing to do here
@@ -159,7 +162,8 @@ half3 ShadeSHPerPixel (half3 normal, half3 ambient)
 		// L2 per-vertex, L0..L1 & gamma-correction per-pixel
 		
 		// Ambient in this case is expected to be always Linear, see ShadeSHPerVertex()
-		ambient += SHEvalLinearL0L1 (half4(normal, 1.0));
+		ambient_contrib = SHEvalLinearL0L1(half4(normal, 1.0));
+		ambient = max(half3(0, 0, 0), ambient + ambient_contrib);		// include L2 contribution in vertex shader before clamp.
 		if (IsGammaSpace())
 			ambient = LinearToGammaSpace (ambient);
 	#endif

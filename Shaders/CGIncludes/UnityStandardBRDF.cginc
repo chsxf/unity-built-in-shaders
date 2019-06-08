@@ -6,6 +6,13 @@
 #include "UnityLightingCommon.cginc"
 
 //-------------------------------------------------------------------------------------
+// Legacy, to keep backwards compatibility for (pre Unity 5.3) custom user shaders:
+#define unity_LightGammaCorrectionConsts_PIDiv4 (IsGammaSpace()? (UNITY_PI/4)*(UNITY_PI/4): (UNITY_PI/4))
+#define unity_LightGammaCorrectionConsts_HalfDivPI (IsGammaSpace()? (.5h/UNITY_PI)*(.5h/UNITY_PI): (.5h/UNITY_PI))
+#define unity_LightGammaCorrectionConsts_8 (IsGammaSpace()? (8*8): 8)
+#define unity_LightGammaCorrectionConsts_SqrtHalfPI (IsGammaSpace()? (2/UNITY_PI): 0.79788)
+
+//-------------------------------------------------------------------------------------
 
 inline half DotClamped (half3 a, half3 b)
 {
@@ -132,7 +139,7 @@ inline half SmithVisibilityTerm (half NdotL, half NdotV, half k)
 	half gL = NdotL * (1-k) + k;
 	half gV = NdotV * (1-k) + k;
 	return 1.0 / (gL * gV + 1e-5f); // This function is not intended to be running on Mobile,
-	// therefore epsilon is smaller than can be represented by half
+									// therefore epsilon is smaller than can be represented by half
 }
 
 // Smith-Schlick derived for Beckmann
@@ -150,14 +157,33 @@ inline half SmithGGXVisibilityTerm (half NdotL, half NdotV, half roughness)
 	return SmithVisibilityTerm (NdotL, NdotV, k);
 }
 
+// Ref: http://jcgt.org/published/0003/02/03/paper.pdf
 inline half SmithJointGGXVisibilityTerm (half NdotL, half NdotV, half roughness)
 {
-    // This is an approximation
+#if 0
+	// Original formulation:
+	//	lambda_v	= (-1 + sqrt(a2 * (1 - NdotL2) / NdotL2 + 1)) * 0.5f;
+	//	lambda_l	= (-1 + sqrt(a2 * (1 - NdotV2) / NdotV2 + 1)) * 0.5f;
+	//	G			= 1 / (1 + lambda_v + lambda_l);
+
+	// Reorder code to be more optimal
+	half a		= roughness * roughness; // from unity roughness to true roughness
+	half a2		= a * a;
+
+	half lambdaV = NdotL * sqrt((-NdotV * a2 + NdotV) * NdotV + a2);
+	half lambdaL = NdotV * sqrt((-NdotL * a2 + NdotL) * NdotL + a2);
+
+	// Unity BRDF code expect already simplified data by (NdotL * NdotV)
+	// return (2.0f * NdotL * NdotV) / (lambda_v + lambda_l + 1e-5f);
+	return 2.0f / (lambdaV + lambdaL + 1e-5f);
+#else
+    // Approximation of the above formulation (simplify the sqrt, not mathematically correct but close enough)
 	half a = roughness * roughness;
-	half gV = NdotL * (NdotV * (1 - a) + a);
-	half gL = NdotV * (NdotL * (1 - a) + a);
-	return (2.0 * NdotL) / (gV + gL + 1e-5f); // This function is not intended to be running on Mobile,
-	// therefore epsilon is smaller than can be represented by half
+	half lambdaV = NdotL * (NdotV * (1 - a) + a);
+	half lambdaL = NdotV * (NdotL * (1 - a) + a);
+	return 2.0f / (lambdaV + lambdaL + 1e-5f);	// This function is not intended to be running on Mobile,
+												// therefore epsilon is smaller than can be represented by half
+#endif
 }
 
 inline half ImplicitVisibilityTerm ()
@@ -329,9 +355,25 @@ half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 	half roughness = 1-oneMinusRoughness;
 	half3 halfDir = Unity_SafeNormalize (light.dir + viewDir);
 
+#if UNITY_BRDF_GGX 
+	// NdotV should not be negative for visible pixels, but it can happen due to perspective projection and normal mapping
+	// In this case we will modify the normal so it become valid and not cause weird artifact (other game try to clamp or abs the NdotV to prevent this trouble).
+	// The amount we shift the normal toward the view vector is define by the dot product.
+	// This correction is only apply with smithJoint visibility function because artifact are more visible in this case due to highlight edge of rough surface
+	half shiftAmount = dot(normal, viewDir);
+	normal = shiftAmount < 0.0f ? normal + viewDir * (-shiftAmount + 1e-5f) : normal;
+	// A re-normalization should be apply here but as the shift is small we don't do it to save ALU.
+	//normal = normalize(normal);
+
+	// As we have modify the normal we need to recalculate the dot product nl. 
+	// Note that  light.ndotl is a clamped cosine and only the ForwardSimple mode use a specific ndotL with BRDF3
+	half nl = DotClamped(normal, light.dir);
+#else
 	half nl = light.ndotl;
+#endif
 	half nh = BlinnTerm (normal, halfDir);
-	half nv = DotClamped (normal, viewDir);
+	half nv = DotClamped(normal, viewDir);
+
 	half lv = DotClamped (light.dir, viewDir);
 	half lh = DotClamped (light.dir, halfDir);
 
@@ -359,10 +401,16 @@ half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 
 	half diffuseTerm = disneyDiffuse * nl;
 
+	// surfaceReduction = Int D(NdotH) * NdotH * Id(NdotL>0) dH = 1/(realRoughness^2+1)
+	half realRoughness = roughness*roughness;		// need to square perceptual roughness
+	half surfaceReduction;
+	if (IsGammaSpace()) surfaceReduction = 1.0 - 0.28*realRoughness*roughness;		// 1-0.28*x^3 as approximation for (1/(x^4+1))^(1/2.2) on the domain [0;1]
+	else surfaceReduction = 1.0 / (realRoughness*realRoughness + 1.0);			// fade \in [0.5;1]
+
 	half grazingTerm = saturate(oneMinusRoughness + (1-oneMinusReflectivity));
     half3 color =	diffColor * (gi.diffuse + light.color * diffuseTerm)
                     + specularTerm * light.color * FresnelTerm (specColor, lh)
-					+ gi.specular * FresnelLerp (specColor, grazingTerm, nv);
+					+ surfaceReduction * gi.specular * FresnelLerp (specColor, grazingTerm, nv);
 
 	return half4(color, 1);
 }
@@ -401,6 +449,13 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 	if (IsGammaSpace())
 		specular = sqrt(max(1e-4h, specular));
 
+	// surfaceReduction = Int D(NdotH) * NdotH * Id(NdotL>0) dH = 1/(realRoughness^2+1)
+	half realRoughness = roughness*roughness;		// need to square perceptual roughness
+	// 1-0.28*x^3 as approximation for (1/(x^4+1))^(1/2.2) on the domain [0;1]
+	// 1-x^3*(0.6-0.08*x)   approximation for 1/(x^4+1)
+	half surfaceReduction = IsGammaSpace() ? 0.28 : (0.6 - 0.08*roughness);
+	surfaceReduction = 1.0 - realRoughness*roughness*surfaceReduction;
+
 	// Prevent FP16 overflow on mobiles
 #if SHADER_API_GLES || SHADER_API_GLES3
 	specular = clamp(specular, 0.0, 100.0);
@@ -409,7 +464,7 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 	half grazingTerm = saturate(oneMinusRoughness + (1-oneMinusReflectivity));
     half3 color =	(diffColor + specular * specColor) * light.color * nl
     				+ gi.diffuse * diffColor
-					+ gi.specular * FresnelLerpFast (specColor, grazingTerm, nv);
+					+ surfaceReduction * gi.specular * FresnelLerpFast (specColor, grazingTerm, nv);
 
 	return half4(color, 1);
 }
