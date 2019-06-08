@@ -22,7 +22,7 @@
     #endif
 #endif
 
-#if defined(STEREO_MULTIVIEW_ON) && (defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE))
+#if defined(STEREO_MULTIVIEW_ON) && !(defined(SHADER_API_SWITCH)) && (defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE))
     #define UNITY_STEREO_MULTIVIEW_ENABLED
 #endif
 
@@ -146,7 +146,7 @@
 #define Texture3D_half Texture3D
 #endif
 
-#if defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC))
+#if defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC))
 // GLES3 and later via HLSLcc, use DX11.1 partial precision for translation
 // we specifically define fixed to be float16 (same as half) as all new GPUs seems to agree on float16 being minimal precision float
 #define fixed min16float
@@ -163,7 +163,24 @@
 #define half2x2 min16float2x2
 #define half3x3 min16float3x3
 #define half4x4 min16float4x4
-#endif // defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN)
+#endif // defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC))
+
+#if (!defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC))
+#define fixed float
+#define fixed2 float2
+#define fixed3 float3
+#define fixed4 float4
+#define fixed4x4 float4x4
+#define fixed3x3 float3x3
+#define fixed2x2 float2x2
+#define half float
+#define half2 float2
+#define half3 float3
+#define half4 float4
+#define half2x2 float2x2
+#define half3x3 float3x3
+#define half4x4 float4x4
+#endif // (!defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC))
 
 
 // Define min16float/min10float to be half/fixed on non-D3D11 platforms.
