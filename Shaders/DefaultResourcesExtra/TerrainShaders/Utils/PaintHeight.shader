@@ -1,6 +1,6 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
-    Shader "Hidden/TerrainEngine/PaintHeight" {
+Shader "Hidden/TerrainEngine/PaintHeight" {
 
     Properties { _MainTex ("Texture", any) = "" {} }
 
@@ -21,7 +21,6 @@
             float4 _BrushParams;
             #define BRUSH_STRENGTH      (_BrushParams[0])
             #define BRUSH_TARGETHEIGHT  (_BrushParams[1])
-            #define BRUSH_STAMPHEIGHT   (_BrushParams[2])
 
             struct appdata_t {
                 float4 vertex : POSITION;
@@ -91,6 +90,10 @@
             #pragma vertex vert
             #pragma fragment StampHeight
 
+            #define BRUSH_OPACITY       (_BrushParams[0])
+            #define BRUSH_STAMPHEIGHT   (_BrushParams[2])
+            #define BRUSH_MAXBLENDADD   (_BrushParams[3])
+
             float SmoothMax(float a, float b, float p)
             {
                 // calculates a smooth maximum of a and b, using an intersection power p
@@ -108,19 +111,22 @@
 
                 float height = UnpackHeightmap(tex2D(_MainTex, heightmapUV));
                 float brushShape = oob * UnpackHeightmap(tex2D(_BrushTex, brushUV));
-
                 float brushHeight = brushShape * BRUSH_STAMPHEIGHT;
-                float brushIntersection = saturate(1.0f - BRUSH_STRENGTH * 100.0f);     // convert to 0..1 range, then invert
 
-                float targetHeight; // = max(height, brushHeight);
+                float targetHeight;
+                if (BRUSH_MAXBLENDADD > 0.0f)
                 {
-                    // TODO:  get rid of this hack to convert brush strength into a smooth factor -- make this an explicit control instead
+                    float brushIntersection = saturate(1.0f - BRUSH_MAXBLENDADD);
                     float brushSmooth = exp2(brushIntersection * 8.0f);
                     targetHeight = SmoothMax(height, brushHeight, brushSmooth);
                 }
+                else
+                {
+                    targetHeight = max(height, brushHeight);
+                }
+                targetHeight = clamp(targetHeight, 0.0f, 0.5f);          // Keep in valid range (0..0.5f)
 
-                targetHeight = clamp(targetHeight, 0.0f, 0.5f);                         // Keep in valid range (0..0.5f)
-                height = targetHeight;  // lerp(height, targetHeight, brushOpacity);           // TODO: do we want to obey actual opacity as well?
+                height = lerp(height, targetHeight, BRUSH_OPACITY);
                 return PackHeightmap(height);
             }
             ENDCG
@@ -156,7 +162,7 @@
                     // see https://www.desmos.com/calculator/880ka3lfkl
                     float p = saturate(brushStrength);
                     float w = (1.0f - p) / (p + 0.000001f);
-//                  float w = (1.0f - p*p) / (p + 0.000001f);       // alternative TODO test and compare
+                    //                  float w = (1.0f - p*p) / (p + 0.000001f);       // alternative TODO test and compare
                     float fx = clamp(w * deltaHeight, -1.0f, 1.0f);
                     float g = fx * (0.5f * fx * sign(fx) - 1.0f);
 
@@ -235,4 +241,5 @@
 
     }
     Fallback Off
+
 }
