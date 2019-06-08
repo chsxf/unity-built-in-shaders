@@ -38,7 +38,7 @@ SubShader {
 					uv = v.texcoord1.xy * unity_LightmapST.xy + unity_LightmapST.zw;
 				else
 					uv = v.texcoord2.xy * unity_DynamicLightmapST.xy + unity_DynamicLightmapST.zw;
-				o.pos = mul (UNITY_MATRIX_MVP, float4 (uv, 0, 1));
+				o.pos = UnityObjectToClipPos(float3 (uv, 0));
 				o.dummy = v.vertex; // make OpenGL happy
 				return o;
 			}

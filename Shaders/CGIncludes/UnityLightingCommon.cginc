@@ -39,7 +39,11 @@ struct UnityGIInput
 	half3 worldViewDir;
 	half atten;
 	half3 ambient;
-	half4 lightmapUV; // .xy = static lightmap UV, .zw = dynamic lightmap UV
+
+	// interpolated lightmap UVs are passed as full float precision data to fragment shaders
+	// so lightmapUV (which is used as a tmp inside of lightmap fragment shaders) should 
+	// also be full float precision to avoid data loss before sampling a texture. 
+	float4 lightmapUV; // .xy = static lightmap UV, .zw = dynamic lightmap UV
 
 	float4 boxMax[2];
 	float4 boxMin[2];

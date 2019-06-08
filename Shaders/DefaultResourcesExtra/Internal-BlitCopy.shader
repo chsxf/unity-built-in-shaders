@@ -7,6 +7,7 @@ Shader "Hidden/BlitCopy" {
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
+			#pragma target 2.0
 
 			#include "UnityCG.cginc"
 
@@ -26,7 +27,7 @@ Shader "Hidden/BlitCopy" {
 			v2f vert (appdata_t v)
 			{
 				v2f o;
-				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.texcoord = TRANSFORM_TEX(v.texcoord.xy, _MainTex);
 				return o;
 			}

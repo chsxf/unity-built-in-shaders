@@ -126,7 +126,8 @@ inline fixed4 LightingBlinnPhong (SurfaceOutput s, half3 viewDir, UnityGI gi)
 inline half4 LightingBlinnPhong_Deferred (SurfaceOutput s, half3 viewDir, UnityGI gi, out half4 outDiffuseOcclusion, out half4 outSpecSmoothness, out half4 outNormal)
 {
 	outDiffuseOcclusion = half4(s.Albedo, 1);
-	outSpecSmoothness = half4(_SpecColor.rgb, s.Specular);
+	// PI factor come from StandardBDRF (UnityStandardBRDF.cginc:351 for explanation)
+	outSpecSmoothness = half4(_SpecColor.rgb * s.Gloss * (1/UNITY_PI), s.Specular);
 	outNormal = half4(s.Normal * 0.5 + 0.5, 1);
 	half4 emission = half4(s.Emission, 1);
 

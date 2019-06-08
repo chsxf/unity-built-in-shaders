@@ -22,7 +22,7 @@ v2f BillboardVert (appdata_full v) {
 	
 	o.color.rgb *= ShadeVertexLights (v.vertex, v.normal);
 		
-	o.pos = mul (UNITY_MATRIX_MVP, v.vertex);	
+	o.pos = UnityObjectToClipPos(v.vertex);	
 	o.uv = v.texcoord;
 	return o;
 }

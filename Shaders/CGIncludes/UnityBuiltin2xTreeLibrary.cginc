@@ -33,8 +33,8 @@ v2f leaves(appdata_tree v)
 	
 	TerrainAnimateTree(v.vertex, v.color.w);
 	
-	float3 viewpos = mul(UNITY_MATRIX_MV, v.vertex);
-	o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+	float3 viewpos = UnityObjectToViewPos(v.vertex);
+	o.pos = UnityObjectToClipPos(v.vertex);
 	o.uv = v.texcoord;
 	
 	float4 lightDir = 0;
@@ -78,8 +78,8 @@ v2f bark(appdata_tree v)
 	
 	TerrainAnimateTree(v.vertex, v.color.w);
 	
-	float3 viewpos = mul(UNITY_MATRIX_MV, v.vertex);
-	o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+	float3 viewpos = UnityObjectToViewPos(v.vertex);
+	o.pos = UnityObjectToClipPos(v.vertex);
 	o.uv = v.texcoord;
 	
 	float4 lightDir = 0;

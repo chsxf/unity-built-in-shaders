@@ -36,7 +36,7 @@ float4 UnityMetaVertexPosition (float4 vertex, float2 uv1, float2 uv2, float4 li
 		// so use it in a very dummy way
 		vertex.z = vertex.z > 0 ? 1.0e-4f : 0.0f;
 	}
-	return mul (UNITY_MATRIX_MVP, vertex);
+	return UnityObjectToClipPos(vertex);
 }
 
 float unity_OneOverOutputBoost;

@@ -169,7 +169,7 @@ SubShader {
 		v2f vert (appdata_t v)
 		{
 			v2f OUT;
-			OUT.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+			OUT.pos = UnityObjectToClipPos(v.vertex);
 
 			float3 kSkyTintInGammaSpace = COLOR_2_GAMMA(_SkyTint); // convert tint from Linear back to Gamma
 			float3 kScatteringWavelength = lerp (
@@ -184,7 +184,7 @@ SubShader {
 			float3 cameraPos = float3(0,kInnerRadius + kCameraHeight,0); 	// The camera's current position
 
 			// Get the ray from the camera to the vertex and its length (which is the far point of the ray passing through the atmosphere)
-			float3 eyeRay = normalize(mul((float3x3)_Object2World, v.vertex.xyz));
+			float3 eyeRay = normalize(mul((float3x3)unity_ObjectToWorld, v.vertex.xyz));
 
 			float far = 0.0;
 			half3 cIn, cOut;
@@ -344,7 +344,7 @@ SubShader {
 		// if y >= 0 and < 1 [eyeRay.y <= 0 and > -SKY_GROUND_THRESHOLD] - horizon
 		// if y < 0 [eyeRay.y > 0] - sky
 		#if SKYBOX_SUNDISK == SKYBOX_SUNDISK_HQ
-			half3 ray = normalize(mul((float3x3)_Object2World, IN.vertex));
+			half3 ray = normalize(mul((float3x3)unity_ObjectToWorld, IN.vertex));
 			half y = ray.y / SKY_GROUND_THRESHOLD;
 		#elif SKYBOX_SUNDISK == SKYBOX_SUNDISK_SIMPLE
 			half3 ray = IN.rayDir.xyz;

@@ -4,6 +4,7 @@
 #define UNITY_PI	3.14159265359f
 
 #include "UnityShaderVariables.cginc"
+#include "UnityInstancing.cginc"
 
 fixed4 unity_ColorSpaceGrey;
 fixed4 unity_ColorSpaceDouble;
@@ -33,6 +34,7 @@ struct appdata_base {
 	float4 vertex : POSITION;
 	float3 normal : NORMAL;
 	float4 texcoord : TEXCOORD0;
+	UNITY_INSTANCE_ID
 };
 
 struct appdata_tan {
@@ -40,6 +42,7 @@ struct appdata_tan {
 	float4 tangent : TANGENT;
 	float3 normal : NORMAL;
 	float4 texcoord : TEXCOORD0;
+	UNITY_INSTANCE_ID
 };
 
 struct appdata_full {
@@ -55,6 +58,7 @@ struct appdata_full {
 	half4 texcoord5 : TEXCOORD5;
 #endif
 	fixed4 color : COLOR;
+	UNITY_INSTANCE_ID
 };
 
 inline bool IsGammaSpace()
@@ -108,23 +112,71 @@ inline half3 LinearToGammaSpace (half3 linRGB)
 	//return half3(LinearToGammaSpaceExact(linRGB.r), LinearToGammaSpaceExact(linRGB.g), LinearToGammaSpaceExact(linRGB.b));
 }
 
+// Tranforms position from object to homogenous space
+inline float4 UnityObjectToClipPos( in float3 pos )
+{
+#ifdef UNITY_USE_PREMULTIPLIED_MATRICES
+	return mul(UNITY_MATRIX_MVP, float4(pos, 1.0));
+#else
+	// More efficient than computing M*VP matrix product
+	return mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(pos, 1.0)));
+#endif
+}
+inline float4 UnityObjectToClipPos(float4 pos) // overload for float4; avoids "implicit truncation" warning for existing shaders
+{
+	return UnityObjectToClipPos(pos.xyz);
+}
+
+
+// Tranforms position from world to homogenous space
+inline float4 UnityWorldToClipPos( in float3 pos )
+{
+	return mul(UNITY_MATRIX_VP, float4(pos, 1.0));
+}
+
+// Tranforms position from view to homogenous space
+inline float4 UnityViewToClipPos( in float3 pos )
+{
+	return mul(UNITY_MATRIX_P, float4(pos, 1.0));
+}
+
+// Tranforms position from object to camera space
+inline float3 UnityObjectToViewPos( in float3 pos )
+{
+#ifdef UNITY_USE_PREMULTIPLIED_MATRICES
+	return mul(UNITY_MATRIX_MV, float4(pos, 1.0)).xyz;
+#else
+	return mul(UNITY_MATRIX_V, mul(unity_ObjectToWorld, float4(pos, 1.0))).xyz;
+#endif
+}
+inline float3 UnityObjectToViewPos(float4 pos) // overload for float4; avoids "implicit truncation" warning for existing shaders
+{
+	return UnityObjectToViewPos(pos.xyz);
+}
+
+// Tranforms position from world to camera space
+inline float3 UnityWorldToViewPos( in float3 pos )
+{
+	return mul(UNITY_MATRIX_V, float4(pos, 1.0)).xyz;
+}
+
 // Transforms direction from object to world space
 inline float3 UnityObjectToWorldDir( in float3 dir )
 {
-	return normalize(mul((float3x3)_Object2World, dir));
+	return normalize(mul((float3x3)unity_ObjectToWorld, dir));
 }
 
 // Transforms direction from world to object space
 inline float3 UnityWorldToObjectDir( in float3 dir )
 {
-	return normalize(mul((float3x3)_World2Object, dir));
+	return normalize(mul((float3x3)unity_WorldToObject, dir));
 }
 
 // Transforms normal from object to world space
 inline float3 UnityObjectToWorldNormal( in float3 norm )
 {
 	// Multiply by transposed inverse matrix, actually using transpose() generates badly optimized code
-	return normalize(_World2Object[0].xyz * norm.x + _World2Object[1].xyz * norm.y + _World2Object[2].xyz * norm.z);
+	return normalize(unity_WorldToObject[0].xyz * norm.x + unity_WorldToObject[1].xyz * norm.y + unity_WorldToObject[2].xyz * norm.z);
 }
 
 // Computes world space light direction, from world space position
@@ -145,14 +197,14 @@ inline float3 UnityWorldSpaceLightDir( in float3 worldPos )
 // *Legacy* Please use UnityWorldSpaceLightDir instead
 inline float3 WorldSpaceLightDir( in float4 localPos )
 {
-	float3 worldPos = mul(_Object2World, localPos).xyz;
+	float3 worldPos = mul(unity_ObjectToWorld, localPos).xyz;
 	return UnityWorldSpaceLightDir(worldPos);
 }
 
 // Computes object space light direction
 inline float3 ObjSpaceLightDir( in float4 v )
 {
-	float3 objSpaceLightPos = mul(_World2Object, _WorldSpaceLightPos0).xyz;
+	float3 objSpaceLightPos = mul(unity_WorldToObject, _WorldSpaceLightPos0).xyz;
 	#ifndef USING_LIGHT_MULTI_COMPILE
 		return objSpaceLightPos.xyz - v.xyz * _WorldSpaceLightPos0.w;
 	#else
@@ -174,14 +226,14 @@ inline float3 UnityWorldSpaceViewDir( in float3 worldPos )
 // *Legacy* Please use UnityWorldSpaceViewDir instead
 inline float3 WorldSpaceViewDir( in float4 localPos )
 {
-	float3 worldPos = mul(_Object2World, localPos).xyz;
+	float3 worldPos = mul(unity_ObjectToWorld, localPos).xyz;
 	return UnityWorldSpaceViewDir(worldPos);
 }
 
 // Computes object space view direction
 inline float3 ObjSpaceViewDir( in float4 v )
 {
-	float3 objSpaceCameraPos = mul(_World2Object, float4(_WorldSpaceCameraPos.xyz, 1)).xyz;
+	float3 objSpaceCameraPos = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos.xyz, 1)).xyz;
 	return objSpaceCameraPos - v.xyz;
 }
 
@@ -232,7 +284,7 @@ float3 Shade4PointLights (
 // to calculate but lights are treated as spot lights otherwise they are treated as point lights.
 float3 ShadeVertexLightsFull (float4 vertex, float3 normal, int lightCount, bool spotLight)
 {
-	float3 viewpos = mul (UNITY_MATRIX_MV, vertex).xyz;
+	float3 viewpos = UnityObjectToViewPos (vertex);
 	float3 viewN = normalize (mul ((float3x3)UNITY_MATRIX_IT_MV, normal));
 
 	float3 lightColor = UNITY_LIGHTMODEL_AMBIENT.xyz;
@@ -316,6 +368,47 @@ half3 ShadeSH3Order(half4 normal)
 
 	return res;
 }
+
+#if UNITY_LIGHT_PROBE_PROXY_VOLUME
+
+// normal should be normalized, w=1.0
+half3 SHEvalLinearL0L1_SampleProbeVolume (half4 normal, float3 worldPos)
+{
+	const float transformToLocal = unity_ProbeVolumeParams.y;
+	const float texelSizeX = unity_ProbeVolumeParams.z;
+
+	//The SH coefficients textures are packed into 1 atlas. Only power of 2 textures allowed. X texture will be unused.
+	//-----------------
+	//| R | G | B | X |
+	//-----------------
+
+	float3 position = (transformToLocal == 1.0f) ? mul(unity_ProbeVolumeWorldToObject, float4(worldPos, 1.0)).xyz : worldPos;
+	float3 texCoord = (position - unity_ProbeVolumeMin.xyz) * unity_ProbeVolumeSizeInv.xyz;
+	texCoord.x = texCoord.x * 0.25f;
+
+	// We need to compute proper X coordinate to sample.
+	// Clamp the coordinate otherwize we'll have leaking between RGB coefficients
+	float texCoordX = clamp(texCoord.x, 0.5f * texelSizeX, 0.25f - 0.5f * texelSizeX);
+
+	// sampler state comes from SHr (all SH textures share the same sampler)
+	texCoord.x = texCoordX;
+	half4 SHAr = UNITY_SAMPLE_TEX3D_SAMPLER(unity_ProbeVolumeSH, unity_ProbeVolumeSH, texCoord);
+
+	texCoord.x = texCoordX + 0.25f;
+	half4 SHAg = UNITY_SAMPLE_TEX3D_SAMPLER(unity_ProbeVolumeSH, unity_ProbeVolumeSH, texCoord);
+
+	texCoord.x = texCoordX + 0.5f;
+	half4 SHAb = UNITY_SAMPLE_TEX3D_SAMPLER(unity_ProbeVolumeSH, unity_ProbeVolumeSH, texCoord);
+
+	// Linear + constant polynomial terms
+	half3 x1;
+	x1.r = dot(SHAr, normal);
+	x1.g = dot(SHAg, normal);
+	x1.b = dot(SHAb, normal);
+	
+	return x1;
+}
+#endif
 
 // normal should be normalized, w=1.0
 half3 ShadeSH12Order (half4 normal)
@@ -506,7 +599,7 @@ float2 MultiplyUV (float4x4 mat, float2 inUV) {
 v2f_img vert_img( appdata_img v )
 {
 	v2f_img o;
-	o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
+	o.pos = UnityObjectToClipPos (v.vertex);
 	o.uv = v.texcoord;
 	return o;
 }
@@ -610,31 +703,67 @@ inline float LinearEyeDepth( float z )
 }
 
 
-// Depth render texture helpers
-#if defined(UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE)
-	#define UNITY_TRANSFER_DEPTH(oo) oo = o.pos.zw
-	#define UNITY_OUTPUT_DEPTH(i) return i.x/i.y
-#else
-	#define UNITY_TRANSFER_DEPTH(oo) 
-	#define UNITY_OUTPUT_DEPTH(i) return 0
+#ifdef UNITY_SINGLE_PASS_STEREO
+float2 TransformStereoScreenSpaceTex(float2 uv, float w)
+{
+	float4 scaleOffset = unity_StereoScaleOffset[unity_StereoEyeIndex];
+	return uv.xy * scaleOffset.xy + scaleOffset.zw * w;
+}
 #endif
+
+#ifdef UNITY_SINGLE_PASS_STEREO
+inline float2 UnityStereoScreenSpaceUVAdjustInternal(float2 uv, float4 scaleAndOffset)
+{
+	return saturate(uv.xy) * scaleAndOffset.xy + scaleAndOffset.zw;
+}
+
+inline float4 UnityStereoScreenSpaceUVAdjustInternal(float4 uv, float4 scaleAndOffset)
+{
+	return float4(UnityStereoScreenSpaceUVAdjustInternal(uv.xy, scaleAndOffset), UnityStereoScreenSpaceUVAdjustInternal(uv.zw, scaleAndOffset));
+}
+
+#define UnityStereoScreenSpaceUVAdjust(x, y) UnityStereoScreenSpaceUVAdjustInternal(x, y)
+
+inline float2 UnityStereoTransformScreenSpaceTex(float2 uv)
+{
+	return TransformStereoScreenSpaceTex(saturate(uv), 1.0);
+}
+
+inline float4 UnityStereoTransformScreenSpaceTex(float4 uv)
+{
+	return float4(UnityStereoTransformScreenSpaceTex(uv.xy), UnityStereoTransformScreenSpaceTex(uv.zw));
+}
+#else
+#define UnityStereoScreenSpaceUVAdjust(x, y) x
+#define UnityStereoTransformScreenSpaceTex(uv) uv
+#endif
+
+// Depth render texture helpers
 #define DECODE_EYEDEPTH(i) LinearEyeDepth(i)
-#define COMPUTE_EYEDEPTH(o) o = -mul( UNITY_MATRIX_MV, v.vertex ).z
-#define COMPUTE_DEPTH_01 -(mul( UNITY_MATRIX_MV, v.vertex ).z * _ProjectionParams.w)
+#define COMPUTE_EYEDEPTH(o) o = -UnityObjectToViewPos( v.vertex ).z
+#define COMPUTE_DEPTH_01 -(UnityObjectToViewPos( v.vertex ).z * _ProjectionParams.w)
 #define COMPUTE_VIEW_NORMAL normalize(mul((float3x3)UNITY_MATRIX_IT_MV, v.normal))
 
 
 // Projected screen position helpers
 #define V2F_SCREEN_TYPE float4
-inline float4 ComputeScreenPos (float4 pos) {
+
+inline float4 ComputeNonStereoScreenPos(float4 pos) {
 	float4 o = pos * 0.5f;
-	#if defined(UNITY_HALF_TEXEL_OFFSET)
+#if defined(UNITY_HALF_TEXEL_OFFSET)
 	o.xy = float2(o.x, o.y*_ProjectionParams.x) + o.w * _ScreenParams.zw;
-	#else
+#else
 	o.xy = float2(o.x, o.y*_ProjectionParams.x) + o.w;
-	#endif
-	
+#endif
 	o.zw = pos.zw;
+	return o;
+}
+
+inline float4 ComputeScreenPos (float4 pos) {
+	float4 o = ComputeNonStereoScreenPos(pos);
+#ifdef UNITY_SINGLE_PASS_STEREO
+	o.xy = TransformStereoScreenSpaceTex(o.xy, pos.w);
+#endif
 	return o;
 }
 
@@ -701,7 +830,7 @@ float4 UnityClipSpaceShadowCasterPos(float3 vertex, float3 normal)
     // into the depth texture, so branch on normal bias being zero.
     if (unity_LightShadowBias.z != 0.0)
     {
-		float3 wPos = mul(_Object2World, float4(vertex,1)).xyz;
+		float3 wPos = mul(unity_ObjectToWorld, float4(vertex,1)).xyz;
 		float3 wNormal = UnityObjectToWorldNormal(normal);
 		float3 wLight = normalize(UnityWorldSpaceLightDir(wPos));
 
@@ -722,7 +851,7 @@ float4 UnityClipSpaceShadowCasterPos(float3 vertex, float3 normal)
     }
     else
     {
-        clipPos = mul(UNITY_MATRIX_MVP, float4(vertex,1));
+        clipPos = UnityObjectToClipPos(vertex);
     }
 	return clipPos;
 }
@@ -740,35 +869,22 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 #ifdef SHADOWS_CUBE
 	// Rendering into point light (cubemap) shadows
 	#define V2F_SHADOW_CASTER_NOPOS float3 vec : TEXCOORD0;
-	#define TRANSFER_SHADOW_CASTER_NOPOS_LEGACY(o,opos) o.vec = mul(_Object2World, v.vertex).xyz - _LightPositionRange.xyz; opos = mul(UNITY_MATRIX_MVP, v.vertex);
-	#define TRANSFER_SHADOW_CASTER_NOPOS(o,opos) o.vec = mul(_Object2World, v.vertex).xyz - _LightPositionRange.xyz; opos = mul(UNITY_MATRIX_MVP, v.vertex);
+	#define TRANSFER_SHADOW_CASTER_NOPOS_LEGACY(o,opos) o.vec = mul(unity_ObjectToWorld, v.vertex).xyz - _LightPositionRange.xyz; opos = UnityObjectToClipPos(v.vertex);
+	#define TRANSFER_SHADOW_CASTER_NOPOS(o,opos) o.vec = mul(unity_ObjectToWorld, v.vertex).xyz - _LightPositionRange.xyz; opos = UnityObjectToClipPos(v.vertex);
 	#define SHADOW_CASTER_FRAGMENT(i) return UnityEncodeCubeShadowDepth ((length(i.vec) + unity_LightShadowBias.x) * _LightPositionRange.w);
 #else
 	// Rendering into directional or spot light shadows
-	#if defined(UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE)
-		// Platform might not have actual depth textures, so output depth from pixel shader
-		#define V2F_SHADOW_CASTER_NOPOS float4 hpos : TEXCOORD0;
-		#define TRANSFER_SHADOW_CASTER_NOPOS_LEGACY(o,opos) \
-			opos = mul(UNITY_MATRIX_MVP, float4(v.vertex.xyz,1)); \
-			opos = UnityApplyLinearShadowBias(opos); \
-			o.hpos = opos;
-		#define TRANSFER_SHADOW_CASTER_NOPOS(o,opos) \
-			opos = UnityClipSpaceShadowCasterPos(v.vertex.xyz, v.normal); \
-			opos = UnityApplyLinearShadowBias(opos); \
-			o.hpos = opos;
-	#else
-		#define V2F_SHADOW_CASTER_NOPOS
-		// Let embedding code know that V2F_SHADOW_CASTER_NOPOS is empty; so that it can workaround
-		// empty structs that could possibly be produced.
-		#define V2F_SHADOW_CASTER_NOPOS_IS_EMPTY
-		#define TRANSFER_SHADOW_CASTER_NOPOS_LEGACY(o,opos) \
-			opos = mul(UNITY_MATRIX_MVP, float4(v.vertex.xyz,1)); \
-			opos = UnityApplyLinearShadowBias(opos);
-		#define TRANSFER_SHADOW_CASTER_NOPOS(o,opos) \
-			opos = UnityClipSpaceShadowCasterPos(v.vertex.xyz, v.normal); \
-			opos = UnityApplyLinearShadowBias(opos);
-	#endif
-	#define SHADOW_CASTER_FRAGMENT(i) UNITY_OUTPUT_DEPTH(i.hpos.zw);
+	#define V2F_SHADOW_CASTER_NOPOS
+	// Let embedding code know that V2F_SHADOW_CASTER_NOPOS is empty; so that it can workaround
+	// empty structs that could possibly be produced.
+	#define V2F_SHADOW_CASTER_NOPOS_IS_EMPTY
+	#define TRANSFER_SHADOW_CASTER_NOPOS_LEGACY(o,opos) \
+		opos = UnityObjectToClipPos(v.vertex.xyz); \
+		opos = UnityApplyLinearShadowBias(opos);
+	#define TRANSFER_SHADOW_CASTER_NOPOS(o,opos) \
+		opos = UnityClipSpaceShadowCasterPos(v.vertex.xyz, v.normal); \
+		opos = UnityApplyLinearShadowBias(opos);
+	#define SHADOW_CASTER_FRAGMENT(i) return 0;
 #endif
 
 // Declare all data needed for shadow caster pass output (any shadow directions/depths/distances as needed),
@@ -844,10 +960,10 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 #if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)
 	#if (SHADER_TARGET < 30) || defined(SHADER_API_MOBILE)
 		// mobile or SM2.0: fog factor was already calculated per-vertex, so just lerp the color
-		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_FOG_LERP_COLOR(col,fogCol,(coord).x)
+		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_FOG_LERP_COLOR(col,fogCol,coord.x)
 	#else
 		// SM3.0 and PC/console: calculate fog factor and lerp fog color
-		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_CALC_FOG_FACTOR((coord).x); UNITY_FOG_LERP_COLOR(col,fogCol,unityFogFactor)
+		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_CALC_FOG_FACTOR(coord.x); UNITY_FOG_LERP_COLOR(col,fogCol,unityFogFactor)
 	#endif
 #else
 	#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol)
@@ -865,7 +981,7 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 #ifdef LOD_FADE_CROSSFADE
 	#define UNITY_DITHER_CROSSFADE_COORDS					half3 ditherScreenPos;
 	#define UNITY_DITHER_CROSSFADE_COORDS_IDX(idx)			half3 ditherScreenPos : TEXCOORD##idx;
-	#define UNITY_TRANSFER_DITHER_CROSSFADE(o,v)			o.ditherScreenPos = ComputeDitherScreenPos(mul(UNITY_MATRIX_MVP, v));
+	#define UNITY_TRANSFER_DITHER_CROSSFADE(o,v)			o.ditherScreenPos = ComputeDitherScreenPos(UnityObjectToClipPos(v));
 	#define UNITY_TRANSFER_DITHER_CROSSFADE_HPOS(o,hpos)	o.ditherScreenPos = ComputeDitherScreenPos(hpos);
 	half3 ComputeDitherScreenPos(float4 hPos)
 	{
@@ -905,14 +1021,14 @@ UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 // Note: V2F_SHADOW_COLLECTOR and TRANSFER_SHADOW_COLLECTOR are deprecated
 #define V2F_SHADOW_COLLECTOR float4 pos : SV_POSITION; float3 _ShadowCoord0 : TEXCOORD0; float3 _ShadowCoord1 : TEXCOORD1; float3 _ShadowCoord2 : TEXCOORD2; float3 _ShadowCoord3 : TEXCOORD3; float4 _WorldPosViewZ : TEXCOORD4
 #define TRANSFER_SHADOW_COLLECTOR(o)	\
-	o.pos = mul(UNITY_MATRIX_MVP, v.vertex); \
-	float4 wpos = mul(_Object2World, v.vertex); \
+	o.pos = UnityObjectToClipPos(v.vertex); \
+	float4 wpos = mul(unity_ObjectToWorld, v.vertex); \
 	o._WorldPosViewZ.xyz = wpos; \
-	o._WorldPosViewZ.w = -mul( UNITY_MATRIX_MV, v.vertex ).z; \
-	o._ShadowCoord0 = mul(unity_World2Shadow[0], wpos).xyz; \
-	o._ShadowCoord1 = mul(unity_World2Shadow[1], wpos).xyz; \
-	o._ShadowCoord2 = mul(unity_World2Shadow[2], wpos).xyz; \
-	o._ShadowCoord3 = mul(unity_World2Shadow[3], wpos).xyz;
+	o._WorldPosViewZ.w = -UnityObjectToViewPos(v.vertex).z; \
+	o._ShadowCoord0 = mul(unity_WorldToShadow[0], wpos).xyz; \
+	o._ShadowCoord1 = mul(unity_WorldToShadow[1], wpos).xyz; \
+	o._ShadowCoord2 = mul(unity_WorldToShadow[2], wpos).xyz; \
+	o._ShadowCoord3 = mul(unity_WorldToShadow[3], wpos).xyz;
 
 // Note: SAMPLE_SHADOW_COLLECTOR_SHADOW is deprecated
 #define SAMPLE_SHADOW_COLLECTOR_SHADOW(coord) \
@@ -953,6 +1069,12 @@ UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 #endif
 	
 #endif // #ifdef SHADOW_COLLECTOR_PASS
+
+
+// Legacy; used to do something on platforms that had to emulate depth textures manually. Now all platforms have native depth textures.
+#define UNITY_TRANSFER_DEPTH(oo) 
+// Legacy; used to do something on platforms that had to emulate depth textures manually. Now all platforms have native depth textures.
+#define UNITY_OUTPUT_DEPTH(i) return 0
 
 
 #endif // UNITY_CG_INCLUDED

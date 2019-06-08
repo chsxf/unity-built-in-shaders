@@ -57,7 +57,7 @@ SubShader {
 		{
 			v2f_leaf o;
 			TreeVertLeaf(v);
-			o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+			o.pos = UnityObjectToClipPos(v.vertex);
 
 			fixed ao = v.color.a;
 			ao += 0.1; ao = saturate(ao * ao * ao); // emphasize AO

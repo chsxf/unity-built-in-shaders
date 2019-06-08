@@ -19,6 +19,7 @@ Shader "Mobile/VertexLit (Only Directional Lights)" {
 CGPROGRAM
 #pragma vertex vert_surf
 #pragma fragment frag_surf
+#pragma target 2.0
 #pragma multi_compile_fwdbase
 #pragma multi_compile_fog
 #include "HLSLSupport.cginc"
@@ -62,7 +63,7 @@ float4 _MainTex_ST;
 v2f_surf vert_surf (appdata_full v)
 {
 	v2f_surf o;
-	o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
+	o.pos = UnityObjectToClipPos(v.vertex);
 	o.pack0.xy = TRANSFORM_TEX(v.texcoord, _MainTex);
 	#ifndef LIGHTMAP_OFF
 	o.lmap.xy = v.texcoord1.xy * unity_LightmapST.xy + unity_LightmapST.zw;

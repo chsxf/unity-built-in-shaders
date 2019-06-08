@@ -40,7 +40,7 @@ uniform float4 _Color;
 v2f vert (appdata_base v)
 {
 	v2f o;
-	o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+	o.pos = UnityObjectToClipPos(v.vertex);
 	o.uv = TRANSFORM_TEX(v.texcoord,_MainTex);
 	float4 lighting = float4(ShadeVertexLightsFull(v.vertex, v.normal, 4, true),_Color.w);
 	o.diff = lighting * _Color;

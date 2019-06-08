@@ -48,7 +48,6 @@ sampler2D _MainTex;
 #endif
 
 fixed4 _Color;
-half _Shininess;
 
 // Vertex processing
 
@@ -61,7 +60,7 @@ void SpeedTreeVert(inout SpeedTreeVB IN, out Input OUT)
 	OUT.color.rgb *= IN.color.r; // ambient occlusion factor
 
 	#ifdef EFFECT_HUE_VARIATION
-		float hueVariationAmount = frac(_Object2World[0].w + _Object2World[1].w + _Object2World[2].w);
+		float hueVariationAmount = frac(unity_ObjectToWorld[0].w + unity_ObjectToWorld[1].w + unity_ObjectToWorld[2].w);
 		hueVariationAmount += frac(IN.vertex.x + IN.normal.y + IN.normal.x) * 0.5 - 0.3;
 		OUT.HueVariationAmount = saturate(hueVariationAmount * _HueVariation.a);
 	#endif
@@ -93,29 +92,25 @@ void SpeedTreeVert(inout SpeedTreeVB IN, out Input OUT)
 #define SPEEDTREE_COPY_FRAG(to, from)	\
 	to.Albedo = from.Albedo;			\
 	to.Alpha = from.Alpha;				\
-	to.Specular = from.Specular;		\
-	to.Gloss = from.Gloss;				\
 	SPEEDTREE_COPY_NORMAL(to, from)
 
 struct SpeedTreeFragOut
 {
 	fixed3 Albedo;
 	fixed Alpha;
-	half Specular;
-	fixed Gloss;
 	SPEEDTREE_DATA_NORMAL
 };
 
 void SpeedTreeFrag(Input IN, out SpeedTreeFragOut OUT)
 {
-	UNITY_APPLY_DITHER_CROSSFADE(IN)
-
 	half4 diffuseColor = tex2D(_MainTex, IN.mainTexUV);
 
 	OUT.Alpha = diffuseColor.a * _Color.a;
 	#ifdef SPEEDTREE_ALPHATEST
 		clip(OUT.Alpha - _Cutoff);
 	#endif
+
+	UNITY_APPLY_DITHER_CROSSFADE(IN)
 
 	#ifdef GEOM_TYPE_BRANCH_DETAIL
 		half4 detailColor = tex2D(_DetailTex, IN.Detail.xy);
@@ -134,8 +129,6 @@ void SpeedTreeFrag(Input IN, out SpeedTreeFragOut OUT)
 	#endif
 
 	OUT.Albedo = diffuseColor.rgb * IN.color.rgb;
-	OUT.Gloss = diffuseColor.a;
-	OUT.Specular = _Shininess;
 
 	#ifdef EFFECT_BUMP
 		OUT.Normal = UnpackNormal(tex2D(_BumpMap, IN.mainTexUV));

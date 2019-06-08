@@ -18,9 +18,9 @@ float _LightAsQuad;
 unity_v2f_deferred vert_deferred (float4 vertex : POSITION, float3 normal : NORMAL)
 {
 	unity_v2f_deferred o;
-	o.pos = mul(UNITY_MATRIX_MVP, vertex);
-	o.uv = ComputeScreenPos (o.pos);
-	o.ray = mul (UNITY_MATRIX_MV, vertex).xyz * float3(-1,-1,1);
+	o.pos = UnityObjectToClipPos(vertex);
+	o.uv = ComputeScreenPos(o.pos);
+	o.ray = UnityObjectToViewPos(vertex) * float3(-1,-1,1);
 	
 	// normal contains a ray pointing from the camera to one of near plane's
 	// corners in camera space when we are drawing a full screen quad.
@@ -41,10 +41,7 @@ float4 _LightDir;
 float4 _LightPos;
 float4 _LightColor;
 float4 unity_LightmapFade;
-CBUFFER_START(UnityPerCamera2)
-float4x4 _CameraToWorld;
-CBUFFER_END
-float4x4 _LightMatrix0;
+float4x4 unity_WorldToLight;
 sampler2D _LightTextureB0;
 
 #if defined (POINT_COOKIE)
@@ -79,7 +76,7 @@ half UnityDeferredComputeShadow(float3 vec, float fadeDist, float2 uv)
 	
 	#if defined(SPOT)
 	#if defined(SHADOWS_DEPTH)
-	float4 shadowCoord = mul (unity_World2Shadow[0], float4(vec,1));
+	float4 shadowCoord = mul (unity_WorldToShadow[0], float4(vec,1));
 	return saturate(UnitySampleShadowmap (shadowCoord) + fade);
 	#endif //SHADOWS_DEPTH
 	#endif
@@ -119,7 +116,7 @@ void UnityDeferredCalculateLightParams (
 	float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uv);
 	depth = Linear01Depth (depth);
 	float4 vpos = float4(i.ray * depth,1);
-	float3 wpos = mul (_CameraToWorld, vpos).xyz;
+	float3 wpos = mul (unity_CameraToWorld, vpos).xyz;
 
 	float fadeDist = UnityDeferredComputeFadeDistance(wpos, vpos.z);
 	
@@ -128,7 +125,7 @@ void UnityDeferredCalculateLightParams (
 		float3 tolight = _LightPos.xyz - wpos;
 		half3 lightDir = normalize (tolight);
 		
-		float4 uvCookie = mul (_LightMatrix0, float4(wpos,1));
+		float4 uvCookie = mul (unity_WorldToLight, float4(wpos,1));
 		// negative bias because http://aras-p.info/blog/2010/01/07/screenspace-vs-mip-mapping/
 		float atten = tex2Dbias (_LightTexture0, float4(uvCookie.xy / uvCookie.w, 0, -8)).w;
 		atten *= uvCookie.w < 0;
@@ -145,7 +142,7 @@ void UnityDeferredCalculateLightParams (
 		atten *= UnityDeferredComputeShadow (wpos, fadeDist, uv);
 		
 		#if defined (DIRECTIONAL_COOKIE)
-		atten *= tex2Dbias (_LightTexture0, float4(mul(_LightMatrix0, half4(wpos,1)).xy, 0, -8)).w;
+		atten *= tex2Dbias (_LightTexture0, float4(mul(unity_WorldToLight, half4(wpos,1)).xy, 0, -8)).w;
 		#endif //DIRECTIONAL_COOKIE
 	
 	// point light case	
@@ -159,7 +156,7 @@ void UnityDeferredCalculateLightParams (
 		atten *= UnityDeferredComputeShadow (tolight, fadeDist, uv);
 		
 		#if defined (POINT_COOKIE)
-		atten *= texCUBEbias(_LightTexture0, float4(mul(_LightMatrix0, half4(wpos,1)).xyz, -8)).w;
+		atten *= texCUBEbias(_LightTexture0, float4(mul(unity_WorldToLight, half4(wpos,1)).xyz, -8)).w;
 		#endif //POINT_COOKIE	
 	#else
 		half3 lightDir = 0;

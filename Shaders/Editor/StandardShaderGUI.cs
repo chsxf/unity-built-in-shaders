@@ -20,6 +20,12 @@ internal class StandardShaderGUI : ShaderGUI
 		Transparent // Physically plausible transparency mode, implemented as alpha pre-multiply
 	}
 
+	public enum SmoothnessMapChannel
+	{
+		SpecularMetallicAlpha,
+		AlbedoAlpha,
+	}
+
 	private static class Styles
 	{
 		public static GUIStyle optionsButton = "PaneOptions";
@@ -31,7 +37,11 @@ internal class StandardShaderGUI : ShaderGUI
 		public static GUIContent alphaCutoffText = new GUIContent("Alpha Cutoff", "Threshold for alpha cutoff");
 		public static GUIContent specularMapText = new GUIContent("Specular", "Specular (RGB) and Smoothness (A)");
 		public static GUIContent metallicMapText = new GUIContent("Metallic", "Metallic (R) and Smoothness (A)");
-		public static GUIContent smoothnessText = new GUIContent("Smoothness", "");
+		public static GUIContent smoothnessText = new GUIContent("Smoothness", "Smoothness value");
+		public static GUIContent smoothnessScaleText = new GUIContent("Smoothness", "Smoothness scale factor");
+		public static GUIContent smoothnessMapChannelText = new GUIContent("Source", "Smoothness texture and channel");
+		public static GUIContent highlightsText = new GUIContent("Specular Highlights", "Specular Highlights");
+		public static GUIContent reflectionsText = new GUIContent("Reflections", "Glossy Reflections");
 		public static GUIContent normalMapText = new GUIContent("Normal Map", "Normal Map");
 		public static GUIContent heightMapText = new GUIContent("Height Map", "Height Map (G)");
 		public static GUIContent occlusionText = new GUIContent("Occlusion", "Occlusion (G)");
@@ -43,6 +53,7 @@ internal class StandardShaderGUI : ShaderGUI
 		public static string whiteSpaceString = " ";
 		public static string primaryMapsText = "Main Maps";
 		public static string secondaryMapsText = "Secondary Maps";
+		public static string forwardText = "Forward Rendering Options";
 		public static string renderingMode = "Rendering Mode";
 		public static GUIContent emissiveWarning = new GUIContent ("Emissive value is animated but the material has not been configured to support emissive. Please make sure the material itself has some amount of emissive.");
 		public static GUIContent emissiveColorWarning = new GUIContent ("Ensure emissive color is non-black for emission to have effect.");
@@ -58,6 +69,10 @@ internal class StandardShaderGUI : ShaderGUI
 	MaterialProperty metallicMap = null;
 	MaterialProperty metallic = null;
 	MaterialProperty smoothness = null;
+	MaterialProperty smoothnessScale = null;
+	MaterialProperty smoothnessMapChannel = null;
+	MaterialProperty highlights = null;
+	MaterialProperty reflections = null;
 	MaterialProperty bumpScale = null;
 	MaterialProperty bumpMap = null;
 	MaterialProperty occlusionStrength = null;
@@ -95,6 +110,10 @@ internal class StandardShaderGUI : ShaderGUI
 		else
 			m_WorkflowMode = WorkflowMode.Dielectric;
 		smoothness = FindProperty ("_Glossiness", props);
+		smoothnessScale = FindProperty ("_GlossMapScale", props, false);
+		smoothnessMapChannel = FindProperty ("_SmoothnessTextureChannel", props, false);
+		highlights = FindProperty ("_SpecularHighlights", props, false);
+		reflections = FindProperty ("_GlossyReflections", props, false);
 		bumpScale = FindProperty ("_BumpScale", props);
 		bumpMap = FindProperty ("_BumpMap", props);
 		heigtMapScale = FindProperty ("_Parallax", props);
@@ -116,12 +135,12 @@ internal class StandardShaderGUI : ShaderGUI
 		m_MaterialEditor = materialEditor;
 		Material material = materialEditor.target as Material;
 
-		// Make sure that needed keywords are set up if we're switching some existing
+		// Make sure that needed setup (ie keywords/renderqueue) are set up if we're switching some existing
 		// material to a standard shader.
 		// Do this before any GUI code has been issued to prevent layout issues in subsequent GUILayout statements (case 780071)
 		if (m_FirstTimeApply)
 		{
-			SetMaterialKeywords (material, m_WorkflowMode);
+			MaterialChanged(material, m_WorkflowMode);
 			m_FirstTimeApply = false;
 		}
 
@@ -160,6 +179,14 @@ internal class StandardShaderGUI : ShaderGUI
 			m_MaterialEditor.TexturePropertySingleLine(Styles.detailNormalMapText, detailNormalMap, detailNormalMapScale);
 			m_MaterialEditor.TextureScaleOffsetProperty(detailAlbedoMap);
 			m_MaterialEditor.ShaderProperty(uvSetSecondary, Styles.uvSetLabel.text);
+
+			// Third properties
+			GUILayout.Label(Styles.forwardText, EditorStyles.boldLabel);
+			if (highlights != null)
+				m_MaterialEditor.ShaderProperty(highlights, Styles.highlightsText);
+			if (reflections != null)
+				m_MaterialEditor.ShaderProperty(reflections, Styles.reflectionsText);
+			
 		}
 		if (EditorGUI.EndChangeCheck())
 		{
@@ -180,17 +207,20 @@ internal class StandardShaderGUI : ShaderGUI
 
 	public override void AssignNewShaderToMaterial (Material material, Shader oldShader, Shader newShader)
 	{
-        // _Emission property is lost after assigning Standard shader to the material
-        // thus transfer it before assigning the new shader
-        if (material.HasProperty("_Emission"))
-        {
-            material.SetColor("_EmissionColor", material.GetColor("_Emission"));
-        }
+		// _Emission property is lost after assigning Standard shader to the material
+		// thus transfer it before assigning the new shader
+		if (material.HasProperty("_Emission"))
+		{
+			material.SetColor("_EmissionColor", material.GetColor("_Emission"));
+		}
 
 		base.AssignNewShaderToMaterial(material, oldShader, newShader);
 
 		if (oldShader == null || !oldShader.name.Contains("Legacy Shaders/"))
+		{
+			SetupMaterialWithBlendMode(material, (BlendMode)material.GetFloat("_Mode"));
 			return;
+		}
 
 		BlendMode blendMode = BlendMode.Opaque;
 		if (oldShader.name.Contains("/Transparent/Cutout/"))
@@ -236,9 +266,7 @@ internal class StandardShaderGUI : ShaderGUI
 
 	void DoEmissionArea(Material material)
 	{
-		float brightness = emissionColorForRendering.colorValue.maxColorComponent;
 		bool showHelpBox = !HasValidEmissiveKeyword(material);
-		bool showEmissionColorAndGIControls = brightness > 0.0f;
 		
 		bool hadEmissionTexture = emissionMap.textureValue != null;
 
@@ -246,20 +274,13 @@ internal class StandardShaderGUI : ShaderGUI
 		m_MaterialEditor.TexturePropertyWithHDRColor(Styles.emissionText, emissionMap, emissionColorForRendering, m_ColorPickerHDRConfig, false);
 
 		// If texture was assigned and color was black set color to white
+		float brightness = emissionColorForRendering.colorValue.maxColorComponent;
 		if (emissionMap.textureValue != null && !hadEmissionTexture && brightness <= 0f)
 			emissionColorForRendering.colorValue = Color.white;
 
-		// Dynamic Lightmapping mode
-		if (showEmissionColorAndGIControls)
-		{
-			bool shouldEmissionBeEnabled = ShouldEmissionBeEnabled(emissionColorForRendering.colorValue);
-			EditorGUI.BeginDisabledGroup(!shouldEmissionBeEnabled);
-
-			m_MaterialEditor.LightmapEmissionProperty (MaterialEditor.kMiniTextureFieldLabelIndentLevel + 1);
-
-			EditorGUI.EndDisabledGroup();
-		}
-
+		// Emission for GI?
+		m_MaterialEditor.LightmapEmissionProperty (MaterialEditor.kMiniTextureFieldLabelIndentLevel + 1);
+		
 		if (showHelpBox)
 		{
 			EditorGUILayout.HelpBox(Styles.emissiveWarning.text, MessageType.Warning);
@@ -268,21 +289,32 @@ internal class StandardShaderGUI : ShaderGUI
 
 	void DoSpecularMetallicArea()
 	{
+		bool hasGlossMap = false;
 		if (m_WorkflowMode == WorkflowMode.Specular)
 		{
-			if (specularMap.textureValue == null)
-				m_MaterialEditor.TexturePropertyTwoLines(Styles.specularMapText, specularMap, specularColor, Styles.smoothnessText, smoothness);
-			else
-				m_MaterialEditor.TexturePropertySingleLine(Styles.specularMapText, specularMap);
-
+			hasGlossMap = specularMap.textureValue != null;
+			m_MaterialEditor.TexturePropertySingleLine(Styles.specularMapText, specularMap, hasGlossMap ? null : specularColor);
 		}
 		else if (m_WorkflowMode == WorkflowMode.Metallic)
 		{
-			if (metallicMap.textureValue == null)
-				m_MaterialEditor.TexturePropertyTwoLines(Styles.metallicMapText, metallicMap, metallic, Styles.smoothnessText, smoothness);
-			else
-				m_MaterialEditor.TexturePropertySingleLine(Styles.metallicMapText, metallicMap);
+			hasGlossMap = metallicMap.textureValue != null;
+			m_MaterialEditor.TexturePropertySingleLine(Styles.metallicMapText, metallicMap, hasGlossMap ? null : metallic);
 		}
+
+		bool showSmoothnessScale = hasGlossMap;
+		if (smoothnessMapChannel != null)
+		{
+			int smoothnessChannel = (int) smoothnessMapChannel.floatValue;
+			if (smoothnessChannel == (int) SmoothnessMapChannel.AlbedoAlpha)
+				showSmoothnessScale = true;
+		}
+
+		int indentation = 2; // align with labels of texture properties
+		m_MaterialEditor.ShaderProperty(showSmoothnessScale ? smoothnessScale : smoothness, showSmoothnessScale ? Styles.smoothnessScaleText : Styles.smoothnessText, indentation);
+	
+		++indentation;
+		if (smoothnessMapChannel != null)
+			m_MaterialEditor.ShaderProperty(smoothnessMapChannel, Styles.smoothnessMapChannelText, indentation);
 	}
 
 	public static void SetupMaterialWithBlendMode(Material material, BlendMode blendMode)
@@ -307,7 +339,7 @@ internal class StandardShaderGUI : ShaderGUI
 				material.EnableKeyword("_ALPHATEST_ON");
 				material.DisableKeyword("_ALPHABLEND_ON");
 				material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-				material.renderQueue = 2450;
+				material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
 				break;
 			case BlendMode.Fade:
 				material.SetOverrideTag("RenderType", "Transparent");
@@ -317,7 +349,7 @@ internal class StandardShaderGUI : ShaderGUI
 				material.DisableKeyword("_ALPHATEST_ON");
 				material.EnableKeyword("_ALPHABLEND_ON");
 				material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-				material.renderQueue = 3000;
+				material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
 				break;
 			case BlendMode.Transparent:
 				material.SetOverrideTag("RenderType", "Transparent");
@@ -327,14 +359,24 @@ internal class StandardShaderGUI : ShaderGUI
 				material.DisableKeyword("_ALPHATEST_ON");
 				material.DisableKeyword("_ALPHABLEND_ON");
 				material.EnableKeyword("_ALPHAPREMULTIPLY_ON");
-				material.renderQueue = 3000;
+				material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
 				break;
 		}
 	}
-	
-	static bool ShouldEmissionBeEnabled (Color color)
+
+	static SmoothnessMapChannel GetSmoothnessMapChannel(Material material)
 	{
-		return color.maxColorComponent > (0.1f / 255.0f);
+		int ch = (int) material.GetFloat("_SmoothnessTextureChannel");
+		if (ch == (int) SmoothnessMapChannel.AlbedoAlpha)
+			return SmoothnessMapChannel.AlbedoAlpha;
+		else
+			return SmoothnessMapChannel.SpecularMetallicAlpha;
+	}
+
+	static bool ShouldEmissionBeEnabled(Material mat, Color color)
+	{
+		var realtimeEmission = (mat.globalIlluminationFlags & MaterialGlobalIlluminationFlags.RealtimeEmissive) > 0;
+		return color.maxColorComponent > 0.1f / 255.0f || realtimeEmission;
 	}
 
 	static void SetMaterialKeywords(Material material, WorkflowMode workflowMode)
@@ -349,8 +391,13 @@ internal class StandardShaderGUI : ShaderGUI
 		SetKeyword (material, "_PARALLAXMAP", material.GetTexture ("_ParallaxMap"));
 		SetKeyword (material, "_DETAIL_MULX2", material.GetTexture ("_DetailAlbedoMap") || material.GetTexture ("_DetailNormalMap"));
 
-		bool shouldEmissionBeEnabled = ShouldEmissionBeEnabled (material.GetColor("_EmissionColor"));
+		bool shouldEmissionBeEnabled = ShouldEmissionBeEnabled (material, material.GetColor("_EmissionColor"));
 		SetKeyword (material, "_EMISSION", shouldEmissionBeEnabled);
+
+		if (material.HasProperty("_SmoothnessTextureChannel"))
+		{
+			SetKeyword (material, "_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A", GetSmoothnessMapChannel(material) == SmoothnessMapChannel.AlbedoAlpha);
+		}
 
 		// Setup lightmap emissive flags
 		MaterialGlobalIlluminationFlags flags = material.globalIlluminationFlags;
@@ -370,7 +417,7 @@ internal class StandardShaderGUI : ShaderGUI
 		// So if the emission support is disabled on the material, but the property blocks have a value that requires it, then we need to show a warning.
 		// (note: (Renderer MaterialPropertyBlock applies its values to emissionColorForRendering))
 		bool hasEmissionKeyword = material.IsKeywordEnabled ("_EMISSION");
-		if (!hasEmissionKeyword && ShouldEmissionBeEnabled (emissionColorForRendering.colorValue))
+		if (!hasEmissionKeyword && ShouldEmissionBeEnabled (material, emissionColorForRendering.colorValue))
 			return false;
 		else
 			return true;

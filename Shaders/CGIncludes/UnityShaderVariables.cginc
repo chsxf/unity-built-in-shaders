@@ -7,7 +7,45 @@
 #define USING_DIRECTIONAL_LIGHT
 #endif
 
+#if defined (INSTANCING_ON) || defined (UNITY_SINGLE_PASS_STEREO)
+// Use separate matrices in this case.
+#else
+#define UNITY_USE_PREMULTIPLIED_MATRICES
+#endif
 
+#ifdef UNITY_SINGLE_PASS_STEREO
+	#define glstate_matrix_projection unity_StereoMatrixP[unity_StereoEyeIndex]
+	#define unity_MatrixV unity_StereoMatrixV[unity_StereoEyeIndex]
+	#define unity_MatrixInvV unity_StereoMatrixInvV[unity_StereoEyeIndex]
+	#define unity_MatrixVP unity_StereoMatrixVP[unity_StereoEyeIndex]
+
+	#define unity_CameraProjection unity_StereoCameraProjection[unity_StereoEyeIndex]
+	#define unity_CameraInvProjection unity_StereoCameraInvProjection[unity_StereoEyeIndex]
+	#define unity_WorldToCamera unity_StereoWorldToCamera[unity_StereoEyeIndex]
+	#define unity_CameraToWorld unity_StereoCameraToWorld[unity_StereoEyeIndex]
+
+	#define _WorldSpaceCameraPos unity_StereoWorldSpaceCameraPos[unity_StereoEyeIndex]
+#endif
+
+#define UNITY_MATRIX_P glstate_matrix_projection
+#define UNITY_MATRIX_V unity_MatrixV
+#define UNITY_MATRIX_I_V unity_MatrixInvV
+#define UNITY_MATRIX_VP unity_MatrixVP
+#define UNITY_MATRIX_M unity_ObjectToWorld
+
+#ifdef UNITY_USE_PREMULTIPLIED_MATRICES
+	#define UNITY_MATRIX_MVP glstate_matrix_mvp
+	#define UNITY_MATRIX_MV glstate_matrix_modelview0
+	#define UNITY_MATRIX_T_MV glstate_matrix_transpose_modelview0
+	#define UNITY_MATRIX_IT_MV glstate_matrix_invtrans_modelview0
+#else
+	#define UNITY_MATRIX_MVP mul(unity_MatrixVP, unity_ObjectToWorld)
+	#define UNITY_MATRIX_MV mul(unity_MatrixV, unity_ObjectToWorld)
+	#define UNITY_MATRIX_T_MV transpose(UNITY_MATRIX_MV)
+	#define UNITY_MATRIX_IT_MV transpose(mul(unity_WorldToObject, unity_MatrixInvV))
+#endif
+
+#define UNITY_LIGHTMODEL_AMBIENT (glstate_lightmodel_ambient * 2)
 
 // ----------------------------------------------------------------------------
 
@@ -19,7 +57,9 @@ CBUFFER_START(UnityPerCamera)
 	float4 _CosTime; // cos(t/8), cos(t/4), cos(t/2), cos(t)
 	float4 unity_DeltaTime; // dt, 1/dt, smoothdt, 1/smoothdt
 	
+#ifndef UNITY_SINGLE_PASS_STEREO
 	float3 _WorldSpaceCameraPos;
+#endif
 	
 	// x = 1 or -1 (-1 if projection is flipped)
 	// y = near plane
@@ -51,11 +91,15 @@ CBUFFER_END
 CBUFFER_START(UnityPerCameraRare)
 	float4 unity_CameraWorldClipPlanes[6];
 
+#ifndef UNITY_SINGLE_PASS_STEREO
 	// Projection matrices of the camera. Note that this might be different from projection matrix
 	// that is set right now, e.g. while rendering shadows the matrices below are still the projection
 	// of original camera.
 	float4x4 unity_CameraProjection;
 	float4x4 unity_CameraInvProjection;
+	float4x4 unity_WorldToCamera;
+	float4x4 unity_CameraToWorld;
+#endif
 CBUFFER_END
 
 
@@ -111,61 +155,69 @@ CBUFFER_START(UnityShadows)
 	float4 unity_LightShadowBias;
 	float4 _LightSplitsNear;
 	float4 _LightSplitsFar;
-	float4x4 unity_World2Shadow[4];
+	float4x4 unity_WorldToShadow[4];
 	half4 _LightShadowData;
 	float4 unity_ShadowFadeCenterAndType;
 CBUFFER_END
 
-#define _World2Shadow unity_World2Shadow[0]
-#define _World2Shadow1 unity_World2Shadow[1]
-#define _World2Shadow2 unity_World2Shadow[2]
-#define _World2Shadow3 unity_World2Shadow[3]
-
-
 // ----------------------------------------------------------------------------
 
 CBUFFER_START(UnityPerDraw)
+#ifdef UNITY_USE_PREMULTIPLIED_MATRICES
 	float4x4 glstate_matrix_mvp;
 	float4x4 glstate_matrix_modelview0;
 	float4x4 glstate_matrix_invtrans_modelview0;
-	#define UNITY_MATRIX_MVP glstate_matrix_mvp
-	#define UNITY_MATRIX_MV glstate_matrix_modelview0
-	#define UNITY_MATRIX_IT_MV glstate_matrix_invtrans_modelview0
+#endif
 	
-	float4x4 _Object2World;
-	float4x4 _World2Object;
+	float4x4 unity_ObjectToWorld;
+	float4x4 unity_WorldToObject;
 	float4 unity_LODFade; // x is the fade value ranging within [0,1]. y is x quantized into 16 levels
 	float4 unity_WorldTransformParams; // w is usually 1.0, or -1.0 for odd-negative scale transforms
 CBUFFER_END
 
+#ifdef UNITY_SINGLE_PASS_STEREO
+CBUFFER_START(UnityStereoGlobals)
+	float4x4 unity_StereoMatrixP[2];
+	float4x4 unity_StereoMatrixV[2];
+	float4x4 unity_StereoMatrixInvV[2];
+	float4x4 unity_StereoMatrixVP[2];
 
+	float4x4 unity_StereoCameraProjection[2];
+	float4x4 unity_StereoCameraInvProjection[2];
+	float4x4 unity_StereoWorldToCamera[2];
+	float4x4 unity_StereoCameraToWorld[2];
 
+	float3 unity_StereoWorldSpaceCameraPos[2];
+	float4 unity_StereoScaleOffset[2];
+CBUFFER_END
+
+CBUFFER_START(UnityStereoEyeIndex)
+	int unity_StereoEyeIndex;
+CBUFFER_END
+#endif
 
 CBUFFER_START(UnityPerDrawRare)
 	float4x4 glstate_matrix_transpose_modelview0;
-	#define UNITY_MATRIX_T_MV glstate_matrix_transpose_modelview0
 CBUFFER_END
-
 
 
 // ----------------------------------------------------------------------------
 
 CBUFFER_START(UnityPerFrame)
-
-	float4x4 glstate_matrix_projection;
-	fixed4	 glstate_lightmodel_ambient;
-	#define UNITY_MATRIX_P glstate_matrix_projection
-
-	#define UNITY_LIGHTMODEL_AMBIENT (glstate_lightmodel_ambient * 2)
 	
-	float4x4 unity_MatrixV;
-	float4x4 unity_MatrixVP;
-	#define UNITY_MATRIX_V unity_MatrixV
-	#define UNITY_MATRIX_VP unity_MatrixVP
-	
+	fixed4 glstate_lightmodel_ambient;
 	fixed4 unity_AmbientSky;
 	fixed4 unity_AmbientEquator;
 	fixed4 unity_AmbientGround;
+	fixed4 unity_IndirectSpecColor;
+
+#ifndef UNITY_SINGLE_PASS_STEREO
+	float4x4 glstate_matrix_projection;
+	float4x4 unity_MatrixV;
+	float4x4 unity_MatrixInvV;
+	float4x4 unity_MatrixVP;
+	int unity_StereoEyeIndex;
+#endif
 
 CBUFFER_END
 
@@ -205,7 +257,7 @@ CBUFFER_END
 // Reflection Probes
 
 UNITY_DECLARE_TEXCUBE(unity_SpecCube0);
-UNITY_DECLARE_TEXCUBE(unity_SpecCube1);
+UNITY_DECLARE_TEXCUBE_NOSAMPLER(unity_SpecCube1);
 
 CBUFFER_START(UnityReflectionProbes)
 	float4 unity_SpecCube0_BoxMax;
@@ -218,6 +270,30 @@ CBUFFER_START(UnityReflectionProbes)
 	float4 unity_SpecCube1_ProbePosition;
 	half4  unity_SpecCube1_HDR;
 CBUFFER_END
+
+
+// ----------------------------------------------------------------------------
+// Light Probe Proxy Volume
+
+#ifndef UNITY_LIGHT_PROBE_PROXY_VOLUME
+// Requires quite modern graphics support (3D float textures with filtering), so explicitly disabled on SM2.0, DX9, etc.
+#define UNITY_LIGHT_PROBE_PROXY_VOLUME UNITY_SM40_PLUS_PLATFORM
+#endif
+
+#if UNITY_LIGHT_PROBE_PROXY_VOLUME
+	UNITY_DECLARE_TEX3D(unity_ProbeVolumeSH);
+
+	CBUFFER_START(UnityProbeVolume)
+		// x = Disabled(0)/Enabled(1)
+		// y = Computation are done in global space(0) or local space(1)
+		// z = Texel size on U texture coordinate
+		float4 unity_ProbeVolumeParams;
+
+		float4x4 unity_ProbeVolumeWorldToObject;
+		float3 unity_ProbeVolumeSizeInv;
+		float3 unity_ProbeVolumeMin;		
+	CBUFFER_END
+#endif
 
 
 // ----------------------------------------------------------------------------

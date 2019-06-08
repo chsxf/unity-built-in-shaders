@@ -104,6 +104,8 @@ CGPROGRAM
 #pragma fragment frag
 #pragma exclude_renderers nomrt
 
+#include "UnityCG.cginc"
+
 sampler2D _LightBuffer;
 struct v2f {
 	float4 vertex : SV_POSITION;
@@ -113,8 +115,11 @@ struct v2f {
 v2f vert (float4 vertex : POSITION, float2 texcoord : TEXCOORD0)
 {
 	v2f o;
-	o.vertex = mul(UNITY_MATRIX_MVP, vertex);
+	o.vertex = UnityObjectToClipPos(vertex);
 	o.texcoord = texcoord.xy;
+#ifdef UNITY_SINGLE_PASS_STEREO
+	o.texcoord = TransformStereoScreenSpaceTex(o.texcoord, 1.0f);
+#endif
 	return o;
 }
 

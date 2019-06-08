@@ -7,12 +7,13 @@
 
 #include "UnityCG.cginc"
 #include "UnityShaderVariables.cginc"
+#include "UnityInstancing.cginc"
 #include "UnityStandardConfig.cginc"
 
 // Do dithering for alpha blended shadows on SM3+/desktop;
 // on lesser systems do simple alpha-tested shadows
 #if defined(_ALPHABLEND_ON) || defined(_ALPHAPREMULTIPLY_ON)
-	#if !((SHADER_TARGET < 30) || defined (SHADER_API_MOBILE) || defined(SHADER_API_D3D11_9X) || defined (SHADER_API_PSP2) || defined (SHADER_API_PSM))
+	#if !((SHADER_TARGET < 30) || defined (SHADER_API_MOBILE) || defined(SHADER_API_GLES) || defined(SHADER_API_D3D11_9X) || defined (SHADER_API_PSP2) || defined (SHADER_API_PSM))
 	#define UNITY_STANDARD_USE_DITHER_MASK 1
 	#endif
 #endif
@@ -41,6 +42,7 @@ struct VertexInput
 	float4 vertex	: POSITION;
 	float3 normal	: NORMAL;
 	float2 uv0		: TEXCOORD0;
+	UNITY_INSTANCE_ID
 };
 
 #ifdef UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT
@@ -65,6 +67,7 @@ void vertShadowCaster (VertexInput v,
 	#endif
 	out float4 opos : SV_POSITION)
 {
+	UNITY_SETUP_INSTANCE_ID(v);
 	TRANSFER_SHADOW_CASTER_NOPOS(o,opos)
 	#if defined(UNITY_STANDARD_USE_SHADOW_UVS)
 		o.tex = TRANSFORM_TEX(v.uv0, _MainTex);

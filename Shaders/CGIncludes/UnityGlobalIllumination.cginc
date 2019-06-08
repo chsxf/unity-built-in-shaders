@@ -3,6 +3,7 @@
 
 // Functions sampling light environment data (lightmaps, light probes, reflection probes), which is then returned as the UnityGI struct.
 
+#define IMPROVED_BAKED_AND_REALTIME_SHADOW_MIXING 1
 
 #include "UnityStandardBRDF.cginc"
 #include "UnityStandardUtils.cginc"
@@ -40,17 +41,51 @@ inline half3 DecodeDirectionalSpecularLightmap (half3 color, fixed4 dirTex, half
 	return ambient;
 }
 
-inline half3 MixLightmapWithRealtimeAttenuation (half3 lightmapContribution, half attenuation, fixed4 bakedColorTex)
+inline half3 MixLightmapWithRealtimeAttenuation (half3 lightmap, half attenuation, fixed4 bakedColorTex, half3 normalWorld)
 {
 	// Let's try to make realtime shadows work on a surface, which already contains
 	// baked lighting and shadowing from the current light.
+
+#if IMPROVED_BAKED_AND_REALTIME_SHADOW_MIXING
+	half shadowStrength = _LightShadowData.x;
+	half attenuationUnaffectedByShadowStrength = max(0, attenuation - shadowStrength);
+
+	// Calculate possible value in the shadow by two very distinct ways:
+	// 1) by subtracting estimated light contribution from the places occluded by realtime shadow:
+	//		a) preserves other baked lights and light bounces
+	//		b) eliminates shadows on the geometry facing away from the light
+	//		BUT in case of (ShadowStrength < 1) subtracts light in the areas that are not covered by realtime shadow
+	// 2) by attenuating lightmap - usually produces results that are:
+	// 		a) too dark in region where baked and realtime shadow overlap
+	//		b) destroys other baked lights
+	//		c) shadows are visible on the geometry facing away from the light
+	// 		BUT it handles (ShadowStrength < 1) better
+	// Then use min/max arbiter to get a solution.
+
+
+	// 1) Gives good estimate of illumination as if light would've been shadowed during the bake.
+	//    Preserves bounce and other baked lights
+	//    No shadows on the geometry facing away from the light
+	half ndotl = LambertTerm (normalWorld, _WorldSpaceLightPos0.xyz);
+	half3 estimatedLightContributionMaskedByInverseOfShadow = ndotl * (1-attenuationUnaffectedByShadowStrength) * _LightColor0.rgb;
+	half3 subtractedLightmap = lightmap - estimatedLightContributionMaskedByInverseOfShadow;
+
+	// 2) Keeps lightmap tint in shadow when ShadowStrength < 1.
+	//    Preserves unshadowed areas when ShadowStrength < 1.
+	half3 lightmapTint = bakedColorTex.rgb;
+	half3 attenuatedLightmap = lightmapTint * attenuation;
+
+	// Arbiter. Pick original lightmap value, if it is the darkest one.
+	return max (min(lightmap, attenuatedLightmap), subtractedLightmap);
+#else
 	// Generally do min(lightmap,shadow), with "shadow" taking overall lightmap tint into account.
 	half3 shadowLightmapColor = bakedColorTex.rgb * attenuation;
-	half3 darkerColor = min(lightmapContribution, shadowLightmapColor);
+	half3 darkerColor = min(lightmap, shadowLightmapColor);
 
 	// However this can darken overbright lightmaps, since "shadow color" will
 	// never be overbright. So take a max of that color with attenuated lightmap color.
-	return max(darkerColor, lightmapContribution * attenuation);
+	return max(darkerColor, lightmap * attenuation);
+#endif
 }
 
 inline void ResetUnityLight(out UnityLight outLight)
@@ -88,7 +123,7 @@ inline UnityGI UnityGI_Base(UnityGIInput data, half occlusion, half3 normalWorld
 	#endif
 
 	#if UNITY_SHOULD_SAMPLE_SH
-		o_gi.indirect.diffuse = ShadeSHPerPixel (normalWorld, data.ambient);
+		o_gi.indirect.diffuse = ShadeSHPerPixel (normalWorld, data.ambient, data.worldPos);
 	#endif
 
 	#if defined(LIGHTMAP_ON)
@@ -96,19 +131,12 @@ inline UnityGI UnityGI_Base(UnityGIInput data, half occlusion, half3 normalWorld
 		fixed4 bakedColorTex = UNITY_SAMPLE_TEX2D(unity_Lightmap, data.lightmapUV.xy);
 		half3 bakedColor = DecodeLightmap(bakedColorTex);
 
-		#ifdef DIRLIGHTMAP_OFF
-			o_gi.indirect.diffuse = bakedColor;
-
-			#ifdef SHADOWS_SCREEN
-				o_gi.indirect.diffuse = MixLightmapWithRealtimeAttenuation (o_gi.indirect.diffuse, data.atten, bakedColorTex);
-			#endif // SHADOWS_SCREEN
-
-		#elif DIRLIGHTMAP_COMBINED
+		#ifdef DIRLIGHTMAP_COMBINED
 			fixed4 bakedDirTex = UNITY_SAMPLE_TEX2D_SAMPLER (unity_LightmapInd, unity_Lightmap, data.lightmapUV.xy);
 			o_gi.indirect.diffuse = DecodeDirectionalLightmap (bakedColor, bakedDirTex, normalWorld);
 
 			#ifdef SHADOWS_SCREEN
-				o_gi.indirect.diffuse = MixLightmapWithRealtimeAttenuation (o_gi.indirect.diffuse, data.atten, bakedColorTex);
+				o_gi.indirect.diffuse = MixLightmapWithRealtimeAttenuation (o_gi.indirect.diffuse, data.atten, bakedColorTex, normalWorld);
 			#endif // SHADOWS_SCREEN
 
 		#elif DIRLIGHTMAP_SEPARATE
@@ -119,10 +147,23 @@ inline UnityGI UnityGI_Base(UnityGIInput data, half occlusion, half3 normalWorld
 			o_gi.indirect.diffuse = DecodeDirectionalSpecularLightmap (bakedColor, bakedDirTex, normalWorld, false, 0, o_gi.light);
 
 			// Indirect
-			half2 uvIndirect = data.lightmapUV.xy + half2(0.5, 0);
+			float2 uvIndirect = data.lightmapUV.xy + float2(0.5, 0);
 			bakedColor = DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, uvIndirect));
 			bakedDirTex = UNITY_SAMPLE_TEX2D_SAMPLER(unity_LightmapInd, unity_Lightmap, uvIndirect);
 			o_gi.indirect.diffuse += DecodeDirectionalSpecularLightmap (bakedColor, bakedDirTex, normalWorld, false, 0, o_gi.light2);
+
+			#ifdef SHADOWS_SCREEN
+				o_gi.light.color = MixLightmapWithRealtimeAttenuation(o_gi.light.color, data.atten, bakedColorTex, normalWorld);
+				o_gi.light2.color = MixLightmapWithRealtimeAttenuation(o_gi.light2.color, data.atten, bakedColorTex, normalWorld);
+				o_gi.indirect.diffuse = MixLightmapWithRealtimeAttenuation (o_gi.indirect.diffuse, data.atten, bakedColorTex, normalWorld);
+			#endif // SHADOWS_SCREEN
+
+		#else // not directional lightmap
+			o_gi.indirect.diffuse = bakedColor;
+
+			#ifdef SHADOWS_SCREEN
+				o_gi.indirect.diffuse = MixLightmapWithRealtimeAttenuation (o_gi.indirect.diffuse, data.atten, bakedColorTex, normalWorld);
+			#endif // SHADOWS_SCREEN
 		#endif
 	#endif
 
@@ -131,10 +172,7 @@ inline UnityGI UnityGI_Base(UnityGIInput data, half occlusion, half3 normalWorld
 		fixed4 realtimeColorTex = UNITY_SAMPLE_TEX2D(unity_DynamicLightmap, data.lightmapUV.zw);
 		half3 realtimeColor = DecodeRealtimeLightmap (realtimeColorTex);
 
-		#ifdef DIRLIGHTMAP_OFF
-			o_gi.indirect.diffuse += realtimeColor;
-
-		#elif DIRLIGHTMAP_COMBINED
+		#ifdef DIRLIGHTMAP_COMBINED
 			half4 realtimeDirTex = UNITY_SAMPLE_TEX2D_SAMPLER(unity_DynamicDirectionality, unity_DynamicLightmap, data.lightmapUV.zw);
 			o_gi.indirect.diffuse += DecodeDirectionalLightmap (realtimeColor, realtimeDirTex, normalWorld);
 
@@ -142,11 +180,12 @@ inline UnityGI UnityGI_Base(UnityGIInput data, half occlusion, half3 normalWorld
 			half4 realtimeDirTex = UNITY_SAMPLE_TEX2D_SAMPLER(unity_DynamicDirectionality, unity_DynamicLightmap, data.lightmapUV.zw);
 			half4 realtimeNormalTex = UNITY_SAMPLE_TEX2D_SAMPLER(unity_DynamicNormal, unity_DynamicLightmap, data.lightmapUV.zw);
 			o_gi.indirect.diffuse += DecodeDirectionalSpecularLightmap (realtimeColor, realtimeDirTex, normalWorld, true, realtimeNormalTex, o_gi.light3);
+		#else
+			o_gi.indirect.diffuse += realtimeColor;
 		#endif
 	#endif
 
 	o_gi.indirect.diffuse *= occlusion;
-
 	return o_gi;
 }
 
@@ -164,26 +203,30 @@ inline half3 UnityGI_IndirectSpecular(UnityGIInput data, half occlusion, half3 n
 		glossIn.reflUVW = BoxProjectedCubemapDirection (originalReflUVW, data.worldPos, data.probePosition[0], data.boxMin[0], data.boxMax[0]);
 	#endif
 
-	half3 env0 = Unity_GlossyEnvironment (UNITY_PASS_TEXCUBE(unity_SpecCube0), data.probeHDR[0], glossIn);
-	#if UNITY_SPECCUBE_BLENDING
-		const float kBlendFactor = 0.99999;
-		float blendLerp = data.boxMin[0].w;
-		UNITY_BRANCH
-		if (blendLerp < kBlendFactor)
-		{
-			#if UNITY_SPECCUBE_BOX_PROJECTION
-				glossIn.reflUVW = BoxProjectedCubemapDirection (originalReflUVW, data.worldPos, data.probePosition[1], data.boxMin[1], data.boxMax[1]);
-			#endif
-
-			half3 env1 = Unity_GlossyEnvironment (UNITY_PASS_TEXCUBE(unity_SpecCube1), data.probeHDR[1], glossIn);
-			specular = lerp(env1, env0, blendLerp);
-		}
-		else
-		{
-			specular = env0;
-		}
+	#ifdef _GLOSSYREFLECTIONS_OFF
+		specular = unity_IndirectSpecColor.rgb;
 	#else
-		specular = env0;
+		half3 env0 = Unity_GlossyEnvironment (UNITY_PASS_TEXCUBE(unity_SpecCube0), data.probeHDR[0], glossIn);
+		#if UNITY_SPECCUBE_BLENDING
+			const float kBlendFactor = 0.99999;
+			float blendLerp = data.boxMin[0].w;
+			UNITY_BRANCH
+			if (blendLerp < kBlendFactor)
+			{
+				#if UNITY_SPECCUBE_BOX_PROJECTION
+					glossIn.reflUVW = BoxProjectedCubemapDirection (originalReflUVW, data.worldPos, data.probePosition[1], data.boxMin[1], data.boxMax[1]);
+				#endif
+
+				half3 env1 = Unity_GlossyEnvironment (UNITY_PASS_TEXCUBE_SAMPLER(unity_SpecCube1,unity_SpecCube0), data.probeHDR[1], glossIn);
+				specular = lerp(env1, env0, blendLerp);
+			}
+			else
+			{
+				specular = env0;
+			}
+		#else
+			specular = env0;
+		#endif
 	#endif
 
 	return specular * occlusion;

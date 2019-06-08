@@ -86,6 +86,7 @@ SubShader {
 CGPROGRAM
 #pragma vertex vert
 #pragma fragment frag
+#pragma target 2.0
 #pragma multi_compile_shadowcaster
 #include "UnityCG.cginc"
 

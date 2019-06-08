@@ -22,8 +22,7 @@
 // UNITY_SPECCUBE_BLENDING
 
 // still add safe net for low shader models, otherwise we might end up with shaders failing to compile
-// the only exception is WebGL in 5.3 - it will be built with shader target 2.0 but we want it to get rid of constraints, as it is effectively desktop
-#if SHADER_TARGET < 30 && !UNITY_53_SPECIFIC_TARGET_WEBGL
+#if SHADER_TARGET < 30
 	#undef UNITY_SPECCUBE_BOX_PROJECTION
 	#define UNITY_SPECCUBE_BOX_PROJECTION 0
 	#undef UNITY_SPECCUBE_BLENDING
@@ -31,6 +30,7 @@
 #endif
 
 #ifndef UNITY_SAMPLE_FULL_SH_PER_PIXEL
+//If this is enabled then we should consider Light Probe Proxy Volumes(SHEvalLinearL0L1_SampleProbeVolume) in ShadeSH9
 #define UNITY_SAMPLE_FULL_SH_PER_PIXEL 0
 #endif
 

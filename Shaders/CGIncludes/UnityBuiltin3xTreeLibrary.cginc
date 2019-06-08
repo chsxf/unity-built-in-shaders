@@ -89,7 +89,7 @@ fixed3 ShadeTranslucentLights (float4 vertex, float3 normal)
 	float3 frontlight = ShadeSH9 (float4(normal,1.0));
 	float3 backlight = ShadeSH9 (float4(-normal,1.0));
 	#ifdef VERTEXLIGHT_ON
-	float3 worldPos = mul(_Object2World, vertex).xyz;
+	float3 worldPos = mul(unity_ObjectToWorld, vertex).xyz;
 	frontlight += Shade4PointLights (
 		unity_4LightPosX0, unity_4LightPosY0, unity_4LightPosZ0,
 		unity_LightColor[0].rgb, unity_LightColor[1].rgb, unity_LightColor[2].rgb, unity_LightColor[3].rgb,

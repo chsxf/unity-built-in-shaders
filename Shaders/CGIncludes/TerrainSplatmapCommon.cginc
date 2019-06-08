@@ -23,7 +23,7 @@ void SplatmapVert(inout appdata_full v, out Input data)
 {
 	UNITY_INITIALIZE_OUTPUT(Input, data);
 	data.tc_Control = TRANSFORM_TEX(v.texcoord, _Control);	// Need to manually transform uv here, as we choose not to use 'uv' prefix for this texcoord.
-	float4 pos = mul (UNITY_MATRIX_MVP, v.vertex);
+	float4 pos = UnityObjectToClipPos(v.vertex);
 	UNITY_TRANSFER_FOG(data, pos);
 
 #ifdef _TERRAIN_NORMAL_MAP
@@ -42,7 +42,7 @@ void SplatmapMix(Input IN, out half4 splat_control, out half weight, out fixed4 
 	weight = dot(splat_control, half4(1,1,1,1));
 
 	#if !defined(SHADER_API_MOBILE) && defined(TERRAIN_SPLAT_ADDPASS)
-		clip(weight - 0.0039 /*1/255*/);
+		clip(weight == 0.0f ? -1 : 1);
 	#endif
 
 	// Normalize weights before lighting and restore weights in final modifier functions so that the overal
