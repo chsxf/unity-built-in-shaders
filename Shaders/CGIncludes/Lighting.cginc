@@ -27,12 +27,24 @@ struct SurfaceOutput {
 // the shader (it tried to be super clever at saving one shader constant
 // at expense of gazillion extra scalar moves). Saves about 6 ALU instructions
 // on d3d9 SM2.
-#define UNITY_DIRBASIS \
-const float3x3 unity_DirBasis = float3x3( \
-  float3( 0.81649658,  0.0,        0.57735028), \
-  float3(-0.40824830,  0.70710679, 0.57735027), \
-  float3(-0.40824829, -0.70710678, 0.57735026) \
-);
+//
+// Metal is very picky about precision, and this triggers float3x3->half3x3 casts later on (which has perf implications)
+// NB: it is fixed already in 5.0
+#if defined(SHADER_API_METAL)
+	#define UNITY_DIRBASIS \
+	const half3x3 unity_DirBasis = half3x3( \
+	  half3( 0.81649658,  0.0,        0.57735028), \
+	  half3(-0.40824830,  0.70710679, 0.57735027), \
+	  half3(-0.40824829, -0.70710678, 0.57735026) \
+	);
+#else
+	#define UNITY_DIRBASIS \
+	const float3x3 unity_DirBasis = float3x3( \
+	  float3( 0.81649658,  0.0,        0.57735028), \
+	  float3(-0.40824830,  0.70710679, 0.57735027), \
+	  float3(-0.40824829, -0.70710678, 0.57735026) \
+	);
+#endif
 
 
 inline half3 DirLightmapDiffuse(in half3x3 dirBasis, fixed4 color, fixed4 scale, half3 normal, bool surfFuncWritesNormal, out half3 scalePerBasisVector)

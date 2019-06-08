@@ -251,11 +251,11 @@ inline fixed Luminance( fixed3 c )
 }
 
 // Decodes lightmaps:
-// - doubleLDR encoded on GLES
-// - RGBM encoded with range [0;8] on other platforms using surface shaders
+// - doubleLDR encoded on mobile
+// - RGBM encoded with range [0;8] on other
 inline fixed3 DecodeLightmap( fixed4 color )
 {
-#if (defined(SHADER_API_GLES) || defined(SHADER_API_GLES3)) && defined(SHADER_API_MOBILE)
+#if defined(UNITY_NO_RGBM)
 	return 2.0 * color.rgb;
 #else
 	// potentially faster to do the scalar multiplication
@@ -375,7 +375,7 @@ inline fixed3 UnpackNormalDXT5nm (fixed4 packednormal)
 
 inline fixed3 UnpackNormal(fixed4 packednormal)
 {
-#if (defined(SHADER_API_GLES) || defined(SHADER_API_GLES3)) && defined(SHADER_API_MOBILE)
+#if defined(UNITY_NO_DXT5nm)
 	return packednormal.xyz * 2 - 1;
 #else
 	return UnpackNormalDXT5nm(packednormal);
