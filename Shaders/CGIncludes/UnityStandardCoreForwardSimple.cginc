@@ -354,7 +354,8 @@ half4 fragForwardAddSimpleInternal (VertexOutputForwardAddSimple i)
         c *= _LightColor0.rgb;
     #endif
 
-    c *= UNITY_SHADOW_ATTENUATION(i, s.posWorld) * saturate(dot(LightSpaceNormal(i, s), i.lightDir));
+    UNITY_LIGHT_ATTENUATION(atten, i, s.posWorld)
+    c *= atten * saturate(dot(LightSpaceNormal(i, s), i.lightDir));
 
     UNITY_APPLY_FOG_COLOR(i.fogCoord, c.rgb, half4(0,0,0,0)); // fog towards black in additive pass
     return OutputForward (half4(c, 1), s.alpha);

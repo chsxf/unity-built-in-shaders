@@ -18,6 +18,7 @@ Shader "Hidden/VideoDecode"
         sampler2D _ThirdTex;
         float  _AlphaParam;
         float4 _MainTex_TexelSize;
+        float4 _MainTex_ST;
 
         inline fixed4 AdjustForColorSpace(fixed4 color)
         {
@@ -42,7 +43,7 @@ Shader "Hidden/VideoDecode"
         {
             v2f o;
             o.vertex = UnityObjectToClipPos(v.vertex);
-            o.texcoord = v.texcoord.xy;
+            o.texcoord = TRANSFORM_TEX(v.texcoord.xy, _MainTex);
             return o;
         }
 
@@ -50,8 +51,9 @@ Shader "Hidden/VideoDecode"
         {
             v2f o;
             o.vertex = UnityObjectToClipPos(v.vertex);
-            o.texcoord = v.texcoord.xy;
-            o.texcoord.y = 1.0f - o.texcoord.y;
+            o.texcoord.x = v.texcoord.x;
+            o.texcoord.y = 1.0f - v.texcoord.y;
+            o.texcoord = TRANSFORM_TEX(o.texcoord.xy, _MainTex);
             return o;
         }
 
@@ -91,22 +93,36 @@ Shader "Hidden/VideoDecode"
 
         fixed4 fragmentNV12RGBOne(v2f i) : SV_Target
         {
-            fixed4 result;
-            if (i.texcoord.x < 0.0f || i.texcoord.y < 0.0f || i.texcoord.x > 1.0f || i.texcoord.y > 1.0f)
-            {
-                result = fixed4(0.0f, 0.0f, 0.0f, 1.0f);
-            }
-            else
-            {
-                float3 yCbCr = float3( tex2D(_MainTex, i.texcoord).a - 0.0625,
-                                       tex2D(_SecondTex, i.texcoord).r - 0.5,
-                                       tex2D(_SecondTex, i.texcoord).g - 0.5 );
+            float3 yCbCr = float3( tex2D(_MainTex, i.texcoord).a - 0.0625,
+                                   tex2D(_SecondTex, i.texcoord).r - 0.5,
+                                   tex2D(_SecondTex, i.texcoord).g - 0.5 );
 
-                result = fixed4( dot(float3(1.1644f, 0.0f, 1.7927f), yCbCr),        // R
-                                 dot(float3(1.1644f, -0.2133f, -0.5329f), yCbCr),   // G
-                                 dot(float3(1.1644f, 2.1124f, 0.0f), yCbCr),        // B
-                                 1.0f );
-            }
+            fixed4 result = fixed4( dot(float3(1.1644f, 0.0f, 1.7927f), yCbCr),
+                                    dot(float3(1.1644f, -0.2133f, -0.5329f), yCbCr),
+                                    dot(float3(1.1644f, 2.1124f, 0.0f), yCbCr),
+                                    1.0f );
+
+            return AdjustForColorSpace(result);
+        }
+
+        fixed4 fragmentNV12RGBA(v2f i) : SV_Target
+        {
+            float ty  = 0.5f * i.texcoord.x;    // Y  : left half of luma plane
+            float ta  = ty + 0.5f;              // A  : right half of luma plane
+            float tuv = ty;                     // UV : just use left half of chroma plane
+
+            fixed  y  = tex2D(_MainTex,   float2(ty,  i.texcoord.y)).a;
+            fixed  a  = tex2D(_MainTex,   float2(ta,  i.texcoord.y)).a;
+            fixed2 uv = tex2D(_SecondTex, float2(tuv, i.texcoord.y)).rg;
+            fixed  u  = uv.r;
+            fixed  v  = uv.g;
+
+            fixed y1 = 1.15625 * y;
+            fixed4 result = fixed4(y1 + 1.59375 * v - 0.87254,
+                                   y1 - 0.390625 * u - 0.8125 * v + 0.53137,
+                                   y1 + 1.984375 * u - 1.06862,
+                                   1.15625 * (a - 0.062745));
+
             return AdjustForColorSpace(result);
         }
 
@@ -273,7 +289,7 @@ Shader "Hidden/VideoDecode"
             ENDCG
         }
 
-        // 8 - NV12 format Y plane (_MainTex / 8-bit) followed by interleaved U/V plane (_SecondTex / 8-bit each component) with 2x2 subsampling (so half width/height)
+        // 8 - NV12 format: Y plane (_MainTex / 8-bit) followed by interleaved U/V plane (_SecondTex / 8-bit each component) with 2x2 subsampling (so half width/height)
         Pass
         {
             Name "Flip_NV12_To_RGB1"
@@ -281,6 +297,17 @@ Shader "Hidden/VideoDecode"
             CGPROGRAM
             #pragma vertex vertexFlip
             #pragma fragment fragmentNV12RGBOne
+            ENDCG
+        }
+
+        // 9 - NV12 format, split alpha: YA plane (_MainTex / 8-bit) followed by interleaved U/V plane (_SecondTex / 8-bit each component) with 2x2 subsampling (so half width/height)
+        Pass
+        {
+            Name "Flip_NV12_To_RGBA"
+            ZTest Always Cull Off ZWrite Off Blend Off
+            CGPROGRAM
+            #pragma vertex vertexFlip
+            #pragma fragment fragmentNV12RGBA
             ENDCG
         }
     }
