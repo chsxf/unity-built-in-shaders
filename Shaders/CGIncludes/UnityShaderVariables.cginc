@@ -107,6 +107,7 @@ CBUFFER_START(UnityLighting)
     #endif
 
     float4 _LightPositionRange; // xyz = pos, w = 1/range
+    float4 _LightProjectionParams; // for point light projection: x = zfar / (znear - zfar), y = (znear * zfar) / (znear - zfar), z=shadow bias, w=shadow scale bias
 
     float4 unity_4LightPosX0;
     float4 unity_4LightPosY0;

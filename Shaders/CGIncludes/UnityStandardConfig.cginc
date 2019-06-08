@@ -41,8 +41,14 @@
 #endif
 
 #ifndef UNITY_SAMPLE_FULL_SH_PER_PIXEL
-//If this is enabled then we should consider Light Probe Proxy Volumes(SHEvalLinearL0L1_SampleProbeVolume) in ShadeSH9
-#define UNITY_SAMPLE_FULL_SH_PER_PIXEL 0
+    // Lightmap UVs and ambient color from SHL2 are shared in the vertex to pixel interpolators. Do full SH evaluation in the pixel shader when static lightmap and LIGHTPROBE_SH is enabled.
+    #define UNITY_SAMPLE_FULL_SH_PER_PIXEL (LIGHTMAP_ON && LIGHTPROBE_SH)
+
+    // Shaders might fail to compile due to shader instruction count limit. Leave only baked lightmaps on SM20 hardware.
+    #if UNITY_SAMPLE_FULL_SH_PER_PIXEL && (SHADER_TARGET < 25)
+        #undef UNITY_SAMPLE_FULL_SH_PER_PIXEL
+        #undef LIGHTPROBE_SH
+    #endif
 #endif
 
 #ifndef UNITY_BRDF_GGX
