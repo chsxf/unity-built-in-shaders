@@ -15,13 +15,13 @@
 //-------------------------------------------------------------------------------------
 // counterpart for NormalizePerPixelNormal
 // skips normalization per-vertex and expects normalization to happen per-pixel
-half3 NormalizePerVertexNormal (half3 n)
+half3 NormalizePerVertexNormal (float3 n) // takes float to avoid overflow
 {
-	#if (SHADER_TARGET < 30) || UNITY_STANDARD_SIMPLE
-		return normalize(n);
-	#else
-		return n; // will normalize per-pixel instead
-	#endif
+    #if (SHADER_TARGET < 30) || UNITY_STANDARD_SIMPLE || defined(SHADER_API_MOBILE)
+        return normalize(n); // on SHADER_API_MOBILE also normalize in vertex shader to avoid big numbers that might cause precision problems in fragment shader
+    #else
+        return n; // will normalize per-pixel instead
+    #endif
 }
 
 half3 NormalizePerPixelNormal (half3 n)

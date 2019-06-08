@@ -23,7 +23,7 @@ inline half3 DecodeDirectionalSpecularLightmap (half3 color, fixed4 dirTex, half
 		// Realtime directional lightmaps' intensity needs to be divided by N.L
 		// to get the incoming light intensity. Baked directional lightmaps are already
 		// output like that (including the max() to prevent div by zero).
-		half3 realtimeNormal = realtimeNormalTex.zyx * 2 - 1;
+		half3 realtimeNormal = realtimeNormalTex.xyz * 2 - 1;
 		o_light.color /= max(0.125, dot(realtimeNormal, o_light.dir));
 	}
 	#endif

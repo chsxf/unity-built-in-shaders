@@ -61,6 +61,9 @@
 
 #if defined(SHADER_API_PSSL)
 // compute shader defines for PS4
+
+#define Buffer DataBuffer
+#define RWBuffer RW_DataBuffer
 #define StructuredBuffer RegularBuffer
 #define RWStructuredBuffer RW_RegularBuffer
 #define AppendStructuredBuffer AppendRegularBuffer
@@ -153,6 +156,16 @@
 #define RWTexture2D RW_Texture2D
 #define RWTexture3D RW_Texture3D
 
+#define InterlockedAdd AtomicAdd
+#define InterlockedMin AtomicMin
+#define InterlockedMax AtomicMax
+#define InterlockedAnd AtomicAnd
+#define InterlockedOr AtomicOr
+#define InterlockedXor AtomicXor
+#define InterlockedExchange AtomicExchange
+#define InterlockedCompareStore AtomicCmpStore
+#define InterlockedCompareExchange AtomicCmpExchange
+
 #define CBUFFER_START(name) ConstantBuffer name {
 #define CBUFFER_END };
 #elif !(defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)) && (defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X))
@@ -165,7 +178,11 @@
 
 
 #if defined(SHADER_API_PSSL)
+
 	// PS4 shader compiler emulation of legacy DX9-like HLSL
+
+#define SampleLevel SampleLOD
+#define SampleGrad SampleGradient
 
 	struct sampler1D { Texture1D t; SamplerState s; };
 	struct sampler2D { Texture2D t; SamplerState s; };
