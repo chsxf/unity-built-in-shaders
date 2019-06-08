@@ -36,7 +36,7 @@ v2f vert (appdata v)
 	return o;
 }
 sampler2D _CameraNormalsTexture;
-sampler2D _CameraDepthTexture;
+sampler2D_float _CameraDepthTexture;
 float4 _LightDir;
 float4 _LightPos;
 float4 _LightColor;
@@ -77,10 +77,10 @@ inline half unitySampleShadow (float4 shadowCoord)
 	shadows = _LightShadowData.rrrr + shadows * (1-_LightShadowData.rrrr);
 	#else
 	float4 shadowVals;
-	shadowVals.x = UNITY_SAMPLE_DEPTH(tex2D( _ShadowMapTexture, coord + _ShadowOffsets[0].xy ));
-	shadowVals.y = UNITY_SAMPLE_DEPTH(tex2D( _ShadowMapTexture, coord + _ShadowOffsets[1].xy ));
-	shadowVals.z = UNITY_SAMPLE_DEPTH(tex2D( _ShadowMapTexture, coord + _ShadowOffsets[2].xy ));
-	shadowVals.w = UNITY_SAMPLE_DEPTH(tex2D( _ShadowMapTexture, coord + _ShadowOffsets[3].xy ));
+	shadowVals.x = SAMPLE_DEPTH_TEXTURE( _ShadowMapTexture, coord + _ShadowOffsets[0].xy );
+	shadowVals.y = SAMPLE_DEPTH_TEXTURE( _ShadowMapTexture, coord + _ShadowOffsets[1].xy );
+	shadowVals.z = SAMPLE_DEPTH_TEXTURE( _ShadowMapTexture, coord + _ShadowOffsets[2].xy );
+	shadowVals.w = SAMPLE_DEPTH_TEXTURE( _ShadowMapTexture, coord + _ShadowOffsets[3].xy );
 	half4 shadows = (shadowVals < coord.zzzz) ? _LightShadowData.rrrr : 1.0f;
 	#endif
 	
@@ -95,7 +95,7 @@ inline half unitySampleShadow (float4 shadowCoord)
 	half shadow = UNITY_SAMPLE_SHADOW_PROJ(_ShadowMapTexture,shadowCoord);
 	shadow = _LightShadowData.r + shadow * (1-_LightShadowData.r);
 	#else
-	half shadow = UNITY_SAMPLE_DEPTH(tex2Dproj (_ShadowMapTexture, UNITY_PROJ_COORD(shadowCoord))) < (shadowCoord.z / shadowCoord.w) ? _LightShadowData.r : 1.0;
+	half shadow = SAMPLE_DEPTH_TEXTURE_PROJ(_ShadowMapTexture, UNITY_PROJ_COORD(shadowCoord)) < (shadowCoord.z / shadowCoord.w) ? _LightShadowData.r : 1.0;
 	#endif
 	
 	#endif
@@ -185,7 +185,7 @@ half4 CalculateLight (v2f i)
 	half3 normal = nspec.rgb * 2 - 1;
 	normal = normalize(normal);
 	
-	float depth = UNITY_SAMPLE_DEPTH(tex2D (_CameraDepthTexture, uv));
+	float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uv);
 	depth = Linear01Depth (depth);
 	float4 vpos = float4(i.ray * depth,1);
 	float3 wpos = mul (_CameraToWorld, vpos).xyz;
@@ -266,7 +266,7 @@ CGPROGRAM
 #pragma glsl_no_auto_normalization
 #pragma multi_compile_lightpass
 
-fixed4 frag (v2f i) : COLOR
+fixed4 frag (v2f i) : SV_Target
 {
 	return exp2(-CalculateLight(i));
 }
@@ -287,7 +287,7 @@ CGPROGRAM
 #pragma glsl_no_auto_normalization
 #pragma multi_compile_lightpass
 
-fixed4 frag (v2f i) : COLOR
+fixed4 frag (v2f i) : SV_Target
 {
 	return CalculateLight(i);
 }
@@ -308,7 +308,7 @@ CGPROGRAM
 #pragma glsl_no_auto_normalization
 #pragma multi_compile_lightpass
 
-fixed4 frag (v2f i) : COLOR
+fixed4 frag (v2f i) : SV_Target
 {
 	return CalculateLight(i).argb;
 }

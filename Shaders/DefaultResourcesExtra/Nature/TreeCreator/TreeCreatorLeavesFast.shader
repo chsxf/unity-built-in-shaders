@@ -79,7 +79,7 @@ SubShader {
 			return o;
 		}
 
-		fixed4 FragmentLeaf (v2f_leaf IN) : COLOR
+		fixed4 FragmentLeaf (v2f_leaf IN) : SV_Target
 		{
 			fixed4 albedo = tex2D(_MainTex, IN.uv);
 			fixed alpha = albedo.a;

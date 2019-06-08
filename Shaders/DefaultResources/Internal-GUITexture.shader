@@ -28,7 +28,7 @@ Shader "Hidden/Internal-GUITexture"
 			};
 
 			struct v2f {
-				float4 vertex : POSITION;
+				float4 vertex : SV_POSITION;
 				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
 			};
@@ -46,7 +46,7 @@ Shader "Hidden/Internal-GUITexture"
 				return o;
 			}
 
-			fixed4 frag (v2f i) : COLOR
+			fixed4 frag (v2f i) : SV_Target
 			{
 				return 2.0f * tex2D(_MainTex, i.texcoord) * i.color;
 			}

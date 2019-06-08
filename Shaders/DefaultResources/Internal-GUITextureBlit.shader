@@ -27,7 +27,7 @@ Shader "Hidden/Internal-GUITextureBlit"
 			};
 
 			struct v2f {
-				float4 vertex : POSITION;
+				float4 vertex : SV_POSITION;
 				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
 				float2 texgencoord : TEXCOORD1;
@@ -51,7 +51,7 @@ Shader "Hidden/Internal-GUITextureBlit"
 			sampler2D _MainTex;
 			sampler2D _GUIClipTexture;
 			
-			fixed4 frag (v2f i) : COLOR
+			fixed4 frag (v2f i) : SV_Target
 			{
 				fixed4 col;
 				col.rgb = tex2D (_MainTex, i.texcoord).rgb * i.color.rgb;

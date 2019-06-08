@@ -98,7 +98,7 @@ ENDCG
 			return o;
 		}
 		fixed _Cutoff;
-		float4 frag_surf (v2f_surf IN) : COLOR {
+		float4 frag_surf (v2f_surf IN) : SV_Target {
 			half alpha = tex2D(_ShadowTex, IN.hip_pack0.xy).r;
 			clip (alpha - _Cutoff);
 			SHADOW_CASTER_FRAGMENT(IN)
@@ -161,7 +161,7 @@ ENDCG
 		
 		fixed _Cutoff;
 		
-		half4 frag_surf (v2f_surf IN) : COLOR {
+		half4 frag_surf (v2f_surf IN) : SV_Target {
 			half alpha = tex2D(_MainTex, IN.hip_pack0.xy).a;
 
 			float3 shadowOffset = _ShadowOffsetScale * IN.normal * tex2D (_BumpSpecMap, IN.hip_pack0.xy).b;

@@ -93,7 +93,7 @@ SubShader {
 			return o;
 		}
 
-		float4 frag( v2f i ) : COLOR
+		float4 frag( v2f i ) : SV_Target
 		{
 			SHADOW_CASTER_FRAGMENT(i)
 		}
@@ -133,7 +133,7 @@ SubShader {
 			return o;
 		}
 
-		fixed4 frag (v2f i) : COLOR
+		fixed4 frag (v2f i) : SV_Target
 		{
 			SHADOW_COLLECTOR_FRAGMENT(i)
 		}

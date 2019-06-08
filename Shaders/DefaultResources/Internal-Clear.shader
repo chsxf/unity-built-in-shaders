@@ -24,7 +24,7 @@ Shader "Hidden/InternalClear" {
 		return o;
 	}
 
-	fixed4 frag (v2f i) : COLOR
+	fixed4 frag (v2f i) : SV_Target
 	{
 		return i.color;
 	}
@@ -48,6 +48,29 @@ Shader "Hidden/InternalClear" {
 			ENDCG
 		}
 		Pass {
+			CGPROGRAM
+			ENDCG
+		}
+		Pass {
+			ColorMask 0 ZWrite Off
+			Stencil { Comp Always Pass Zero }
+			CGPROGRAM
+			ENDCG
+		}
+		Pass {
+			ZWrite Off
+			Stencil { Comp Always Pass Zero }
+			CGPROGRAM
+			ENDCG
+		}
+		Pass {
+			ColorMask 0
+			Stencil { Comp Always Pass Zero }
+			CGPROGRAM
+			ENDCG
+		}
+		Pass {
+			Stencil { Comp Always Pass Zero }
 			CGPROGRAM
 			ENDCG
 		}

@@ -33,7 +33,7 @@ Shader "Nature/Tree Soft Occlusion Leaves" {
 			sampler2D _MainTex;
 			fixed _Cutoff;
 			
-			fixed4 frag(v2f input) : COLOR
+			fixed4 frag(v2f input) : SV_Target
 			{
 				fixed4 c = tex2D( _MainTex, input.uv.xy);
 				c.rgb *= 2.0f * input.color.rgb;
@@ -83,7 +83,7 @@ Shader "Nature/Tree Soft Occlusion Leaves" {
 			sampler2D _MainTex;
 			fixed _Cutoff;
 					
-			float4 frag( v2f i ) : COLOR
+			float4 frag( v2f i ) : SV_Target
 			{
 				fixed4 texcol = tex2D( _MainTex, i.uv );
 				clip( texcol.a - _Cutoff );

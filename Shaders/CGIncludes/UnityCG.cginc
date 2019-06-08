@@ -3,18 +3,46 @@
 
 #include "UnityShaderVariables.cginc"
 
-
-
-
 #if SHADER_API_FLASH
 uniform float4 unity_NPOTScale;
 #endif
+
+// Deprecated! Use SAMPLE_DEPTH_TEXTURE & SAMPLE_DEPTH_TEXTURE_PROJ instead!
 #if defined(SHADER_API_PS3)
 #	define UNITY_SAMPLE_DEPTH(value) (dot((value).wxy, float3(0.996093809371817670572857294849, 0.0038909914428586627756752238080039, 1.5199185323666651467481343000015e-5)))
 #elif defined(SHADER_API_FLASH)
 #	define UNITY_SAMPLE_DEPTH(value) (DecodeFloatRGBA(value))
+#elif defined(SHADER_API_PSP2)
+#	define UNITY_SAMPLE_DEPTH(value) (value).r
 #else
 #	define UNITY_SAMPLE_DEPTH(value) (value).r
+#endif
+
+
+#if defined(SHADER_API_PS3)
+#	define SAMPLE_DEPTH_TEXTURE(sampler, uv) (dot((tex2D(sampler, uv)).wxy, float3(0.996093809371817670572857294849, 0.0038909914428586627756752238080039, 1.5199185323666651467481343000015e-5)))
+#elif defined(SHADER_API_PSP2) && !defined(SHADER_API_PSM)
+#	define SAMPLE_DEPTH_TEXTURE(sampler, uv) (f1tex2D<float>(sampler, uv))
+#elif defined(SHADER_API_FLASH)
+#	define SAMPLE_DEPTH_TEXTURE(sampler, uv) (DecodeFloatRGBA(tex2D(sampler, uv)))
+#else
+#	define SAMPLE_DEPTH_TEXTURE(sampler, uv) (tex2D(sampler, uv).r)
+#endif
+
+#if defined(SHADER_API_PS3)
+#	define SAMPLE_DEPTH_TEXTURE_PROJ(sampler, uv) (dot((tex2Dproj(sampler, uv)).wxy, float3(0.996093809371817670572857294849, 0.0038909914428586627756752238080039, 1.5199185323666651467481343000015e-5)))
+#elif defined(SHADER_API_PSP2) && !defined(SHADER_API_PSM)
+#	define SAMPLE_DEPTH_TEXTURE_PROJ(sampler, uv) (f1tex2Dproj<float>(sampler, uv))
+#elif defined(SHADER_API_FLASH)
+#	define SAMPLE_DEPTH_TEXTURE_PROJ(sampler, uv) (DecodeFloatRGBA(tex2Dproj(sampler, uv)))
+#else
+#	define SAMPLE_DEPTH_TEXTURE_PROJ(sampler, uv) (tex2Dproj(sampler, uv).r)
+#endif
+
+#if defined(SHADER_API_PSP2) && !defined(SHADER_API_PSM)
+#define SAMPLE_DEPTH_TEXTURE_LOD(sampler, uv) (tex2Dlod<float>(sampler, uv))
+#else
+#define SAMPLE_DEPTH_TEXTURE_LOD(sampler, uv) (tex2Dlod(sampler, uv).r)
 #endif
 
 uniform fixed4 unity_ColorSpaceGrey;
@@ -267,7 +295,7 @@ v2f_img vert_img( appdata_img v )
 // Encoding/decoding [0..1) floats into 8 bit/channel RGBA. Note that 1.0 will not be encoded properly.
 inline float4 EncodeFloatRGBA( float v )
 {
-	float4 kEncodeMul = float4(1.0, 255.0, 65025.0, 160581375.0);
+	float4 kEncodeMul = float4(1.0, 255.0, 65025.0, 16581375.0);
 	float kEncodeBit = 1.0/255.0;
 	float4 enc = kEncodeMul * v;
 	enc = frac (enc);
@@ -276,7 +304,7 @@ inline float4 EncodeFloatRGBA( float v )
 }
 inline float DecodeFloatRGBA( float4 enc )
 {
-	float4 kDecodeDot = float4(1.0, 1/255.0, 1/65025.0, 1/160581375.0);
+	float4 kDecodeDot = float4(1.0, 1/255.0, 1/65025.0, 1/16581375.0);
 	return dot( enc, kDecodeDot );
 }
 
@@ -338,7 +366,7 @@ inline fixed3 UnpackNormalDXT5nm (fixed4 packednormal)
 	normal.xy = packednormal.wy * 2 - 1;
 #if defined(SHADER_API_FLASH)
 	// Flash does not have efficient saturate(), and dot() seems to require an extra register.
-	normal.z = sqrt(1 - normal.x*normal.x - normal.y*normal.y);
+	normal.z = sqrt(1 - normal.x*normal.x - normal.y * normal.y);
 #else
 	normal.z = sqrt(1 - saturate(dot(normal.xy, normal.xy)));
 #endif
@@ -418,28 +446,24 @@ inline float4 ComputeGrabScreenPos (float4 pos) {
 // snaps post-transformed position to screen pixels
 inline float4 UnityPixelSnap (float4 pos)
 {
-	float2 hpc = _ScreenParams.xy * 0.5;
+	float2 hpc = _ScreenParams.xy * 0.5f;
 	#ifdef UNITY_HALF_TEXEL_OFFSET
-	float2 hpcO = float2(-0.5,0.5);
+	float2 hpcO = float2(-0.5f, 0.5f);
 	#else
 	float2 hpcO = float2(0,0);
 	#endif	
-	float2 pixelPos = floor ((pos.xy / pos.w) * hpc + 0.5);
+	float2 pixelPos = round ((pos.xy / pos.w) * hpc);
 	pos.xy = (pixelPos + hpcO) / hpc * pos.w;
 	return pos;
 }
 
-
 inline float2 TransformViewToProjection (float2 v) {
-	return float2(v.x*UNITY_MATRIX_P[0][0], v.y*UNITY_MATRIX_P[1][1]);
+	return mul((float2x2)UNITY_MATRIX_P, v);
 }
 
 inline float3 TransformViewToProjection (float3 v) {
-	return float3(v.x*UNITY_MATRIX_P[0][0], v.y*UNITY_MATRIX_P[1][1], v.z*UNITY_MATRIX_P[2][2]);
+	return mul((float3x3)UNITY_MATRIX_P, v);
 }
-
-
-
 
 // Shadow caster pass helpers
 
@@ -488,7 +512,7 @@ UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 	shadow = _LightShadowData.r + shadow * (1-_LightShadowData.r);
 #else
 	#define SAMPLE_SHADOW_COLLECTOR_SHADOW(coord) \
-	float shadow = UNITY_SAMPLE_DEPTH(tex2D( _ShadowMapTexture, coord.xy )) < coord.z ? _LightShadowData.r : 1.0;
+	float shadow = SAMPLE_DEPTH_TEXTURE(_ShadowMapTexture, coord.xy ) < coord.z ? _LightShadowData.r : 1.0;
 #endif
 
 #define COMPUTE_SHADOW_COLLECTOR_SHADOW(i, weights, shadowFade) \

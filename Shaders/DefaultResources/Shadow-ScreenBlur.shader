@@ -42,13 +42,13 @@ float4 unity_ShadowBlurParams;
 
 
 #define LOOP_ITERATION(i) { 	\
-	float4 sample = tex2D( _MainTex, (coord + radius * _BlurOffsets##i).xy ); \
-	float sampleDist = sample.b + sample.a / 255.0; \
+	float4 theSample = tex2D( _MainTex, (coord + radius * _BlurOffsets##i).xy ); \
+	float sampleDist = theSample.b + theSample.a / 255.0; \
 	float diff = dist - sampleDist; \
 	diff = saturate( diffTolerance - abs(diff) ); \
-	mask.xy += diff * sample.xy; }
+	mask.xy += diff * theSample.xy; }
 
-fixed4 frag (v2f_img i) : COLOR
+fixed4 frag (v2f_img i) : SV_Target
 {
 	float4 coord = float4(i.uv,0,0);
 	float4 mask = tex2D( _MainTex, coord.xy );

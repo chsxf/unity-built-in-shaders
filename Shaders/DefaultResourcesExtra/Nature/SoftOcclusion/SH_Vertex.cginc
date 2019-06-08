@@ -19,7 +19,7 @@ CBUFFER_END
 float _HalfOverCutoff;
 
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	float4 uv : TEXCOORD0;
 	fixed4 color : COLOR0;
 };

@@ -117,7 +117,7 @@ uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
 uniform fixed4 _Color;
 
-float4 frag( v2f i ) : COLOR
+float4 frag( v2f i ) : SV_Target
 {
 	fixed4 texcol = tex2D( _MainTex, i.uv );
 	clip( texcol.a*_Color.a - _Cutoff );
@@ -163,7 +163,7 @@ uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
 uniform fixed4 _Color;
 
-fixed4 frag (v2f i) : COLOR
+fixed4 frag (v2f i) : SV_Target
 {
 	fixed4 texcol = tex2D( _MainTex, i.uv );
 	clip( texcol.a*_Color.a - _Cutoff );

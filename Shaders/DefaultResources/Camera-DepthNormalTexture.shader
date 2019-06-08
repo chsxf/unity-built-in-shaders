@@ -15,7 +15,7 @@ CGPROGRAM
 #pragma fragment frag
 #include "UnityCG.cginc"
 struct v2f {
-    float4 pos : POSITION;
+    float4 pos : SV_POSITION;
     float4 nz : TEXCOORD0;
 };
 v2f vert( appdata_base v ) {
@@ -25,7 +25,7 @@ v2f vert( appdata_base v ) {
     o.nz.w = COMPUTE_DEPTH_01;
     return o;
 }
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	return EncodeDepthNormal (i.nz.w, i.nz.xyz);
 }
 ENDCG
@@ -40,7 +40,7 @@ CGPROGRAM
 #pragma fragment frag
 #include "UnityCG.cginc"
 struct v2f {
-    float4 pos : POSITION;
+    float4 pos : SV_POSITION;
 	float2 uv : TEXCOORD0;
     float4 nz : TEXCOORD1;
 };
@@ -56,7 +56,7 @@ v2f vert( appdata_base v ) {
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
 uniform fixed4 _Color;
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	fixed4 texcol = tex2D( _MainTex, i.uv );
 	clip( texcol.a*_Color.a - _Cutoff );
 	return EncodeDepthNormal (i.nz.w, i.nz.xyz);
@@ -76,7 +76,7 @@ CGPROGRAM
 #include "Lighting.cginc"
 #include "TerrainEngine.cginc"
 struct v2f {
-    float4 pos : POSITION;
+    float4 pos : SV_POSITION;
     float2 uv : TEXCOORD0;
 	float4 nz : TEXCOORD1;
 };
@@ -90,7 +90,7 @@ v2f vert( appdata_full v ) {
     o.nz.w = COMPUTE_DEPTH_01;
     return o;
 }
-fixed4 frag( v2f i ) : COLOR {
+fixed4 frag( v2f i ) : SV_Target {
 	return EncodeDepthNormal (i.nz.w, i.nz.xyz);
 }
 ENDCG
@@ -108,7 +108,7 @@ CGPROGRAM
 #include "Lighting.cginc"
 #include "TerrainEngine.cginc"
 struct v2f {
-    float4 pos : POSITION;
+    float4 pos : SV_POSITION;
     float2 uv : TEXCOORD0;
 	float4 nz : TEXCOORD1;
 };
@@ -124,7 +124,7 @@ v2f vert( appdata_full v ) {
 }
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
-fixed4 frag( v2f i ) : COLOR {
+fixed4 frag( v2f i ) : SV_Target {
 	half alpha = tex2D(_MainTex, i.uv).a;
 
 	clip (alpha - _Cutoff);
@@ -143,7 +143,7 @@ CGPROGRAM
 #include "UnityCG.cginc"
 #include "TerrainEngine.cginc"
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	float4 nz : TEXCOORD0;
 };
 struct appdata {
@@ -159,7 +159,7 @@ v2f vert( appdata v ) {
     o.nz.w = COMPUTE_DEPTH_01;
 	return o;
 }
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	return EncodeDepthNormal (i.nz.w, i.nz.xyz);
 }
 ENDCG
@@ -177,7 +177,7 @@ CGPROGRAM
 #include "TerrainEngine.cginc"
 
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	float2 uv : TEXCOORD0;
 	float4 nz : TEXCOORD1;
 };
@@ -198,7 +198,7 @@ v2f vert( appdata v ) {
 }
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	half alpha = tex2D(_MainTex, i.uv).a;
 
 	clip (alpha - _Cutoff);
@@ -215,7 +215,7 @@ CGPROGRAM
 #include "TerrainEngine.cginc"
 
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	float2 uv : TEXCOORD0;
 	float4 nz : TEXCOORD1;
 };
@@ -236,7 +236,7 @@ v2f vert( appdata v ) {
 }
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	fixed4 texcol = tex2D( _MainTex, i.uv );
 	clip( texcol.a - _Cutoff );
 	return EncodeDepthNormal (i.nz.w, i.nz.xyz);
@@ -256,7 +256,7 @@ CGPROGRAM
 #include "UnityCG.cginc"
 #include "TerrainEngine.cginc"
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	float2 uv : TEXCOORD0;
 	float4 nz : TEXCOORD1;
 };
@@ -271,7 +271,7 @@ v2f vert (appdata_tree_billboard v) {
 	return o;
 }
 uniform sampler2D _MainTex;
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	fixed4 texcol = tex2D( _MainTex, i.uv );
 	clip( texcol.a - 0.001 );
 	return EncodeDepthNormal (i.nz.w, i.nz.xyz);
@@ -292,7 +292,7 @@ CGPROGRAM
 #pragma glsl_no_auto_normalization
 
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	fixed4 color : COLOR;
 	float2 uv : TEXCOORD0;
 	float4 nz : TEXCOORD1;
@@ -310,7 +310,7 @@ v2f vert (appdata_full v) {
 }
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	fixed4 texcol = tex2D( _MainTex, i.uv );
 	fixed alpha = texcol.a * i.color.a;
 	clip( alpha - _Cutoff );
@@ -330,7 +330,7 @@ CGPROGRAM
 #include "UnityCG.cginc"
 #include "TerrainEngine.cginc"
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	fixed4 color : COLOR;
 	float2 uv : TEXCOORD0;
 	float4 nz : TEXCOORD1;
@@ -348,7 +348,7 @@ v2f vert (appdata_full v) {
 }
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	fixed4 texcol = tex2D( _MainTex, i.uv );
 	fixed alpha = texcol.a * i.color.a;
 	clip( alpha - _Cutoff );

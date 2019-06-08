@@ -31,7 +31,7 @@ Category {
 			};
 
 			struct v2f {
-				float4 vertex : POSITION;
+				float4 vertex : SV_POSITION;
 				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
 				#ifdef SOFTPARTICLES_ON
@@ -54,13 +54,13 @@ Category {
 				return o;
 			}
 
-			sampler2D _CameraDepthTexture;
+			sampler2D_float _CameraDepthTexture;
 			float _InvFade;
 			
-			fixed4 frag (v2f i) : COLOR
+			fixed4 frag (v2f i) : SV_Target
 			{
 				#ifdef SOFTPARTICLES_ON
-				float sceneZ = LinearEyeDepth (UNITY_SAMPLE_DEPTH(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.projPos))));
+				float sceneZ = LinearEyeDepth (SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(i.projPos)));
 				float partZ = i.projPos.z;
 				float fade = saturate (_InvFade * (sceneZ-partZ));
 				i.color *= fade;

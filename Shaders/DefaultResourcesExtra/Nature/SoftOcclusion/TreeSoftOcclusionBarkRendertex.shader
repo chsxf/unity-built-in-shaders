@@ -25,7 +25,7 @@ Shader "Hidden/Nature/Tree Soft Occlusion Bark Rendertex" {
 
 			sampler2D _MainTex;
 			
-			fixed4 frag(v2f input) : COLOR
+			fixed4 frag(v2f input) : SV_Target
 			{
 				fixed4 col = input.color;
 				col.rgb *= 2.0f * tex2D( _MainTex, input.uv.xy).rgb;

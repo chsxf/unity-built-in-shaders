@@ -106,7 +106,7 @@ CBUFFER_END
 // ----------------------------------------------------------------------------
 
 CBUFFER_START(UnityPerDraw)
-	#if defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11) || defined (SHADER_TARGET_GLSL) || defined(SHADER_API_D3D11_9X)
+	#if defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11) || defined (SHADER_TARGET_GLSL) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL)
 		float4x4 glstate_matrix_mvp;
 		float4x4 glstate_matrix_modelview0;
 		float4x4 glstate_matrix_invtrans_modelview0;
@@ -129,7 +129,7 @@ CBUFFER_END
 
 
 CBUFFER_START(UnityPerDrawRare)
-	#if defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11) || defined (SHADER_TARGET_GLSL) || defined(SHADER_API_D3D11_9X)
+	#if defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11) || defined (SHADER_TARGET_GLSL) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL)
 		float4x4 glstate_matrix_transpose_modelview0;
 		#define UNITY_MATRIX_T_MV glstate_matrix_transpose_modelview0
 	#else
@@ -142,7 +142,7 @@ CBUFFER_END
 // ----------------------------------------------------------------------------
 
 CBUFFER_START(UnityPerDrawTexMatrices)
-	#if defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11) || defined (SHADER_TARGET_GLSL) || defined(SHADER_API_D3D11_9X)
+	#if defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11) || defined (SHADER_TARGET_GLSL) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL)
 		#ifndef SHADER_TARGET_GLSL
 		float4x4 glstate_matrix_texture[8];
 		#endif
@@ -169,7 +169,7 @@ CBUFFER_END
 
 CBUFFER_START(UnityPerFrame)
 
-	#if defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11) || defined (SHADER_TARGET_GLSL) || defined(SHADER_API_D3D11_9X)
+	#if defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11) || defined (SHADER_TARGET_GLSL) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL)
 		float4x4 glstate_matrix_projection;
 		float4	 glstate_lightmodel_ambient;
 		#define UNITY_MATRIX_P glstate_matrix_projection

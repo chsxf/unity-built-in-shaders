@@ -107,7 +107,9 @@ fixed4 TerrainWaveGrass (inout float4 vertex, float waveAmount, fixed4 color)
 	vertex.xz -= waveMove.xz * _WaveAndDistance.z;
 	
 	// apply color animation
-	fixed3 waveColor = lerp (fixed3(0.5,0.5,0.5), _WavingTint.rgb, lighting);
+	
+	// fix for dx11/etc warning
+	fixed3 waveColor = lerp (fixed3(0.5,0.5,0.5), _WavingTint.rgb, fixed3(lighting,lighting,lighting));
 	
 	// Fade the grass out before detail distance.
 	// Saturate because Radeon HD drivers on OS X 10.4.10 don't saturate vertex colors properly.
@@ -171,7 +173,7 @@ inline float4 Squash(in float4 pos)
 	//float3 projectedVertex = pos.xyz + dot(planeNormal, (planePoint - pos)) * planeNormal;
 		
 	// optimized version:	
-	float3 projectedVertex = pos.xyz - (dot(planeNormal, pos) + _SquashPlaneNormal.w) * planeNormal;
+	float3 projectedVertex = pos.xyz - (dot(planeNormal.xyz, pos.xyz) + _SquashPlaneNormal.w) * planeNormal;
 	
 	pos = float4(lerp(projectedVertex, pos.xyz, _SquashAmount), 1);
 	
