@@ -38,8 +38,8 @@ half        _DetailNormalMapScale;
 sampler2D   _SpecGlossMap;
 sampler2D   _MetallicGlossMap;
 half        _Metallic;
-float       _Glossiness;
-float       _GlossMapScale;
+half        _Glossiness;
+half        _GlossMapScale;
 
 sampler2D   _OcclusionMap;
 half        _OcclusionStrength;
@@ -169,6 +169,23 @@ half2 MetallicGloss(float2 uv)
     #else
         mg.g = _Glossiness;
     #endif
+#endif
+    return mg;
+}
+
+half2 MetallicRough(float2 uv)
+{
+    half2 mg;
+#ifdef _METALLICGLOSSMAP
+    mg.r = tex2D(_MetallicGlossMap, uv).r;
+#else
+    mg.r = _Metallic;
+#endif
+
+#ifdef _SPECGLOSSMAP
+    mg.g = 1.0f - tex2D(_SpecGlossMap, uv).r;
+#else
+    mg.g = 1.0f - _Glossiness;
 #endif
     return mg;
 }

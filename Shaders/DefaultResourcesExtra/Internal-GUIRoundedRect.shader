@@ -4,8 +4,6 @@ Shader "Hidden/Internal-GUIRoundedRect"
 {
     Properties {
         _MainTex ("Texture", any) = "white" {}
-        _CornerRadius ("Corner Radius", Float) = 0.0
-        _BorderWidth ("Border Width", Float) = 0.0
     }
 
     CGINCLUDE
@@ -26,7 +24,7 @@ Shader "Hidden/Internal-GUIRoundedRect"
         fixed4 color : COLOR;
         float2 texcoord : TEXCOORD0;
         float2 clipUV : TEXCOORD1;
-        float4 worldPos : TEXCOORD2;
+        float4 pos : TEXCOORD2;
     };
 
     sampler2D _MainTex;
@@ -36,28 +34,35 @@ Shader "Hidden/Internal-GUIRoundedRect"
     uniform float4x4 unity_GUIClipTextureMatrix;
 
     uniform float _CornerRadius;
-    uniform float _BorderWidth;
+    uniform float _BorderWidths[4];
     uniform float _Rect[4];
-    uniform float _PixelScale;
 
-    half GetCornerAlpha(float2 p, float2 center, float radius)
+    half GetCornerAlpha(float2 p, float2 center, float borderWidth1, float borderWidth2, float radius, float pixelScale)
     {
-        float outsideRadius = radius;
-        float2 dir = normalize(p-center);
-        float pixelCenterDist = length(p-center);
-        float outerDist = (pixelCenterDist - outsideRadius)*_PixelScale;
-        half outerDistAlpha = saturate(0.5f + outerDist);
+        bool hasBorder = borderWidth1 > 0.0f || borderWidth2 > 0.0f;
 
-        float insideRadius = radius - _BorderWidth;
-        float innerDist = (pixelCenterDist - insideRadius)*_PixelScale;
-        half innerDistAlpha = (_BorderWidth > 0) ? saturate(0.5f + innerDist) : 1.0f;
+        float2 v = p - center;
+        float pixelCenterDist = length(v);
+
+        float outRad = radius;
+        float outerDist = (pixelCenterDist - outRad) * pixelScale;
+        half outerDistAlpha = hasBorder ? saturate(0.5f + outerDist) : 0.0f;
+
+        float a = radius - borderWidth1;
+        float b = radius - borderWidth2;
+        float ellipseDist= (v.x*v.x)/(a*a) + (v.y*v.y)/(b*b);
+
+        v.y *= a/b;
+        half rawDist = (length(v) - a) * pixelScale;
+        half alpha = saturate(rawDist+0.5f);
+        half innerDistAlpha = hasBorder ? ((a > 0 && b > 0) ? alpha : 1.0f) : 0.0f;
 
         return (outerDistAlpha == 0.0f) ? innerDistAlpha : (1.0f - outerDistAlpha);
     }
 
-    bool IsPointInside(float2 p, float2 lowerLeft, float2 upperRight)
+    bool IsPointInside(float2 p, float4 rect)
     {
-        return p.x > lowerLeft.x && p.x < upperRight.x && p.y > lowerLeft.y && p.y < upperRight.y;
+        return p.x >= rect.x && p.x <= (rect.x+rect.z) && p.y >= rect.y && p.y <= (rect.y+rect.w);
     }
 
     v2f vert (appdata_t v)
@@ -68,44 +73,48 @@ Shader "Hidden/Internal-GUIRoundedRect"
         o.color = v.color;
         o.texcoord = TRANSFORM_TEX(v.texcoord,_MainTex);
         o.clipUV = mul(unity_GUIClipTextureMatrix, float4(eyePos.xy, 0, 1.0));
-        o.worldPos = v.vertex;
+        o.pos = v.vertex;
         return o;
     }
 
     fixed4 frag (v2f i) : SV_Target
     {
+        float pixelScale = 1.0f/abs(ddx(i.pos.x));
+
         half4 col = tex2D(_MainTex, i.texcoord) * i.color;
-        float2 p = i.worldPos.xy;
+        float2 p = i.pos.xy;
 
-        // top-left
         float2 center = float2(_Rect[0]+_CornerRadius, _Rect[1]+_CornerRadius);
-        col.a *= (p.x < center.x && p.y < center.y) ? GetCornerAlpha(p, center, _CornerRadius) : 1.0f;
 
-        // top-right
-        center = float2(_Rect[0]+_Rect[2]-_CornerRadius, _Rect[1]+_CornerRadius);
-        col.a *= (p.x > center.x && p.y < center.y) ? GetCornerAlpha(p, center, _CornerRadius) : 1.0f;
+        float cornerRadius2 = _CornerRadius * 2.0f;
+        float middleWidth = _Rect[2] - cornerRadius2;
+        float middleHeight = _Rect[3] - cornerRadius2;
 
-        // bottom-left
-        center = float2(_Rect[0]+_CornerRadius, _Rect[1]+_Rect[3]-_CornerRadius);
-        col.a *= (p.x < center.x && p.y > center.y) ? GetCornerAlpha(p, center, _CornerRadius) : 1.0f;
+        bool xIsLeft = (p.x - _Rect[0] - _Rect[2]/2.0f) <= 0.0f;
+        bool yIsTop = (p.y - _Rect[1] - _Rect[3]/2.0f) <= 0.0f;
 
-        // bottom-right
-        center = float2(_Rect[0]+_Rect[2]-_CornerRadius, _Rect[1]+_Rect[3]-_CornerRadius);
-        col.a *= (p.x > center.x && p.y > center.y) ? GetCornerAlpha(p, center, _CornerRadius) : 1.0f;
+        float bw1 = _BorderWidths[0];
+        float bw2 = _BorderWidths[1];
 
-        // Cut inside if there's a border
-        float bw = _BorderWidth;
-        float cr = _CornerRadius;
-        bool isPointInMiddle = IsPointInside(p, float2(_Rect[0]+cr+bw, _Rect[1]+cr+bw), float2(_Rect[0]+_Rect[2]-cr-bw, _Rect[1]+_Rect[3]-cr-bw));
-        bool isPointInMargin = IsPointInside(p, float2(_Rect[0]+cr+bw, _Rect[1]+cr+bw), float2(_Rect[0]+_Rect[2]-cr-bw, _Rect[1]+_Rect[3]-cr-bw)) ||
-                               IsPointInside(p, float2(_Rect[0]+bw, _Rect[1]+cr), float2(_Rect[0]+_Rect[2]-bw, _Rect[1]+_Rect[3]-cr)) ||
-                               IsPointInside(p, float2(_Rect[0]+_Rect[2]-cr, _Rect[1]+cr), float2(_Rect[0]+_Rect[2]-cr, _Rect[1]+_Rect[3]-cr)) ||
-                               IsPointInside(p, float2(_Rect[0]+cr, _Rect[1]+bw), float2(_Rect[0]+_Rect[2]-cr, _Rect[1]+_Rect[3]-bw)) ||
-                               IsPointInside(p, float2(_Rect[0]+cr, _Rect[1]+_Rect[3]-cr), float2(_Rect[0]+_Rect[2]-cr, _Rect[1]+_Rect[3]-bw));
-        half middleAlpha = isPointInMiddle ? 0.0f : col.a;
-        half marginAlpha = isPointInMargin ? 0.0f : col.a;
-        half insideAlpha = (cr < bw) ? middleAlpha : marginAlpha;
-        col.a = (_BorderWidth > 0.0f) ? insideAlpha : col.a;
+        if (!xIsLeft)
+        {
+            center.x += middleWidth;
+            bw1 = _BorderWidths[2];
+        }
+
+        if (!yIsTop)
+        {
+            center.y += middleHeight;
+            bw2 = _BorderWidths[3];
+        }
+
+        bool isInCorner = (xIsLeft ? p.x <= center.x : p.x >= center.x) && (yIsTop ? p.y <= center.y : p.y >= center.y);
+        col.a *= isInCorner ? GetCornerAlpha(p, center, bw1, bw2, _CornerRadius, pixelScale) : 1.0f;
+
+        bool isPointInCenter = IsPointInside(p, float4(_Rect[0]+_BorderWidths[0], _Rect[1]+_BorderWidths[1], _Rect[2]-(_BorderWidths[0]+_BorderWidths[2]), _Rect[3]-(_BorderWidths[1]+_BorderWidths[3])));
+        half middleAlpha = isPointInCenter ? 0.0f : col.a;
+        bool hasBorder = _BorderWidths[0] > 0 || _BorderWidths[1] > 0 || _BorderWidths[2] > 0 || _BorderWidths[3] > 0;
+        col.a *= hasBorder ? (isInCorner ? col.a : middleAlpha) : 1.0f;
 
         col.a *= tex2D(_GUIClipTexture, i.clipUV).a;
 

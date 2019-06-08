@@ -13,7 +13,7 @@ struct UnityStandardData
     half3   specularColor;
     half    smoothness;
 
-    float3  normalWorld;        // normal in world space
+    half3   normalWorld;        // normal in world space
 };
 
 //-----------------------------------------------------------------------------
@@ -41,7 +41,7 @@ UnityStandardData UnityStandardDataFromGbuffer(half4 inGBuffer0, half4 inGBuffer
     data.specularColor  = inGBuffer1.rgb;
     data.smoothness     = inGBuffer1.a;
 
-    data.normalWorld    = normalize((float3)inGBuffer2.rgb * 2 - 1);
+    data.normalWorld    = normalize(inGBuffer2.rgb * 2 - 1);
 
     return data;
 }

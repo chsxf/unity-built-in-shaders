@@ -64,6 +64,15 @@ half MetallicSetup_ShadowGetOneMinusReflectivity(half2 uv)
     return OneMinusReflectivityFromMetallic(metallicity);
 }
 
+half RoughnessSetup_ShadowGetOneMinusReflectivity(half2 uv)
+{
+    half metallicity = _Metallic;
+#ifdef _METALLICGLOSSMAP
+    metallicity = tex2D(_MetallicGlossMap, uv).r;
+#endif
+    return OneMinusReflectivityFromMetallic(metallicity);
+}
+
 half SpecularSetup_ShadowGetOneMinusReflectivity(half2 uv)
 {
     half3 specColor = _SpecColor.rgb;
@@ -115,14 +124,15 @@ struct VertexOutputStereoShadowCaster
 // some platforms, and then things don't go well.
 
 
-void vertShadowCaster (VertexInput v,
+void vertShadowCaster (VertexInput v
+    , out float4 opos : SV_POSITION
     #ifdef UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT
-    out VertexOutputShadowCaster o,
+    , out VertexOutputShadowCaster o
     #endif
     #ifdef UNITY_STANDARD_USE_STEREO_SHADOW_OUTPUT_STRUCT
-    out VertexOutputStereoShadowCaster os,
+    , out VertexOutputStereoShadowCaster os
     #endif
-    out float4 opos : SV_POSITION)
+)
 {
     UNITY_SETUP_INSTANCE_ID(v);
     #ifdef UNITY_STANDARD_USE_STEREO_SHADOW_OUTPUT_STRUCT
@@ -142,12 +152,11 @@ void vertShadowCaster (VertexInput v,
     #endif
 }
 
-half4 fragShadowCaster (
+half4 fragShadowCaster (UNITY_POSITION(vpos)
 #ifdef UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT
-    VertexOutputShadowCaster i,
+    , VertexOutputShadowCaster i
 #endif
-    UNITY_POSITION(vpos)
-    ) : SV_Target
+) : SV_Target
 {
     #if defined(UNITY_STANDARD_USE_SHADOW_UVS)
         #if defined(_PARALLAXMAP) && (SHADER_TARGET >= 30)

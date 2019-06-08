@@ -248,9 +248,9 @@ half4 UnityMetaFragment (UnityMetaInput IN)
         if (unity_UseLinearSpace)
             emission = IN.Emission;
         else
-            emission = GammaToLinearSpace (IN.Emission);
+            emission = GammaToLinearSpace(IN.Emission);
 
-        res = UnityEncodeRGBM(emission, EMISSIVE_RGBM_SCALE);
+        res = half4(emission, 1.0);
     }
     #else
     if ( unity_VisualizationMode == PBR_VALIDATION_ALBEDO )

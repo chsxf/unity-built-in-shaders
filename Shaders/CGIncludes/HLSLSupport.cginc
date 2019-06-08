@@ -30,6 +30,16 @@
     #define UNITY_STEREO_INSTANCING_ENABLED
 #endif
 
+// Is this shader API able to read the current pixel depth value, be it via
+// texture fetch of via renderpass inputs, from the depth buffer while it is
+// simultaneously bound as a z-buffer?
+// On non-renderpass (fallback impl) platforms it's supported on DX11, GL, desktop Metal
+// TODO: Check DX12 and consoles, implement read-only depth if possible
+// With native renderpasses, Vulkan is fine but iOS GPU doesn't have the wires connected to read the data.
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_METAL) && !defined(SHADER_API_MOBILE))
+#define UNITY_SUPPORT_DEPTH_FETCH 1
+#endif
+
 #if defined(UNITY_FRAMEBUFFER_FETCH_AVAILABLE) && defined(UNITY_FRAMEBUFFER_FETCH_ENABLED) && defined(UNITY_COMPILER_HLSLCC)
 // In the fragment shader, setting inout <type> var : SV_Target would result to
 // compiler error, unless SV_Target is defined to COLOR semantic for compatibility
@@ -45,12 +55,21 @@
 #define SV_Target1 CoLoR1
 #define SV_Target2 CoLoR2
 #define SV_Target3 CoLoR3
+#define SV_Target4 CoLoR4
+#define SV_Target5 CoLoR5
+#define SV_Target6 CoLoR6
+#define SV_Target7 CoLoR7
 
 #define COLOR VCOLOR
 #define COLOR0 VCOLOR0
 #define COLOR1 VCOLOR1
 #define COLOR2 VCOLOR2
 #define COLOR3 VCOLOR3
+#define COLOR4 VCOLOR4
+#define COLOR5 VCOLOR5
+#define COLOR6 VCOLOR6
+#define COLOR7 VCOLOR7
+
 #endif
 
 // SV_Target[n] / SV_Depth defines, if not defined by compiler already
@@ -105,7 +124,7 @@
 #   endif
 #endif
 
-#if (defined(SHADER_API_GLES3) && !defined(SHADER_API_DESKTOP)) || defined(SHADER_API_D3D9) || defined(SHADER_API_GLES) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_N3DS) || (defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL))
+#if (defined(SHADER_API_GLES3) && !defined(SHADER_API_DESKTOP)) || defined(SHADER_API_D3D9) || defined(SHADER_API_GLES) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_N3DS)
     #define UNITY_ALLOWED_MRT_COUNT 4
 #else
     #define UNITY_ALLOWED_MRT_COUNT 8
@@ -223,19 +242,24 @@
 #elif defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X)
 #define CBUFFER_START(name) cbuffer name {
 #define CBUFFER_END };
-#elif defined(UNITY_STEREO_MULTIVIEW_ENABLED) || (defined(UNITY_SINGLE_PASS_STEREO) && defined(SHADER_API_GLCORE))
-#define CBUFFER_START(name) cbuffer name {
-#define CBUFFER_END };
 #else
-// On specific platforms, like OpenGL and GLES3, constant buffers may still be used for instancing
+// On specific platforms, like OpenGL, GLES3 and Metal, constant buffers may still be used for instancing
 #define CBUFFER_START(name)
 #define CBUFFER_END
+#endif
+
+#if defined(UNITY_STEREO_MULTIVIEW_ENABLED) || (defined(UNITY_SINGLE_PASS_STEREO) && (defined(SHADER_API_GLCORE) || defined(SHADER_API_METAL)))
+    #define GLOBAL_CBUFFER_START(name)    cbuffer name {
+    #define GLOBAL_CBUFFER_END            }
+#else
+    #define GLOBAL_CBUFFER_START(name)    CBUFFER_START(name)
+    #define GLOBAL_CBUFFER_END            CBUFFER_END
 #endif
 
 #if defined(UNITY_STEREO_MULTIVIEW_ENABLED) && defined(SHADER_STAGE_VERTEX)
 // OVR_multiview
 // In order to convey this info over the DX compiler, we wrap it into a cbuffer.
-#define UNITY_DECLARE_MULTIVIEW(number_of_views) CBUFFER_START(OVR_multiview) uint gl_ViewID; uint numViews_##number_of_views; CBUFFER_END
+#define UNITY_DECLARE_MULTIVIEW(number_of_views) GLOBAL_CBUFFER_START(OVR_multiview) uint gl_ViewID; uint numViews_##number_of_views; GLOBAL_CBUFFER_END
 #define UNITY_VIEWID gl_ViewID
 #endif
 
@@ -385,6 +409,8 @@
     // 2D textures
     #define UNITY_DECLARE_TEX2D(tex) Texture2D tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX2D_NOSAMPLER(tex) Texture2D tex
+    #define UNITY_DECLARE_TEX2D_NOSAMPLER_INT(tex) Texture2D<int4> tex
+    #define UNITY_DECLARE_TEX2D_NOSAMPLER_UINT(tex) Texture2D<uint4> tex
     #define UNITY_SAMPLE_TEX2D(tex,coord) tex.Sample (sampler##tex,coord)
     #define UNITY_SAMPLE_TEX2D_SAMPLER(tex,samplertex,coord) tex.Sample (sampler##samplertex,coord)
 
@@ -695,6 +721,38 @@
     #define DECL_WITH_BINDING(Type, Name, Set, Binding) Type Name
 #endif
 
+// TODO: Really need a better define for iOS Metal than the framebuffer fetch one, that's also enabled on android and webgl (???)
+#if defined(SHADER_API_VULKAN) || (defined(SHADER_API_METAL) && defined(UNITY_FRAMEBUFFER_FETCH_AVAILABLE))
+// Renderpass inputs: Vulkan/Metal subpass input
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT(idx) cbuffer hlslcc_SubpassInput_f_##idx { float4 hlslcc_fbinput_##idx; }
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT_MS(idx) cbuffer hlslcc_SubpassInput_F_##idx { float4 hlslcc_fbinput_##idx##_0; float4 hlslcc_fbinput_##idx##_1; float4 hlslcc_fbinput_##idx##_2; float4 hlslcc_fbinput_##idx##_3; float4 hlslcc_fbinput_##idx##_4; float4 hlslcc_fbinput_##idx##_5; float4 hlslcc_fbinput_##idx##_6; float4 hlslcc_fbinput_##idx##_7;}
+// For halfs
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF(idx) cbuffer hlslcc_SubpassInput_h_##idx { half4 hlslcc_fbinput_##idx; }
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF_MS(idx) cbuffer hlslcc_SubpassInput_H_##idx { half4 hlslcc_fbinput_##idx##_0; half4 hlslcc_fbinput_##idx##_1; half4 hlslcc_fbinput_##idx##_2; half4 hlslcc_fbinput_##idx##_3; half4 hlslcc_fbinput_##idx##_4; half4 hlslcc_fbinput_##idx##_5; half4 hlslcc_fbinput_##idx##_6; half4 hlslcc_fbinput_##idx##_7;}
+// For ints
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT(idx) cbuffer hlslcc_SubpassInput_i_##idx { int4 hlslcc_fbinput_##idx; }
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT_MS(idx) cbuffer hlslcc_SubpassInput_I_##idx { int4 hlslcc_fbinput_##idx##_0; int4 hlslcc_fbinput_##idx##_1; int4 hlslcc_fbinput_##idx##_2; int4 hlslcc_fbinput_##idx##_3; int4 hlslcc_fbinput_##idx##_4; int4 hlslcc_fbinput_##idx##_5; int4 hlslcc_fbinput_##idx##_6; int4 hlslcc_fbinput_##idx##_7;}
+// For uints
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT(idx) cbuffer hlslcc_SubpassInput_u_##idx { uint4 hlslcc_fbinput_##idx; }
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT_MS(idx) cbuffer hlslcc_SubpassInput_U_##idx { uint4 hlslcc_fbinput_##idx##_0; uint4 hlslcc_fbinput_##idx##_1; uint4 hlslcc_fbinput_##idx##_2; uint4 hlslcc_fbinput_##idx##_3; uint4 hlslcc_fbinput_##idx##_4; uint4 hlslcc_fbinput_##idx##_5; uint4 hlslcc_fbinput_##idx##_6; uint4 hlslcc_fbinput_##idx##_7;}
+
+#define UNITY_READ_FRAMEBUFFER_INPUT(idx, v2fname) hlslcc_fbinput_##idx
+#define UNITY_READ_FRAMEBUFFER_INPUT_MS(idx, sampleIdx, v2fname) hlslcc_fbinput_##idx##_##sampleIdx
+
+
+#else
+// Renderpass inputs: General fallback path
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_FLOAT(_UnityFBInput##idx)
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(_UnityFBInput##idx)
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_INT(_UnityFBInput##idx)
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_UINT(_UnityFBInput##idx)
+
+#define UNITY_READ_FRAMEBUFFER_INPUT(idx, v2fvertexname) _UnityFBInput##idx.Load(int3(v2fvertexname.xy, 0))
+
+// TODO MS
+
+#endif
+
 // ---- Shader keyword backwards compatibility
 // We used to have some built-in shader keywords, but they got removed at some point to save on shader keyword count.
 // However some existing shader code might be checking for the old names, so define them as regular
@@ -729,19 +787,28 @@
     #define UNITY_DECLARE_DEPTH_TEXTURE(tex) Texture2DArray tex; SamplerState sampler##tex
 
     #undef SAMPLE_DEPTH_TEXTURE
-    #define SAMPLE_DEPTH_TEXTURE(tex, uv) UNITY_SAMPLE_TEX2DARRAY(tex, float3(uv.x, uv.y, (float)unity_StereoEyeIndex)).r
+    #define SAMPLE_DEPTH_TEXTURE(sampler, uv) UNITY_SAMPLE_TEX2DARRAY(sampler, float3((uv).x, (uv).y, (float)unity_StereoEyeIndex)).r
 
     #undef SAMPLE_DEPTH_TEXTURE_PROJ
-    #define SAMPLE_DEPTH_TEXTURE_PROJ(tex, uv) UNITY_SAMPLE_TEX2DARRAY(tex, float3(uv.x/uv.w, uv.y/uv.w, (float)unity_StereoEyeIndex)).r
+    #define SAMPLE_DEPTH_TEXTURE_PROJ(sampler, uv) UNITY_SAMPLE_TEX2DARRAY(sampler, float3((uv).x/(uv).w, (uv).y/(uv).w, (float)unity_StereoEyeIndex)).r
+
+    #undef SAMPLE_DEPTH_TEXTURE_LOD
+    #define SAMPLE_DEPTH_TEXTURE_LOD(sampler, uv) UNITY_SAMPLE_TEX2DARRAY_LOD(sampler, float3((uv).xy, (float)unity_StereoEyeIndex), (uv).w).r
 
     #undef SAMPLE_RAW_DEPTH_TEXTURE
-    #define SAMPLE_RAW_DEPTH_TEXTURE(tex, uv) UNITY_SAMPLE_TEX2DARRAY(tex, float3(uv.xy, (float)unity_StereoEyeIndex))
+    #define SAMPLE_RAW_DEPTH_TEXTURE(tex, uv) UNITY_SAMPLE_TEX2DARRAY(tex, float3((uv).xy, (float)unity_StereoEyeIndex))
+
+    #undef SAMPLE_RAW_DEPTH_TEXTURE_PROJ
+    #define SAMPLE_RAW_DEPTH_TEXTURE_PROJ(sampler, uv) UNITY_SAMPLE_TEX2DARRAY(sampler, float3((uv).x/(uv).w, (uv).y/(uv).w, (float)unity_StereoEyeIndex))
+
+    #undef SAMPLE_RAW_DEPTH_TEXTURE_LOD
+    #define SAMPLE_RAW_DEPTH_TEXTURE_LOD(sampler, uv) UNITY_SAMPLE_TEX2DARRAY_LOD(sampler, float3((uv).xy, (float)unity_StereoEyeIndex), (uv).w)
 
     #define UNITY_DECLARE_SCREENSPACE_SHADOWMAP UNITY_DECLARE_TEX2DARRAY
-    #define UNITY_SAMPLE_SCREEN_SHADOW(tex, uv) UNITY_SAMPLE_TEX2DARRAY( tex, float3(uv.x/uv.w, uv.y/uv.w, (float)unity_StereoEyeIndex) ).r
+    #define UNITY_SAMPLE_SCREEN_SHADOW(tex, uv) UNITY_SAMPLE_TEX2DARRAY( tex, float3((uv).x/(uv).w, (uv).y/(uv).w, (float)unity_StereoEyeIndex) ).r
 
     #define UNITY_DECLARE_SCREENSPACE_TEXTURE UNITY_DECLARE_TEX2DARRAY
-    #define UNITY_SAMPLE_SCREENSPACE_TEXTURE(tex, uv) UNITY_SAMPLE_TEX2DARRAY(tex, float3(uv.xy, (float)unity_StereoEyeIndex))
+    #define UNITY_SAMPLE_SCREENSPACE_TEXTURE(tex, uv) UNITY_SAMPLE_TEX2DARRAY(tex, float3((uv).xy, (float)unity_StereoEyeIndex))
 #else
     #define UNITY_DECLARE_DEPTH_TEXTURE(tex) sampler2D_float tex
     #define UNITY_DECLARE_SCREENSPACE_SHADOWMAP(tex) sampler2D tex

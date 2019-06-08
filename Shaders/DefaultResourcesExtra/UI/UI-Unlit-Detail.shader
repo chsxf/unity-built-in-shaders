@@ -58,6 +58,7 @@ Shader "UI/Unlit/Detail"
             #include "UnityCG.cginc"
             #include "UnityUI.cginc"
 
+            #pragma multi_compile __ UNITY_UI_CLIP_RECT
             #pragma multi_compile __ UNITY_UI_ALPHACLIP
 
             struct appdata_t
@@ -116,7 +117,9 @@ Shader "UI/Unlit/Detail"
                 color.rgb = lerp(color.rgb, color.rgb * detail.rgb, detail.a * _Strength);
                 color = color * _Color;
 
+                #ifdef UNITY_UI_CLIP_RECT
                 color.a *= UnityGet2DClipping(i.worldPosition.xy, _ClipRect);
+                #endif
 
                 #ifdef UNITY_UI_ALPHACLIP
                 clip (color.a - 0.001);
