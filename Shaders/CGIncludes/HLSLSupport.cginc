@@ -437,7 +437,7 @@
 #define UNITY_ATTEN_CHANNEL a
 #endif
 
-#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PSP2)
+#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360)
 #define UNITY_HALF_TEXEL_OFFSET
 #endif
 
@@ -512,6 +512,7 @@
 #	define SV_GroupID					S_GROUP_ID
 #	define SV_GroupThreadID				S_GROUP_THREAD_ID
 #	define SV_GroupIndex				S_GROUP_INDEX
+#	define SV_PrimitiveID				S_PRIMITIVE_ID
 
 #	define groupshared					thread_group_memory
 

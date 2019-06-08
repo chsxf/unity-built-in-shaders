@@ -129,9 +129,9 @@ Pass
 		{
 			half4 c = tex2D (_CameraReflectionsTexture, i.uv);
 			#ifdef UNITY_HDR_ON
-			return c;
+			return float4(c.rgb, 0.0f);
 			#else
-			return exp2(-c);
+			return float4(exp2(-c.rgb), 0.0f);
 			#endif
 
 		}
