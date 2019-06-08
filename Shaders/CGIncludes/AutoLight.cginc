@@ -104,14 +104,29 @@ half UnityComputeForwardShadows(float2 lightmapUV, float3 worldPos, float4 scree
     return UnityMixRealtimeAndBakedShadows(realtimeShadowAttenuation, shadowMaskAttenuation, realtimeToBakedShadowFade);
 }
 
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D12) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PSSL)
+#   define UNITY_SHADOW_W(_w) _w
+#else
+#   define UNITY_SHADOW_W(_w) (1.0/_w)
+#endif
+
 #if defined(HANDLE_SHADOWS_BLENDING_IN_GI) // handles shadows in the depths of the GI function for performance reasons
 #   define UNITY_SHADOW_COORDS(idx1) SHADOW_COORDS(idx1)
 #   define UNITY_TRANSFER_SHADOW(a, coord) TRANSFER_SHADOW(a)
 #   define UNITY_SHADOW_ATTENUATION(a, worldPos) SHADOW_ATTENUATION(a)
 #elif defined(SHADOWS_SCREEN) && !defined(LIGHTMAP_ON) && !defined(UNITY_NO_SCREENSPACE_SHADOWS) // no lightmap uv thus store screenPos instead
-#   define UNITY_SHADOW_COORDS(idx1) SHADOW_COORDS(idx1)
-#   define UNITY_TRANSFER_SHADOW(a, coord) TRANSFER_SHADOW(a)
-#   define UNITY_SHADOW_ATTENUATION(a, worldPos) UnityComputeForwardShadows(0, worldPos, a._ShadowCoord)
+    // can happen if we have two directional lights. main light gets handled in GI code, but 2nd dir light can have shadow screen and mask.
+    // - Disabled on DX9 as we don't get valid .zw in vpos
+    // - Disabled on ES2 because WebGL 1.0 seems to have junk in .w (even though it shouldn't)
+#   if defined(SHADOWS_SHADOWMASK) && !defined(SHADER_API_D3D9) && !defined(SHADER_API_GLES)
+#       define UNITY_SHADOW_COORDS(idx1) unityShadowCoord4 _ShadowCoord : TEXCOORD##idx1;
+#       define UNITY_TRANSFER_SHADOW(a, coord) {a._ShadowCoord.xy = coord * unity_LightmapST.xy + unity_LightmapST.zw; a._ShadowCoord.zw = ComputeScreenPos(a.pos).xy;}
+#       define UNITY_SHADOW_ATTENUATION(a, worldPos) UnityComputeForwardShadows(a._ShadowCoord.xy, worldPos, float4(a._ShadowCoord.zw, 0.0, UNITY_SHADOW_W(a.pos.w)));
+#   else
+#       define UNITY_SHADOW_COORDS(idx1) SHADOW_COORDS(idx1)
+#       define UNITY_TRANSFER_SHADOW(a, coord) TRANSFER_SHADOW(a)
+#       define UNITY_SHADOW_ATTENUATION(a, worldPos) UnityComputeForwardShadows(0, worldPos, a._ShadowCoord)
+#   endif
 #else
 #   define UNITY_SHADOW_COORDS(idx1) unityShadowCoord2 _ShadowCoord : TEXCOORD##idx1;
 #   if defined(SHADOWS_SHADOWMASK)
