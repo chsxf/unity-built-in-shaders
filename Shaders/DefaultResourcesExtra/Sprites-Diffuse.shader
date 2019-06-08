@@ -42,7 +42,6 @@ Shader "Sprites/Diffuse"
 			#if defined(PIXELSNAP_ON) && !defined(SHADER_API_FLASH)
 			v.vertex = UnityPixelSnap (v.vertex);
 			#endif
-			v.normal = float3(0,0,-1);
 			
 			UNITY_INITIALIZE_OUTPUT(Input, o);
 			o.color = v.color * _Color;
