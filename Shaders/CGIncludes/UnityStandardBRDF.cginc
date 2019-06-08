@@ -240,7 +240,8 @@ inline half GGXTerm (half NdotH, half roughness)
 	half a = roughness * roughness;
 	half a2 = a * a;
 	half d = NdotH * NdotH * (a2 - 1.f) + 1.f;
-	return a2 / (UNITY_PI * d * d);
+	return a2 / (UNITY_PI * d * d + 1e-7f); // This function is not intended to be running on Mobile,
+											// therefore epsilon is smaller than what can be represented by half
 }
 
 //-------------------------------------------------------------------------------------

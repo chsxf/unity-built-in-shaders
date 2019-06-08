@@ -26,11 +26,11 @@ Shader "Sprites/Diffuse"
 		CGPROGRAM
 		#pragma surface surf Lambert vertex:vert nofog keepalpha
 		#pragma multi_compile _ PIXELSNAP_ON
+		#pragma shader_feature ETC1_EXTERNAL_ALPHA
 
 		sampler2D _MainTex;
 		fixed4 _Color;
 		sampler2D _AlphaTex;
-		float _AlphaSplitEnabled;
 
 
 		struct Input
@@ -53,10 +53,9 @@ Shader "Sprites/Diffuse"
 		{
 			fixed4 color = tex2D (_MainTex, uv);
 
-#if UNITY_TEXTURE_ALPHASPLIT_ALLOWED
-			if (_AlphaSplitEnabled)
-				color.a = tex2D (_AlphaTex, uv).r;
-#endif //UNITY_TEXTURE_ALPHASPLIT_ALLOWED
+#if ETC1_EXTERNAL_ALPHA
+			color.a = tex2D (_AlphaTex, uv).r;
+#endif //ETC1_EXTERNAL_ALPHA
 
 			return color;
 		}

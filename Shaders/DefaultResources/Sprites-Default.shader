@@ -29,6 +29,7 @@ Shader "Sprites/Default"
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile _ PIXELSNAP_ON
+			#pragma shader_feature ETC1_EXTERNAL_ALPHA
 			#include "UnityCG.cginc"
 			
 			struct appdata_t
@@ -62,16 +63,15 @@ Shader "Sprites/Default"
 
 			sampler2D _MainTex;
 			sampler2D _AlphaTex;
-			float _AlphaSplitEnabled;
 
 			fixed4 SampleSpriteTexture (float2 uv)
 			{
 				fixed4 color = tex2D (_MainTex, uv);
 
-#if UNITY_TEXTURE_ALPHASPLIT_ALLOWED
-				if (_AlphaSplitEnabled)
-					color.a = tex2D (_AlphaTex, uv).r;
-#endif //UNITY_TEXTURE_ALPHASPLIT_ALLOWED
+#if ETC1_EXTERNAL_ALPHA
+				// get the color from an external texture (usecase: Alpha support for ETC1 on android)
+				color.a = tex2D (_AlphaTex, uv).r;
+#endif //ETC1_EXTERNAL_ALPHA
 
 				return color;
 			}
