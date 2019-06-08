@@ -1,3 +1,5 @@
+// Shared tree shader functionality for Unity 2.x tree shaders
+
 #include "HLSLSupport.cginc"
 #include "UnityCG.cginc"
 #include "TerrainEngine.cginc"
@@ -21,7 +23,8 @@ float _HalfOverCutoff;
 struct v2f {
 	float4 pos : SV_POSITION;
 	float4 uv : TEXCOORD0;
-	fixed4 color : COLOR0;
+	half4 color : TEXCOORD1;
+	UNITY_FOG_COORDS(2)
 };
 
 v2f leaves(appdata_tree v)
@@ -62,9 +65,10 @@ v2f leaves(appdata_tree v)
 		light += lightColor * (occ * atten);
 	}
 
-	o.color = light * _Color;
+	o.color = light * _Color * _TreeInstanceColor;
 	o.color.a = 0.5 * _HalfOverCutoff;
 	
+	UNITY_TRANSFER_FOG(o,o.pos);
 	return o; 
 }
 
@@ -107,11 +111,12 @@ v2f bark(appdata_tree v)
 	}
 
 	light.a = 1;
-	o.color = light * _Color;
+	o.color = light * _Color * _TreeInstanceColor;
 	
 	#ifdef WRITE_ALPHA_1
 	o.color.a = 1;
 	#endif
-	
+
+	UNITY_TRANSFER_FOG(o,o.pos);	
 	return o; 
 }
