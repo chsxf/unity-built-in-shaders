@@ -171,8 +171,9 @@ struct FragmentCommonData
     // Note: smoothness & oneMinusReflectivity for optimization purposes, mostly for DX9 SM2.0 level.
     // Most of the math is being done on these (1-x) values, and that saves a few precious ALU slots.
     half oneMinusReflectivity, smoothness;
-    half3 normalWorld, eyeVec, posWorld;
+    half3 normalWorld, eyeVec;
     half alpha;
+    float3 posWorld;
 
 #if UNITY_STANDARD_SIMPLE
     half3 reflUVW;
@@ -222,7 +223,7 @@ inline FragmentCommonData MetallicSetup (float4 i_tex)
     return o;
 }
 
-inline FragmentCommonData FragmentSetup (float4 i_tex, half3 i_eyeVec, half3 i_viewDirForParallax, half4 tangentToWorld[3], half3 i_posWorld)
+inline FragmentCommonData FragmentSetup (float4 i_tex, half3 i_eyeVec, half3 i_viewDirForParallax, half4 tangentToWorld[3], float3 i_posWorld)
 {
     i_tex = Parallax(i_tex, i_viewDirForParallax);
 

@@ -75,7 +75,8 @@
 #endif
 
 // Should we pack worldPos along tangent (saving an interpolator)
-#if UNITY_REQUIRE_FRAG_WORLDPOS && !defined(_PARALLAXMAP)
+// We want to skip this on mobile platforms, because worldpos gets packed into mediump
+#if UNITY_REQUIRE_FRAG_WORLDPOS && !defined(_PARALLAXMAP) && !(defined(SHADER_API_MOBILE) && !defined(SHADER_API_D3D11_9X))
     #define UNITY_PACK_WORLDPOS_WITH_TANGENT 1
 #else
     #define UNITY_PACK_WORLDPOS_WITH_TANGENT 0
