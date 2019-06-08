@@ -1,3 +1,4 @@
+* Version 4.7.0f1: https://download.unity3d.com/download_unity/builtin_shaders-4.7.0f1.zip
 * Version 4.6.9: https://download.unity3d.com/download_unity/builtin_shaders-4.6.9.zip
 * Version 4.6.8: https://download.unity3d.com/download_unity/builtin_shaders-4.6.8.zip
 * Version 4.6.7: https://download.unity3d.com/download_unity/builtin_shaders-4.6.7.zip
