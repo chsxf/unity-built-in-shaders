@@ -71,6 +71,14 @@ sampler2D _BumpSpecMap;
 sampler2D _TranslucencyMap;
 fixed _Cutoff;
 
+half3 CalcTreeLighting(half3 lightColor, fixed3 albedo, half backContrib, half nl, half nh, half specular, half gloss)
+{
+	half3 translucencyColor = backContrib * _TranslucencyColor;
+	
+	half spec = pow (nh, specular) * gloss;
+	return (albedo * (translucencyColor + nl) + _SpecColor.rgb * spec) * lightColor;
+}
+
 fixed4 frag (v2f i) : SV_Target {
 	fixed4 col = tex2D (_MainTex, i.uv);
 	clip (col.a - _Cutoff);
@@ -86,6 +94,7 @@ fixed4 frag (v2f i) : SV_Target {
 	
 	half3 backContribs = i.backContrib * trngls.b;
 	
+/*  This is unrolled below, indexing into a vec3 components is a terrible idea
 	for (int j = 0; j < 3; j++)
 	{
 		half3 lightColor = _TerrainTreeLightColors[j].rgb;
@@ -95,7 +104,11 @@ fixed4 frag (v2f i) : SV_Target {
 		half nh = i.nh[j];
 		half spec = pow (nh, specular) * gloss;
 		light += (albedo * (translucencyColor + nl) + _SpecColor.rgb * spec) * lightColor;
-	}
+	}*/
+
+	light += CalcTreeLighting(_TerrainTreeLightColors[0].rgb, albedo, backContribs.x, i.nl.x, i.nh.x, specular, gloss);
+	light += CalcTreeLighting(_TerrainTreeLightColors[1].rgb, albedo, backContribs.y, i.nl.y, i.nh.y, specular, gloss);
+	light += CalcTreeLighting(_TerrainTreeLightColors[2].rgb, albedo, backContribs.z, i.nl.z, i.nh.z, specular, gloss);
 	
 	fixed4 c;
 	c.rgb = light;

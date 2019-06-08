@@ -166,7 +166,8 @@ inline half RoughnessToSpecPower (half roughness)
 #if UNITY_GLOSS_MATCHES_MARMOSET_TOOLBAG2
 	// from https://s3.amazonaws.com/docs.knaldtech.com/knald/1.0.0/lys_power_drops.html
 	half n = 10.0 / log2((1-roughness)*0.968 + 0.03);
-#if defined(SHADER_API_PS3)
+#if defined(SHADER_API_PS3) || defined(SHADER_API_GLES) || defined(SHADER_API_GLES3)
+	// Prevent fp16 overflow when running on platforms where half is actually in use.
 	n = max(n,-255.9370);  //i.e. less than sqrt(65504)
 #endif
 	return n * n;
@@ -255,7 +256,7 @@ half3 Unity_GlossyEnvironment (UNITY_ARGS_TEXCUBE(tex), half4 hdr, half3 worldNo
 	float mip = pow(roughness,3.0/4.0) * UNITY_SPECCUBE_LOD_STEPS;
 #endif
 
-	half4 rgbm = SampleCubeReflection(tex, worldNormal.xyz, mip);
+	half4 rgbm = UNITY_SAMPLE_TEXCUBE_LOD(tex, worldNormal.xyz, mip);
 	return DecodeHDR_NoLinearSupportInSM2 (rgbm, hdr);
 }
 
@@ -357,6 +358,11 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 	half invV = lh * lh * oneMinusRoughness + roughness * roughness; // approx ModifiedKelemenVisibilityTerm(lh, 1-oneMinusRoughness);
 	half invF = lh;
 	half specular = ((specularPower + 1) * pow (nh, specularPower)) / (unity_LightGammaCorrectionConsts_8 * invV * invF + 1e-4f); // @TODO: might still need saturate(nl*specular) on Adreno/Mali
+
+	// Prevent FP16 overflow on mobiles
+#if SHADER_API_GLES || SHADER_API_GLES3
+	specular = clamp(specular, 0.0, 100.0);
+#endif
 
 	half grazingTerm = saturate(oneMinusRoughness + (1-oneMinusReflectivity));
     half3 color =	(diffColor + specular * specColor) * light.color * nl

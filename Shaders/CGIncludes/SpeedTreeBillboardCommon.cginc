@@ -90,11 +90,7 @@ void SpeedTreeBillboardVert(inout SpeedTreeBillboardData IN, out Input OUT)
 	OUT.HueVariationAmount = saturate(hueVariationAmount * _HueVariation.a);
 #endif
 
-#ifdef LOD_FADE_CROSSFADE
-	float4 pos = mul (UNITY_MATRIX_MVP, IN.vertex);
-	OUT.myScreenPos = ComputeScreenPos(pos).xyw;
-	OUT.myScreenPos.xy *= _ScreenParams.xy * 0.25f;
-#endif
+	UNITY_TRANSFER_DITHER_CROSSFADE(OUT, IN.vertex)
 }
 
 #endif // SPEEDTREE_BILLBOARD_COMMON_INCLUDED

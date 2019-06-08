@@ -134,11 +134,10 @@ void UnityDeferredCalculateLightParams (
 		float att = dot(tolight, tolight) * _LightPos.w;
 		atten *= tex2D (_LightTextureB0, att.rr).UNITY_ATTEN_CHANNEL;
 		
-		atten *= UnityDeferredComputeShadow (wpos, fadeDist, uv);	
-	#endif //SPOT
+		atten *= UnityDeferredComputeShadow (wpos, fadeDist, uv);
 	
 	// directional light case		
-	#if defined (DIRECTIONAL) || defined (DIRECTIONAL_COOKIE)
+	#elif defined (DIRECTIONAL) || defined (DIRECTIONAL_COOKIE)
 		half3 lightDir = -_LightDir.xyz;
 		float atten = 1.0;
 		
@@ -147,10 +146,9 @@ void UnityDeferredCalculateLightParams (
 		#if defined (DIRECTIONAL_COOKIE)
 		atten *= tex2D (_LightTexture0, mul(_LightMatrix0, half4(wpos,1)).xy).w;
 		#endif //DIRECTIONAL_COOKIE
-	#endif //DIRECTIONAL || DIRECTIONAL_COOKIE
 	
 	// point light case	
-	#if defined (POINT) || defined (POINT_COOKIE)
+	#elif defined (POINT) || defined (POINT_COOKIE)
 		float3 tolight = wpos - _LightPos.xyz;
 		half3 lightDir = -normalize (tolight);
 		
@@ -162,7 +160,10 @@ void UnityDeferredCalculateLightParams (
 		#if defined (POINT_COOKIE)
 		atten *= texCUBE(_LightTexture0, mul(_LightMatrix0, half4(wpos,1)).xyz).w;
 		#endif //POINT_COOKIE	
-	#endif //POINT || POINT_COOKIE
+	#else
+		half3 lightDir = 0;
+		float atten = 0;
+	#endif
 
 	outWorldPos = wpos;
 	outUV = uv;

@@ -53,7 +53,7 @@ Shader "Nature/SpeedTree"
 				#pragma vertex vert
 				#pragma fragment frag
 				#pragma target 3.0
-				#pragma multi_compile __ LOD_FADE_PERCENTAGE
+				#pragma multi_compile __ LOD_FADE_PERCENTAGE LOD_FADE_CROSSFADE
 				#pragma shader_feature GEOM_TYPE_BRANCH GEOM_TYPE_BRANCH_DETAIL GEOM_TYPE_BRANCH_BLEND GEOM_TYPE_FROND GEOM_TYPE_LEAF GEOM_TYPE_FACING_LEAF GEOM_TYPE_MESH
 				#pragma multi_compile_shadowcaster
 				#define ENABLE_WIND
@@ -65,6 +65,7 @@ Shader "Nature/SpeedTree"
 					#ifdef SPEEDTREE_ALPHATEST
 						half2 uv : TEXCOORD1;
 					#endif
+					UNITY_DITHER_CROSSFADE_COORDS_IDX(2)
 				};
 
 				v2f vert(SpeedTreeVB v)
@@ -75,6 +76,8 @@ Shader "Nature/SpeedTree"
 					#endif
 					OffsetSpeedTreeVertex(v, unity_LODFade.x);
 					TRANSFER_SHADOW_CASTER_NORMALOFFSET(o)
+					UNITY_TRANSFER_DITHER_CROSSFADE_HPOS(o, o.pos)
+
 					return o;
 				}
 
@@ -83,6 +86,7 @@ Shader "Nature/SpeedTree"
 					#ifdef SPEEDTREE_ALPHATEST
 						clip(tex2D(_MainTex, i.uv).a * _Color.a - _Cutoff);
 					#endif
+					UNITY_APPLY_DITHER_CROSSFADE(i)
 					SHADOW_CASTER_FRAGMENT(i)
 				}
 			ENDCG

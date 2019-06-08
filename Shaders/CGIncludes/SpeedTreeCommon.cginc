@@ -20,9 +20,7 @@ struct Input
 	#if defined(GEOM_TYPE_BRANCH_DETAIL) || defined(GEOM_TYPE_BRANCH_BLEND)
 		half3 interpolator2;
 	#endif
-	#ifdef LOD_FADE_CROSSFADE
-		half3 myScreenPos;
-	#endif
+	UNITY_DITHER_CROSSFADE_COORDS
 };
 	
 // Define uniforms
@@ -51,10 +49,6 @@ uniform sampler2D _MainTex;
 
 #ifdef EFFECT_BUMP
 	uniform sampler2D _BumpMap;
-#endif
-
-#ifdef LOD_FADE_CROSSFADE
-	uniform sampler2D _DitherMaskLOD2D;
 #endif
 
 uniform fixed4 _Color;
@@ -86,11 +80,7 @@ void SpeedTreeVert(inout SpeedTreeVB IN, out Input OUT)
 
 	OffsetSpeedTreeVertex(IN, unity_LODFade.x);
 
-	#ifdef LOD_FADE_CROSSFADE
-		float4 pos = mul(UNITY_MATRIX_MVP, IN.vertex);
-		OUT.myScreenPos = ComputeScreenPos(pos).xyw;
-		OUT.myScreenPos.xy *= _ScreenParams.xy * 0.25;
-	#endif
+	UNITY_TRANSFER_DITHER_CROSSFADE(OUT, IN.vertex)
 }
 
 // Fragment processing
@@ -121,11 +111,7 @@ struct SpeedTreeFragOut
 
 void SpeedTreeFrag(Input IN, out SpeedTreeFragOut OUT)
 {
-	#ifdef LOD_FADE_CROSSFADE
-		half2 projUV = IN.myScreenPos.xy / IN.myScreenPos.z;
-		projUV.y = frac(projUV.y) * 0.0625 /* 1/16 */ + unity_LODFade.y; // quantized lod fade by 16 levels
-		clip(tex2D(_DitherMaskLOD2D, projUV).a - 0.5);
-	#endif
+	UNITY_APPLY_DITHER_CROSSFADE(IN)
 
 	half4 diffuseColor = tex2D(_MainTex, IN.mainTexUV);
 

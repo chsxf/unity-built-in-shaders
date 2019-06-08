@@ -46,7 +46,7 @@ SubShader {
 		{
 			v2f o;
 			o.vertex = mul(UNITY_MATRIX_MVP, RotateAroundYInDegrees(v.vertex, _Rotation));
-			o.texcoord = v.vertex;
+			o.texcoord = v.vertex.xyz;
 			return o;
 		}
 
@@ -54,7 +54,7 @@ SubShader {
 		{
 			half4 tex = texCUBE (_Tex, i.texcoord);
 			half3 c = DecodeHDR (tex, _Tex_HDR);
-			c = c * _Tint.rgb * unity_ColorSpaceDouble;
+			c = c * _Tint.rgb * unity_ColorSpaceDouble.rgb;
 			c *= _Exposure;
 			return half4(c, 1);
 		}

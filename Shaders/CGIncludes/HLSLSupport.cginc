@@ -4,7 +4,7 @@
 #if defined(SHADER_TARGET_SURFACE_ANALYSIS)
 	// Cg is used for surface shader analysis step
 	#define UNITY_COMPILER_CG
-#elif defined(SHADER_API_D3D11) || defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_D3D9) || defined(SHADER_API_XBOXONE)
+#elif defined(SHADER_API_D3D11) || defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_D3D9) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_XBOXONE)
 	#define UNITY_COMPILER_HLSL
 #elif defined(SHADER_TARGET_GLSL)
 	#define UNITY_COMPILER_HLSL2GLSL
@@ -77,12 +77,14 @@
 #if defined(UNITY_COMPILER_HLSL)
 #pragma warning (disable : 3205) // conversion of larger type to smaller
 #pragma warning (disable : 3568) // unknown pragma ignored
+#pragma warning (disable : 3571) // "pow(f,e) will not work for negative f"; however in majority of our calls to pow we know f is not negative
+#pragma warning (disable : 3206) // implicit truncation of vector type
 #endif
 
 
 // Define "fixed" precision to be half on non-GLSL platforms,
 // and sampler*_prec to be just simple samplers.
-#if !defined(SHADER_TARGET_GLSL) && !defined(SHADER_API_PSSL)
+#if !defined(SHADER_TARGET_GLSL) && !defined(SHADER_API_PSSL) && !defined(SHADER_API_GLES3) 
 #define fixed half
 #define fixed2 half2
 #define fixed3 half3
@@ -95,12 +97,31 @@
 #define samplerCUBE_half samplerCUBE
 #define samplerCUBE_float samplerCUBE
 #endif
+ 
+#if defined(SHADER_API_GLES3)
+// GLES3 and later via HLSLcc, use DX11.1 partial precision for translation
+#define fixed min10float
+#define fixed2 min10float2
+#define fixed3 min10float3
+#define fixed4 min10float4
+#define fixed4x4 min10float4x4
+#define fixed3x3 min10float3x3
+#define fixed2x2 min10float2x2
+#define half min16float
+#define half2 min16float2
+#define half3 min16float3
+#define half4 min16float4
+#define half2x2 min16float2x2
+#define half3x3 min16float3x3
+#define half4x4 min16float4x4
+
+#endif
 
 // Define min16float/min10float to be half/fixed on non-D3D11 platforms.
 // This allows people to use min16float and friends in their shader code if they
 // really want to (making that will make shaders not load before DX11.1, e.g. on Win7,
 // but if they target WSA/WP exclusively that's fine).
-#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X)
+#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X) && !defined(SHADER_API_GLES3)
 #define min16float half
 #define min16float2 half2
 #define min16float3 half3
@@ -138,7 +159,7 @@
 
 #define CBUFFER_START(name) ConstantBuffer name {
 #define CBUFFER_END };
-#elif defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X)
+#elif !(defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)) && (defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X))
 #define CBUFFER_START(name) cbuffer name {
 #define CBUFFER_END };
 #else
@@ -184,8 +205,8 @@
 	float4 tex1Dproj(sampler1D s, in float4 t)		{ return tex1D(s, t.x / t.w); }
 	float4 tex2Dproj(sampler2D s, in float3 t)		{ return tex2D(s, t.xy / t.z); }
 	float4 tex2Dproj(sampler2D_float s, in float3 t)		{ return tex2D(s, t.xy / t.z); }
-	float4 tex2Dproj(sampler2D_float s, in float4 t)		{ return tex2D(s, t.xy / t.w); }
 	float4 tex2Dproj(sampler2D s, in float4 t)		{ return tex2D(s, t.xy / t.w); }
+	float4 tex2Dproj(sampler2D_float s, in float4 t)		{ return tex2D(s, t.xy / t.w); }
 	float4 tex3Dproj(sampler3D s, in float4 t)		{ return tex3D(s, t.xyz / t.w); }
 	float4 texCUBEproj(samplerCUBE s, in float4 t)	{ return texCUBE(s, t.xyz / t.w); }
 #elif defined(SHADER_API_PSP2) && !defined(SHADER_API_PSM)
@@ -195,14 +216,14 @@
 	half4 tex2Dproj(sampler2D s, in half3 t)		{ return tex2D(s, t.xy / t.z); }
 	half4 tex2Dproj(sampler2D s, in half4 t)		{ return tex2D(s, t.xy / t.w); }
 
-    // As above but for sampling from single component textures, e.g. depth textures.
+	// As above but for sampling from single component textures, e.g. depth textures.
 	// NOTE that hardware PCF does not work with these versions, currently we have to ensure
 	// that tex coords for shadow sampling use float, not half; and for some reason casting half
 	// to float and using tex2Dproj also does not work.
 	half4 tex2DprojShadow(sampler2D s, in half3 t)		{ return tex2D<float>(s, t.xy / t.z); }
 	half4 tex2DprojShadow(sampler2D s, in half4 t)		{ return tex2D<float>(s, t.xy / t.w); }
 
-    // ...and versions of tex2DprojShadow for float uv.
+	// ...and versions of tex2DprojShadow for float uv.
 	half4 tex2DprojShadow(sampler2D s, in float3 t)		{ return tex2Dproj<float>(s, t); }
 	half4 tex2DprojShadow(sampler2D s, in float4 t)		{ return tex2Dproj<float>(s, t); }
 #elif defined(SHADER_API_XBOX360)
@@ -278,7 +299,7 @@
 	#define UNITY_DECLARE_SHADOWMAP(tex)		Texture2D tex; SamplerComparisonState sampler##tex
 	#define UNITY_SAMPLE_SHADOW(tex,coord)		tex.SampleCmpLOD0(sampler##tex,(coord).xy,(coord).z)
 	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord)	tex.SampleCmpLOD0(sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
-#elif defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X)
+#elif defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)
 	// DX11
 	#if defined(SHADER_API_D3D11_9X)
 		// FL9.x has some bug where the runtime really wants resource & sampler to be bound to the same slot,
@@ -322,7 +343,7 @@
 //	- UNITY_SAMPLE_TEX*_SAMPLER samples a texture, using sampler from another texture.
 //		That another texture must also be actually used in the current shader, otherwise
 //		the correct sampler will not be set.
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)
 #define UNITY_DECLARE_TEX2D(tex) Texture2D tex; SamplerState sampler##tex
 #define UNITY_DECLARE_TEX2D_NOSAMPLER(tex) Texture2D tex
 #define UNITY_SAMPLE_TEX2D(tex,coord) tex.Sample (sampler##tex,coord)
@@ -332,6 +353,7 @@
 #define UNITY_PASS_TEXCUBE(tex) tex, sampler##tex
 #define UNITY_DECLARE_TEXCUBE_NOSAMPLER(tex) TextureCube tex
 #define UNITY_SAMPLE_TEXCUBE(tex,coord) tex.Sample (sampler##tex,coord)
+#define UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, lod)
 #define UNITY_SAMPLE_TEXCUBE_SAMPLER(tex,samplertex,coord) tex.Sample (sampler##samplertex,coord)
 #else
 #define UNITY_DECLARE_TEX2D(tex) sampler2D tex
@@ -343,9 +365,16 @@
 #define UNITY_PASS_TEXCUBE(tex) tex
 #define UNITY_DECLARE_TEXCUBE_NOSAMPLER(tex) samplerCUBE tex
 #define UNITY_SAMPLE_TEXCUBE(tex,coord) texCUBE (tex,coord)
+#if (SHADER_TARGET < 30)
+#	define UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod) texCUBEbias(tex, half4(coord, lod))
+#else
+#	define UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod) texCUBElod (tex, half4(coord, lod))
+#endif
 #define UNITY_SAMPLE_TEXCUBE_SAMPLER(tex,samplertex,coord) texCUBE (tex,coord)
 #endif
 
+// For backwards comptability, so we won't accidentally break shaders written by user
+#define SampleCubeReflection(env, dir, lod) UNITY_SAMPLE_TEXCUBE_LOD(env, dir, lod)
 
 
 #define samplerRECT sampler2D
@@ -382,16 +411,25 @@
 #endif
 
 // Use VFACE pixel shader input semantic in your shaders to get front-facing scalar value.
+// Requires shader model 3.0 or higher.
 #if defined(UNITY_COMPILER_CG)
 #define VFACE FACE
 #endif
 #if defined(UNITY_COMPILER_HLSL2GLSL)
 #define FACE VFACE
 #endif
+// Is VFACE affected by flipped projection?
+#if defined(SHADER_API_D3D9)
+#define UNITY_VFACE_AFFECTED_BY_PROJECTION 1
+#endif
+// Is VFACE value flipped?
+#if defined(SHADER_API_XBOX360)
+#define UNITY_VFACE_FLIPPED 1
+#endif
 
 #if defined(SHADER_API_PSSL)
 #define SV_POSITION S_POSITION
-#elif !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X)
+#elif !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)
 #define SV_POSITION POSITION
 #endif
 
@@ -455,7 +493,7 @@
 // light shadowmaps. However, on some others they either have issues, or aren't widely
 // supported; in which case fallback to encoding depth into RGBA channels.
 // Make sure this define matches GraphicsCaps.useRGBAForPointShadows.
-#if defined(SHADER_API_GLES) || defined(SHADER_API_PSP2) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3)
+#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_PSP2) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3)
 #define UNITY_USE_RGBA_FOR_POINT_SHADOWS
 #endif
 
@@ -463,13 +501,13 @@
 // Initialize arbitrary structure with zero values.
 // Not supported on some backends (e.g. Cg-based like PS3 and particularly with nested structs).
 // hlsl2glsl would almost support it, except with structs that have arrays -- so treat as not supported there either :(
-#if defined(UNITY_COMPILER_HLSL) || defined(SHADER_API_PSSL)
+#if defined(UNITY_COMPILER_HLSL) || defined(SHADER_API_PSSL) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)
 #define UNITY_INITIALIZE_OUTPUT(type,name) name = (type)0;
 #else
 #define UNITY_INITIALIZE_OUTPUT(type,name)
 #endif
 
-#if defined(SHADER_API_D3D11)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)
 #define UNITY_CAN_COMPILE_TESSELLATION 1
 #	define UNITY_domain					domain
 #	define UNITY_partitioning			partitioning
@@ -532,13 +570,19 @@
 #define UNITY_ALPHA_CHANNEL a
 
 
-// HLSL branch and flatten attributes
+// HLSL attributes
 #if defined(UNITY_COMPILER_HLSL)
 	#define UNITY_BRANCH	[branch]
 	#define UNITY_FLATTEN	[flatten]
+	#define UNITY_UNROLL	[unroll]
+	#define UNITY_LOOP		[loop]
+	#define UNITY_FASTOPT	[fastopt]
 #else
 	#define UNITY_BRANCH
 	#define UNITY_FLATTEN
+	#define UNITY_UNROLL
+	#define UNITY_LOOP
+	#define UNITY_FASTOPT
 #endif
 
 //#define USE_INCONSISTENT_LIGHTING_FOR_BACKWARDS_COMPATIBILITY 0
