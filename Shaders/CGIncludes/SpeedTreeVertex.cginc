@@ -57,16 +57,16 @@ void OffsetSpeedTreeVertex(inout SpeedTreeVB data, float lodValue)
 		half windQuality = _WindQuality * _WindEnabled;
 
 		float3 rotatedWindVector, rotatedBranchAnchor;
-		if (windQuality > WIND_QUALITY_NONE)
+		if (windQuality <= WIND_QUALITY_NONE)
+		{
+			rotatedWindVector = float3(0.0f, 0.0f, 0.0f);
+			rotatedBranchAnchor = float3(0.0f, 0.0f, 0.0f);
+		}
+		else
 		{
 			// compute rotated wind parameters
 			rotatedWindVector = normalize(mul((float3x3)_World2Object, _ST_WindVector.xyz));
 			rotatedBranchAnchor = normalize(mul((float3x3)_World2Object, _ST_WindBranchAnchor.xyz)) * _ST_WindBranchAnchor.w;
-		}
-		else
-		{
-			rotatedWindVector = float3(0.0f, 0.0f, 0.0f);
-			rotatedBranchAnchor = float3(0.0f, 0.0f, 0.0f);
 		}
 	#endif
 
