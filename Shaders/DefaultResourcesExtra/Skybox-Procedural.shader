@@ -1,9 +1,11 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Skybox/Procedural" {
 Properties {
 	[KeywordEnum(None, Simple, High Quality)] _SunDisk ("Sun", Int) = 2
 	_SunSize ("Sun Size", Range(0,1)) = 0.04
 	
-	_AtmosphereThickness ("Atmoshpere Thickness", Range(0,5)) = 1.0
+	_AtmosphereThickness ("Atmosphere Thickness", Range(0,5)) = 1.0
 	_SkyTint ("Sky Tint", Color) = (.5, .5, .5, 1)
 	_GroundColor ("Ground", Color) = (.369, .349, .341, 1)
 
@@ -57,7 +59,7 @@ SubShader {
 
 		static const float kCameraHeight = 0.0001;
 
-		#define kRAYLEIGH (lerp(0.0, 0.0025, pow(_AtmosphereThickness,2.5)))		// Rayleigh constant
+		#define kRAYLEIGH (lerp(0, 0.0025, pow(_AtmosphereThickness,2.5)))		// Rayleigh constant
 		#define kMIE 0.0010      		// Mie constant
 		#define kSUN_BRIGHTNESS 20.0 	// Sun brightness
 

@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Hidden/TerrainEngine/Splatmap/Specular-Base" {
 	Properties {
 		_SpecColor ("Specular Color", Color) = (0.5, 0.5, 0.5, 1)

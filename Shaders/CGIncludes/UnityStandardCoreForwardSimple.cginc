@@ -1,9 +1,11 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 #ifndef UNITY_STANDARD_CORE_FORWARD_SIMPLE_INCLUDED
 #define UNITY_STANDARD_CORE_FORWARD_SIMPLE_INCLUDED
 
 #include "UnityStandardCore.cginc"
 
-//  Does not support: _PARALLAXMAP, DIRLIGHTMAP_COMBINED, DIRLIGHTMAP_SEPARATE
+//  Does not support: _PARALLAXMAP, DIRLIGHTMAP_COMBINED
 #define GLOSSMAP (defined(_SPECGLOSSMAP) || defined(_METALLICGLOSSMAP))
 
 #ifndef SPECULAR_HIGHLIGHTS
@@ -76,15 +78,12 @@ void TangentSpaceLightingInput(half3 normalWorld, half4 vTangent, half3 lightDir
 
 VertexOutputBaseSimple vertForwardBaseSimple (VertexInput v)
 {
-    VertexOutputBaseSimple o;
     UNITY_SETUP_INSTANCE_ID(v);
+    VertexOutputBaseSimple o;
     UNITY_INITIALIZE_OUTPUT(VertexOutputBaseSimple, o);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
     float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
-#if UNITY_REQUIRE_FRAG_WORLDPOS
-    o.posWorld = posWorld.xyz;
-#endif
     o.pos = UnityObjectToClipPos(v.vertex);
     o.tex = TexCoords(v);
 
@@ -203,7 +202,10 @@ half4 fragForwardBaseSimpleInternal (VertexOutputBaseSimple i)
     half ndotl = saturate(dot(s.normalWorld, mainLight.dir));
     #endif
 
-    half atten = SHADOW_ATTENUATION(i);
+    //we can't have worldpos here (not enough interpolator on SM 2.0) so no shadow fade in that case.
+    half shadowMaskAttenuation = UnitySampleBakedOcclusion(i.ambientOrLightmapUV, 0);
+    half realtimeShadowAttenuation = SHADOW_ATTENUATION(i);
+    half atten = UnityMixRealtimeAndBakedShadows(realtimeShadowAttenuation, shadowMaskAttenuation, 0);
 
     half occlusion = Occlusion(i.tex.xy);
     half rl = dot(REFLECTVEC_FOR_SPECULAR(i, s), LightDirForSpecular(i, mainLight));
@@ -213,7 +215,6 @@ half4 fragForwardBaseSimpleInternal (VertexOutputBaseSimple i)
 
     half3 c = BRDF3_Indirect(s.diffColor, s.specColor, gi.indirect, PerVertexGrazingTerm(i, s), PerVertexFresnelTerm(i));
     c += BRDF3DirectSimple(s.diffColor, s.specColor, s.smoothness, rl) * attenuatedLightColor;
-    c += UNITY_BRDF_GI (s.diffColor, s.specColor, s.oneMinusReflectivity, s.smoothness, s.normalWorld, -s.eyeVec, occlusion, gi);
     c += Emission(i.tex.xy);
 
     UNITY_APPLY_FOG(i.fogCoord, c);
@@ -230,8 +231,9 @@ struct VertexOutputForwardAddSimple
 {
     float4 pos                          : SV_POSITION;
     float4 tex                          : TEXCOORD0;
+    float3 posWorld                     : TEXCOORD1;
 
-    LIGHTING_COORDS(1,2)
+    UNITY_SHADOW_COORDS(2)
 
 #if !defined(_NORMALMAP) && SPECULAR_HIGHLIGHTS
     UNITY_FOG_COORDS_PACKED(3, half4) // x: fogCoord, yzw: reflectVec
@@ -262,9 +264,10 @@ VertexOutputForwardAddSimple vertForwardAddSimple (VertexInput v)
     float4 posWorld = mul(unity_ObjectToWorld, v.vertex);
     o.pos = UnityObjectToClipPos(v.vertex);
     o.tex = TexCoords(v);
+    o.posWorld = posWorld.xyz;
 
     //We need this for shadow receiving
-    TRANSFER_VERTEX_TO_FRAGMENT(o);
+    UNITY_TRANSFER_SHADOW(o, v.uv1);
 
     half3 lightDir = _WorldSpaceLightPos0.xyz - posWorld.xyz * _WorldSpaceLightPos0.w;
     #ifndef USING_DIRECTIONAL_LIGHT
@@ -309,7 +312,7 @@ FragmentCommonData FragmentSetupSimpleAdd(VertexOutputForwardAddSimple i)
     s.diffColor = PreMultiplyAlpha (s.diffColor, alpha, s.oneMinusReflectivity, /*out*/ s.alpha);
 
     s.eyeVec = 0;
-    s.posWorld = 0;
+    s.posWorld = i.posWorld;
 
     #ifdef _NORMALMAP
         s.tangentSpaceNormal = NormalInTangentSpace(i.tex);
@@ -347,7 +350,7 @@ half4 fragForwardAddSimpleInternal (VertexOutputForwardAddSimple i)
         c *= _LightColor0.rgb;
     #endif
 
-    c *= LIGHT_ATTENUATION(i) * saturate(dot(LightSpaceNormal(i, s), i.lightDir));
+    c *= UNITY_SHADOW_ATTENUATION(i, s.posWorld) * saturate(dot(LightSpaceNormal(i, s), i.lightDir));
 
     UNITY_APPLY_FOG_COLOR(i.fogCoord, c.rgb, half4(0,0,0,0)); // fog towards black in additive pass
     return OutputForward (half4(c, 1), s.alpha);

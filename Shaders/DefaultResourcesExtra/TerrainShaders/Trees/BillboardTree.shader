@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Hidden/TerrainEngine/BillboardTree" {
 	Properties {
 		_MainTex ("Base (RGB) Alpha (A)", 2D) = "white" {}

@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Hidden/Nature/Tree Creator Leaves Rendertex" {
 Properties {
 	_TranslucencyColor ("Translucency Color", Color) = (0.73,0.85,0.41,1) // (187,219,106,255)

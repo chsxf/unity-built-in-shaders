@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 // Simple "just colors" shader that's used for built-in debug visualizations,
 // in the editor etc. Just outputs _Color * vertex color; and blend/Z/cull/bias
 // controlled by material parameters.
@@ -30,7 +32,7 @@ Shader "Hidden/Internal-Colored"
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma target 2.0
-			#pragma multi_compile _ STEREO_INSTANCING_ON UNITY_SINGLE_PASS_STEREO 
+			#pragma multi_compile _ UNITY_SINGLE_PASS_STEREO STEREO_INSTANCING_ON STEREO_MULTIVIEW_ON
 			#include "UnityCG.cginc"
 			
 			struct appdata_t {

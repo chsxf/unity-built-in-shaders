@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 #ifndef UNITY_DEFERRED_LIBRARY_INCLUDED
 #define UNITY_DEFERRED_LIBRARY_INCLUDED
 
@@ -35,7 +37,7 @@ unity_v2f_deferred vert_deferred (float4 vertex : POSITION, float3 normal : NORM
 // Shared uniforms
 
 
-sampler2D_float _CameraDepthTexture;
+UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 
 float4 _LightDir;
 float4 _LightPos;
@@ -54,53 +56,91 @@ sampler2D _LightTexture0;
 sampler2D _ShadowMapTexture;
 #endif
 
+#if defined (SHADOWS_SHADOWMASK)
+sampler2D _CameraGBufferTexture4;
+#endif
 
 // --------------------------------------------------------
 // Shadow/fade helpers
 
 #include "UnityShadowLibrary.cginc"
 
+//Note :
+// SHADOWS_SHADOWMASK + LIGHTMAP_SHADOW_MIXING -> ShadowMask mode
+// SHADOWS_SHADOWMASK only -> Distance shadowmask mode
 
-float UnityDeferredComputeFadeDistance(float3 wpos, float z)
+// --------------------------------------------------------
+half UnityDeferredSampleShadowMask(float2 uv)
 {
-    float sphereDist = distance(wpos, unity_ShadowFadeCenterAndType.xyz);
-    return lerp(z, sphereDist, unity_ShadowFadeCenterAndType.w);
+    half shadowMaskAttenuation = 1.0f;
+
+    #if defined (SHADOWS_SHADOWMASK)
+        half4 shadowMask = tex2D(_CameraGBufferTexture4, uv);
+        shadowMaskAttenuation = saturate(dot(shadowMask, unity_OcclusionMaskSelector));
+    #endif
+
+    return shadowMaskAttenuation;
 }
 
-half UnityDeferredComputeShadow(float3 vec, float fadeDist, float2 uv)
+// --------------------------------------------------------
+half UnityDeferredSampleRealtimeShadow(half fade, float3 vec, float2 uv)
 {
-    #if defined(SHADOWS_DEPTH) || defined(SHADOWS_SCREEN) || defined(SHADOWS_CUBE)
-    float fade = fadeDist * _LightShadowData.z + _LightShadowData.w;
-    fade = saturate(fade);
-    #endif
-
-    #if defined(SPOT)
-    #if defined(SHADOWS_DEPTH)
-    float4 shadowCoord = mul (unity_WorldToShadow[0], float4(vec,1));
-    return saturate(UnitySampleShadowmap (shadowCoord) + fade);
-    #endif //SHADOWS_DEPTH
-    #endif
+    half shadowAttenuation = 1.0f;
 
     #if defined (DIRECTIONAL) || defined (DIRECTIONAL_COOKIE)
-    #if defined(SHADOWS_SCREEN)
-    return saturate(tex2D (_ShadowMapTexture, uv).r + fade);
-    #endif
-    #endif //DIRECTIONAL || DIRECTIONAL_COOKIE
-
-    #if defined (POINT) || defined (POINT_COOKIE)
-    #if defined(SHADOWS_CUBE)
-    return UnitySampleShadowmap (vec);
-    #endif //SHADOWS_CUBE
+        #if defined(SHADOWS_SCREEN)
+            shadowAttenuation = tex2D(_ShadowMapTexture, uv).r;
+        #endif
     #endif
 
-    return 1.0;
+    #if defined(UNITY_FAST_COHERENT_DYNAMIC_BRANCHING) && defined(SHADOWS_SOFT) && !defined(LIGHTMAP_SHADOW_MIXING)
+    //avoid expensive shadows fetches in the distance where coherency will be good
+    UNITY_BRANCH
+    if (fade < (1.0f - 1e-2f))
+    {
+    #endif
+
+        #if defined(SPOT)
+            #if defined(SHADOWS_DEPTH)
+                float4 shadowCoord = mul(unity_WorldToShadow[0], float4(vec, 1));
+                shadowAttenuation = UnitySampleShadowmap(shadowCoord);
+            #endif
+        #endif
+
+        #if defined (POINT) || defined (POINT_COOKIE)
+            #if defined(SHADOWS_CUBE)
+                shadowAttenuation = UnitySampleShadowmap(vec);
+            #endif
+        #endif
+
+    #if defined(UNITY_FAST_COHERENT_DYNAMIC_BRANCHING) && defined(SHADOWS_SOFT) && !defined(LIGHTMAP_SHADOW_MIXING)
+    }
+    #endif
+
+    return shadowAttenuation;
 }
 
+// --------------------------------------------------------
+// For backward compatibility only has UnityDeferredComputeFadeDistance
+// has been renamed to UnityComputeShadowFadeDistance in Unity 5.6
+float UnityDeferredComputeFadeDistance(float3 wpos, float z)
+{
+    return UnityComputeShadowFadeDistance(wpos, z);
+}
+
+// --------------------------------------------------------
+half UnityDeferredComputeShadow(float3 vec, float fadeDist, float2 uv)
+{
+
+    half fade                      = UnityComputeShadowFade(fadeDist);
+    half shadowMaskAttenuation     = UnityDeferredSampleShadowMask(uv);
+    half realtimeShadowAttenuation = UnityDeferredSampleRealtimeShadow(fade, vec, uv);
+
+    return UnityMixRealtimeAndBakedShadows(realtimeShadowAttenuation, shadowMaskAttenuation, fade);
+}
 
 // --------------------------------------------------------
 // Common lighting data calculation (direction, attenuation, ...)
-
-
 void UnityDeferredCalculateLightParams (
     unity_v2f_deferred i,
     out float3 outWorldPos,
@@ -118,7 +158,7 @@ void UnityDeferredCalculateLightParams (
     float4 vpos = float4(i.ray * depth,1);
     float3 wpos = mul (unity_CameraToWorld, vpos).xyz;
 
-    float fadeDist = UnityDeferredComputeFadeDistance(wpos, vpos.z);
+    float fadeDist = UnityComputeShadowFadeDistance(wpos, vpos.z);
 
     // spot light case
     #if defined (SPOT)

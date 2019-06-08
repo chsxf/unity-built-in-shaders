@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 // Shared tree shader functionality for Unity 2.x tree shaders
 
 #include "HLSLSupport.cginc"

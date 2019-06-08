@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 // Simplified VertexLit shader, optimized for high-poly meshes. Differences from regular VertexLit one:
 // - less per-vertex work compared with Mobile-VertexLit
 // - supports only DIRECTIONAL lights and ambient term, saves some vertex processing power

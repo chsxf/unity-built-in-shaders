@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 #ifndef LIGHTING_INCLUDED
 #define LIGHTING_INCLUDED
 
@@ -38,15 +40,6 @@ inline fixed4 LightingLambert (SurfaceOutput s, UnityGI gi)
 {
     fixed4 c;
     c = UnityLambertLight (s, gi.light);
-
-    #if defined(DIRLIGHTMAP_SEPARATE)
-        #ifdef LIGHTMAP_ON
-            c += UnityLambertLight (s, gi.light2);
-        #endif
-        #ifdef DYNAMICLIGHTMAP_ON
-            c += UnityLambertLight (s, gi.light3);
-        #endif
-    #endif
 
     #ifdef UNITY_LIGHT_FUNCTION_APPLY_INDIRECT
         c.rgb += s.Albedo * gi.indirect.diffuse;
@@ -113,15 +106,6 @@ inline fixed4 LightingBlinnPhong (SurfaceOutput s, half3 viewDir, UnityGI gi)
 {
     fixed4 c;
     c = UnityBlinnPhongLight (s, viewDir, gi.light);
-
-    #if defined(DIRLIGHTMAP_SEPARATE)
-        #ifdef LIGHTMAP_ON
-            c += UnityBlinnPhongLight (s, viewDir, gi.light2);
-        #endif
-        #ifdef DYNAMICLIGHTMAP_ON
-            c += UnityBlinnPhongLight (s, viewDir, gi.light3);
-        #endif
-    #endif
 
     #ifdef UNITY_LIGHT_FUNCTION_APPLY_INDIRECT
         c.rgb += s.Albedo * gi.indirect.diffuse;

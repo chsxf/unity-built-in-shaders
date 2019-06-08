@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 #ifndef UNITY_IMAGE_BASED_LIGHTING_INCLUDED
 #define UNITY_IMAGE_BASED_LIGHTING_INCLUDED
 
@@ -537,18 +539,9 @@ half3 Unity_GlossyEnvironment (UNITY_ARGS_TEXCUBE(tex), half4 hdr, Unity_GlossyE
 #endif
 
 
-#if UNITY_OPTIMIZE_TEXCUBELOD
-    half4 rgbm = UNITY_SAMPLE_TEXCUBE_LOD(tex, glossIn.reflUVW, 4);
-    if(perceptualRoughness > 0.5)
-        rgbm = lerp(rgbm, UNITY_SAMPLE_TEXCUBE_LOD(tex, glossIn.reflUVW, 8), 2*perceptualRoughness-1);
-    else
-        rgbm = lerp(UNITY_SAMPLE_TEXCUBE(tex, glossIn.reflUVW), rgbm, 2*perceptualRoughness);
-#else
     half mip = perceptualRoughnessToMipmapLevel(perceptualRoughness);
-
     half3 R = glossIn.reflUVW;
     half4 rgbm = UNITY_SAMPLE_TEXCUBE_LOD(tex, R, mip);
-#endif
 
     return DecodeHDR(rgbm, hdr);
 }

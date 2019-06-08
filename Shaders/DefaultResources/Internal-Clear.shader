@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 // Used on D3D11 and similar platforms for non-fullscreen clears
 // (platforms that can't clear just part of the render target)
 Shader "Hidden/InternalClear" {
@@ -6,7 +8,7 @@ Shader "Hidden/InternalClear" {
 	#pragma vertex vert
 	#pragma fragment frag
 	#pragma target 2.0
-	#pragma multi_compile _ STEREO_INSTANCING_ON  UNITY_SINGLE_PASS_STEREO
+	#pragma multi_compile _ UNITY_SINGLE_PASS_STEREO STEREO_INSTANCING_ON STEREO_MULTIVIEW_ON
 	#include "UnityCG.cginc"
 
 	struct appdata_t {
@@ -23,8 +25,8 @@ Shader "Hidden/InternalClear" {
 
 	v2f vert (appdata_t v)
 	{
-		UNITY_SETUP_INSTANCE_ID(v);
 		v2f o;
+		UNITY_SETUP_INSTANCE_ID(v);
 		UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 		o.vertex = UnityObjectToClipPos(v.vertex);
 		o.color = v.color;

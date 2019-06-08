@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Nature/Tree Soft Occlusion Bark" {
 	Properties {
 		_Color ("Main Color", Color) = (1,1,1,0)
@@ -53,16 +55,20 @@ Shader "Nature/Tree Soft Occlusion Bark" {
 			
 			struct v2f { 
 				V2F_SHADOW_CASTER;
+				UNITY_VERTEX_OUTPUT_STEREO
 			};
 			
 			struct appdata {
 			    float4 vertex : POSITION;
 				float3 normal : NORMAL;
 			    fixed4 color : COLOR;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 			v2f vert( appdata v )
 			{
 				v2f o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 				TerrainAnimateTree(v.vertex, v.color.w);
 				TRANSFER_SHADOW_CASTER_NORMALOFFSET(o)
 				return o;

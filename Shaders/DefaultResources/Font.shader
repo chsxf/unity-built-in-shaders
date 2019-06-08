@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "GUI/Text Shader" {
 	Properties {
 		_MainTex ("Font Texture", 2D) = "white" {}
@@ -19,8 +21,7 @@ Shader "GUI/Text Shader" {
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma multi_compile _ STEREO_INSTANCING_ON UNITY_SINGLE_PASS_STEREO
-
+			#pragma multi_compile _ UNITY_SINGLE_PASS_STEREO STEREO_INSTANCING_ON STEREO_MULTIVIEW_ON
 			#include "UnityCG.cginc"
 
 			struct appdata_t {

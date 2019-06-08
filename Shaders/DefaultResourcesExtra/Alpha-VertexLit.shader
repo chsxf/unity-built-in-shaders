@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Legacy Shaders/Transparent/VertexLit" {
 Properties {
 	_Color ("Main Color", Color) = (1,1,1,1)

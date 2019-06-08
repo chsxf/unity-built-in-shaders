@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 //-----------------------------------------------------------------------------
 // NOTICE:
 // All functions in this file are deprecated and should not be use, they will be remove in a later version.

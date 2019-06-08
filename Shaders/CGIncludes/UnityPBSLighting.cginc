@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 #ifndef UNITY_PBS_LIGHTING_INCLUDED
 #define UNITY_PBS_LIGHTING_INCLUDED
 
@@ -13,11 +15,11 @@
     // still add safe net for low shader models, otherwise we might end up with shaders failing to compile
     #if SHADER_TARGET < 30
         #define UNITY_BRDF_PBS BRDF3_Unity_PBS
-    #elif UNITY_PBS_USE_BRDF3
+    #elif defined(UNITY_PBS_USE_BRDF3)
         #define UNITY_BRDF_PBS BRDF3_Unity_PBS
-    #elif UNITY_PBS_USE_BRDF2
+    #elif defined(UNITY_PBS_USE_BRDF2)
         #define UNITY_BRDF_PBS BRDF2_Unity_PBS
-    #elif UNITY_PBS_USE_BRDF1
+    #elif defined(UNITY_PBS_USE_BRDF1)
         #define UNITY_BRDF_PBS BRDF1_Unity_PBS
     #elif defined(SHADER_TARGET_SURFACE_ANALYSIS)
         // we do preprocess pass during shader analysis and we dont actually care about brdf as we need only inputs/outputs
@@ -27,44 +29,18 @@
     #endif
 #endif
 
-
 //-------------------------------------------------------------------------------------
-// BRDF for lights extracted from *indirect* directional lightmaps (baked and realtime).
-// Baked directional lightmap with *direct* light uses UNITY_BRDF_PBS.
-// For better quality change to BRDF1_Unity_PBS.
-// No directional lightmaps in SM2.0.
+// little helpers for GI calculation
+// CAUTION: This is deprecated and not use in Untiy shader code, but some asset store plugin still use it, so let here for compatibility
 
-#if !defined(UNITY_BRDF_PBS_LIGHTMAP_INDIRECT)
-    #define UNITY_BRDF_PBS_LIGHTMAP_INDIRECT BRDF2_Unity_PBS
-#endif
 #if !defined (UNITY_BRDF_GI)
     #define UNITY_BRDF_GI BRDF_Unity_Indirect
 #endif
 
-//-------------------------------------------------------------------------------------
-
-
 inline half3 BRDF_Unity_Indirect (half3 baseColor, half3 specColor, half oneMinusReflectivity, half smoothness, half3 normal, half3 viewDir, half occlusion, UnityGI gi)
 {
-    half3 c = 0;
-    #if defined(DIRLIGHTMAP_SEPARATE)
-        gi.indirect.diffuse = 0;
-        gi.indirect.specular = 0;
-
-        #ifdef LIGHTMAP_ON
-            c += UNITY_BRDF_PBS_LIGHTMAP_INDIRECT (baseColor, specColor, oneMinusReflectivity, smoothness, normal, viewDir, gi.light2, gi.indirect).rgb * occlusion;
-        #endif
-        #ifdef DYNAMICLIGHTMAP_ON
-            c += UNITY_BRDF_PBS_LIGHTMAP_INDIRECT (baseColor, specColor, oneMinusReflectivity, smoothness, normal, viewDir, gi.light3, gi.indirect).rgb * occlusion;
-        #endif
-    #endif
-    return c;
+    return half3(0,0,0);
 }
-
-//-------------------------------------------------------------------------------------
-
-// little helpers for GI calculation
-// CAUTION: This is deprecated and not use in Untiy shader code, but some asset store plugin still use it, so let here for compatibility
 
 #define UNITY_GLOSSY_ENV_FROM_SURFACE(x, s, data)               \
     Unity_GlossyEnvironmentData g;                              \
@@ -79,7 +55,6 @@ inline half3 BRDF_Unity_Indirect (half3 baseColor, half3 specColor, half oneMinu
         UNITY_GLOSSY_ENV_FROM_SURFACE(g, s, data);              \
         x = UnityGlobalIllumination (data, s.Occlusion, s.Normal, g);
 #endif
-
 
 // Surface shader output structure to be used with physically
 // based shading model.
@@ -114,7 +89,6 @@ inline half4 LightingStandard (SurfaceOutputStandard s, half3 viewDir, UnityGI g
     s.Albedo = PreMultiplyAlpha (s.Albedo, s.Alpha, oneMinusReflectivity, /*out*/ outputAlpha);
 
     half4 c = UNITY_BRDF_PBS (s.Albedo, specColor, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, gi.light, gi.indirect);
-    c.rgb += UNITY_BRDF_GI (s.Albedo, specColor, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, s.Occlusion, gi);
     c.a = outputAlpha;
     return c;
 }
@@ -126,7 +100,6 @@ inline half4 LightingStandard_Deferred (SurfaceOutputStandard s, half3 viewDir, 
     s.Albedo = DiffuseAndSpecularFromMetallic (s.Albedo, s.Metallic, /*out*/ specColor, /*out*/ oneMinusReflectivity);
 
     half4 c = UNITY_BRDF_PBS (s.Albedo, specColor, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, gi.light, gi.indirect);
-    c.rgb += UNITY_BRDF_GI (s.Albedo, specColor, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, s.Occlusion, gi);
 
     UnityStandardData data;
     data.diffuseColor   = s.Albedo;
@@ -182,7 +155,6 @@ inline half4 LightingStandardSpecular (SurfaceOutputStandardSpecular s, half3 vi
     s.Albedo = PreMultiplyAlpha (s.Albedo, s.Alpha, oneMinusReflectivity, /*out*/ outputAlpha);
 
     half4 c = UNITY_BRDF_PBS (s.Albedo, s.Specular, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, gi.light, gi.indirect);
-    c.rgb += UNITY_BRDF_GI (s.Albedo, s.Specular, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, s.Occlusion, gi);
     c.a = outputAlpha;
     return c;
 }
@@ -194,7 +166,6 @@ inline half4 LightingStandardSpecular_Deferred (SurfaceOutputStandardSpecular s,
     s.Albedo = EnergyConservationBetweenDiffuseAndSpecular (s.Albedo, s.Specular, /*out*/ oneMinusReflectivity);
 
     half4 c = UNITY_BRDF_PBS (s.Albedo, s.Specular, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, gi.light, gi.indirect);
-    c.rgb += UNITY_BRDF_GI (s.Albedo, s.Specular, oneMinusReflectivity, s.Smoothness, s.Normal, viewDir, s.Occlusion, gi);
 
     UnityStandardData data;
     data.diffuseColor   = s.Albedo;

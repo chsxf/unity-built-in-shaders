@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 using System;
 using UnityEngine;
 
@@ -28,11 +30,8 @@ namespace UnityEditor
 
         private static class Styles
         {
-            public static GUIStyle optionsButton = "PaneOptions";
             public static GUIContent uvSetLabel = new GUIContent("UV Set");
-            public static GUIContent[] uvSetOptions = new GUIContent[] { new GUIContent("UV channel 0"), new GUIContent("UV channel 1") };
 
-            public static string emptyTootip = "";
             public static GUIContent albedoText = new GUIContent("Albedo", "Albedo (RGB) and Transparency (A)");
             public static GUIContent alphaCutoffText = new GUIContent("Alpha Cutoff", "Threshold for alpha cutoff");
             public static GUIContent specularMapText = new GUIContent("Specular", "Specular (RGB) and Smoothness (A)");
@@ -45,18 +44,17 @@ namespace UnityEditor
             public static GUIContent normalMapText = new GUIContent("Normal Map", "Normal Map");
             public static GUIContent heightMapText = new GUIContent("Height Map", "Height Map (G)");
             public static GUIContent occlusionText = new GUIContent("Occlusion", "Occlusion (G)");
-            public static GUIContent emissionText = new GUIContent("Emission", "Emission (RGB)");
+            public static GUIContent emissionText = new GUIContent("Color", "Emission (RGB)");
             public static GUIContent detailMaskText = new GUIContent("Detail Mask", "Mask for Secondary Maps (A)");
             public static GUIContent detailAlbedoText = new GUIContent("Detail Albedo x2", "Albedo (RGB) multiplied by 2");
             public static GUIContent detailNormalMapText = new GUIContent("Normal Map", "Normal Map");
 
-            public static string whiteSpaceString = " ";
             public static string primaryMapsText = "Main Maps";
             public static string secondaryMapsText = "Secondary Maps";
             public static string forwardText = "Forward Rendering Options";
             public static string renderingMode = "Rendering Mode";
+            public static string advancedText = "Advanced Options";
             public static GUIContent emissiveWarning = new GUIContent("Emissive value is animated but the material has not been configured to support emissive. Please make sure the material itself has some amount of emissive.");
-            public static GUIContent emissiveColorWarning = new GUIContent("Ensure emissive color is non-black for emission to have effect.");
             public static readonly string[] blendNames = Enum.GetNames(typeof(BlendMode));
         }
 
@@ -164,8 +162,8 @@ namespace UnityEditor
                 m_MaterialEditor.TexturePropertySingleLine(Styles.normalMapText, bumpMap, bumpMap.textureValue != null ? bumpScale : null);
                 m_MaterialEditor.TexturePropertySingleLine(Styles.heightMapText, heightMap, heightMap.textureValue != null ? heigtMapScale : null);
                 m_MaterialEditor.TexturePropertySingleLine(Styles.occlusionText, occlusionMap, occlusionMap.textureValue != null ? occlusionStrength : null);
-                DoEmissionArea(material);
                 m_MaterialEditor.TexturePropertySingleLine(Styles.detailMaskText, detailMask);
+                DoEmissionArea(material);
                 EditorGUI.BeginChangeCheck();
                 m_MaterialEditor.TextureScaleOffsetProperty(albedoMap);
                 if (EditorGUI.EndChangeCheck())
@@ -192,6 +190,12 @@ namespace UnityEditor
                 foreach (var obj in blendMode.targets)
                     MaterialChanged((Material)obj, m_WorkflowMode);
             }
+
+            EditorGUILayout.Space();
+
+            GUILayout.Label(Styles.advancedText, EditorStyles.boldLabel);
+            m_MaterialEditor.RenderQueueField();
+            m_MaterialEditor.EnableInstancingField();
         }
 
         internal void DetermineWorkflow(MaterialProperty[] props)
@@ -265,24 +269,21 @@ namespace UnityEditor
 
         void DoEmissionArea(Material material)
         {
-            bool showHelpBox = !HasValidEmissiveKeyword(material);
-
-            bool hadEmissionTexture = emissionMap.textureValue != null;
-
-            // Texture and HDR color controls
-            m_MaterialEditor.TexturePropertyWithHDRColor(Styles.emissionText, emissionMap, emissionColorForRendering, m_ColorPickerHDRConfig, false);
-
-            // If texture was assigned and color was black set color to white
-            float brightness = emissionColorForRendering.colorValue.maxColorComponent;
-            if (emissionMap.textureValue != null && !hadEmissionTexture && brightness <= 0f)
-                emissionColorForRendering.colorValue = Color.white;
-
             // Emission for GI?
-            m_MaterialEditor.LightmapEmissionProperty(MaterialEditor.kMiniTextureFieldLabelIndentLevel + 1);
-
-            if (showHelpBox)
+            if (m_MaterialEditor.EmissionEnabledProperty())
             {
-                EditorGUILayout.HelpBox(Styles.emissiveWarning.text, MessageType.Warning);
+                bool hadEmissionTexture = emissionMap.textureValue != null;
+
+                // Texture and HDR color controls
+                m_MaterialEditor.TexturePropertyWithHDRColor(Styles.emissionText, emissionMap, emissionColorForRendering, m_ColorPickerHDRConfig, false);
+
+                // If texture was assigned and color was black set color to white
+                float brightness = emissionColorForRendering.colorValue.maxColorComponent;
+                if (emissionMap.textureValue != null && !hadEmissionTexture && brightness <= 0f)
+                    emissionColorForRendering.colorValue = Color.white;
+
+                // change the GI flag and fix it up with emissive as black if necessary
+                m_MaterialEditor.LightmapEmissionFlagsProperty(MaterialEditor.kMiniTextureFieldLabelIndentLevel, true);
             }
         }
 
@@ -372,12 +373,6 @@ namespace UnityEditor
                 return SmoothnessMapChannel.SpecularMetallicAlpha;
         }
 
-        static bool ShouldEmissionBeEnabled(Material mat, Color color)
-        {
-            var realtimeEmission = (mat.globalIlluminationFlags & MaterialGlobalIlluminationFlags.RealtimeEmissive) > 0;
-            return color.maxColorComponent > 0.1f / 255.0f || realtimeEmission;
-        }
-
         static void SetMaterialKeywords(Material material, WorkflowMode workflowMode)
         {
             // Note: keywords must be based on Material value not on MaterialProperty due to multi-edit & material animation
@@ -390,36 +385,17 @@ namespace UnityEditor
             SetKeyword(material, "_PARALLAXMAP", material.GetTexture("_ParallaxMap"));
             SetKeyword(material, "_DETAIL_MULX2", material.GetTexture("_DetailAlbedoMap") || material.GetTexture("_DetailNormalMap"));
 
-            bool shouldEmissionBeEnabled = ShouldEmissionBeEnabled(material, material.GetColor("_EmissionColor"));
+            // A material's GI flag internally keeps track of whether emission is enabled at all, it's enabled but has no effect
+            // or is enabled and may be modified at runtime. This state depends on the values of the current flag and emissive color.
+            // The fixup routine makes sure that the material is in the correct state if/when changes are made to the mode or color.
+            MaterialEditor.FixupEmissiveFlag(material);
+            bool shouldEmissionBeEnabled = (material.globalIlluminationFlags & MaterialGlobalIlluminationFlags.EmissiveIsBlack) == 0;
             SetKeyword(material, "_EMISSION", shouldEmissionBeEnabled);
 
             if (material.HasProperty("_SmoothnessTextureChannel"))
             {
                 SetKeyword(material, "_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A", GetSmoothnessMapChannel(material) == SmoothnessMapChannel.AlbedoAlpha);
             }
-
-            // Setup lightmap emissive flags
-            MaterialGlobalIlluminationFlags flags = material.globalIlluminationFlags;
-            if ((flags & (MaterialGlobalIlluminationFlags.BakedEmissive | MaterialGlobalIlluminationFlags.RealtimeEmissive)) != 0)
-            {
-                flags &= ~MaterialGlobalIlluminationFlags.EmissiveIsBlack;
-                if (!shouldEmissionBeEnabled)
-                    flags |= MaterialGlobalIlluminationFlags.EmissiveIsBlack;
-
-                material.globalIlluminationFlags = flags;
-            }
-        }
-
-        bool HasValidEmissiveKeyword(Material material)
-        {
-            // Material animation might be out of sync with the material keyword.
-            // So if the emission support is disabled on the material, but the property blocks have a value that requires it, then we need to show a warning.
-            // (note: (Renderer MaterialPropertyBlock applies its values to emissionColorForRendering))
-            bool hasEmissionKeyword = material.IsKeywordEnabled("_EMISSION");
-            if (!hasEmissionKeyword && ShouldEmissionBeEnabled(material, emissionColorForRendering.colorValue))
-                return false;
-            else
-                return true;
         }
 
         static void MaterialChanged(Material material, WorkflowMode workflowMode)

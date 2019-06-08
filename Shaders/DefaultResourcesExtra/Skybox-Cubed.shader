@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 Shader "Skybox/Cubemap" {
 Properties {
 	_Tint ("Tint Color", Color) = (.5, .5, .5, .5)

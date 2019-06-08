@@ -1,3 +1,5 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
 ﻿Shader "Hidden/GIDebug/TextureUV" {
 	Properties {
 		_MainTex ("Base (RGB)", 2D) = "white" {}
@@ -20,7 +22,7 @@
 			};
 
 			sampler2D _MainTex;
-			float4 _Decode_HDR;
+			half4 _Decode_HDR;
 			float _ConvertToLinearSpace;
 			float _StaticUV1;
 
