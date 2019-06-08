@@ -262,19 +262,6 @@ half3 ShadeSH12Order (half4 normal)
 	return x1;
 }
 
-
-#ifdef SHADER_API_D3D11
-	#define SampleCubeReflection(env, dir, lod) env.SampleLevel(sampler##env, dir, lod)
-#else
-	// SM2.0 does not support texCUBElod
-	#if (SHADER_TARGET < 30)
-		#define SampleCubeReflection(env, dir,  lod) texCUBEbias(env, half4(dir, lod))
-	#else
-		#define SampleCubeReflection(env, dir,  lod) texCUBElod(env, half4(dir,lod))
-	#endif
-#endif
-
-
 // Transforms 2D UV by scale/bias property
 #define TRANSFORM_TEX(tex,name) (tex.xy * name##_ST.xy + name##_ST.zw)
 
@@ -813,6 +800,36 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 	#define UNITY_APPLY_FOG(coord,col) UNITY_APPLY_FOG_COLOR(coord,col,fixed4(0,0,0,0))
 #else
 	#define UNITY_APPLY_FOG(coord,col) UNITY_APPLY_FOG_COLOR(coord,col,unity_FogColor)
+#endif
+
+
+// ------------------------------------------------------------------
+//  LOD cross fade helpers
+#ifdef LOD_FADE_CROSSFADE
+	#define UNITY_DITHER_CROSSFADE_COORDS					half3 ditherScreenPos;
+	#define UNITY_DITHER_CROSSFADE_COORDS_IDX(idx)			half3 ditherScreenPos : TEXCOORD##idx;
+	#define UNITY_TRANSFER_DITHER_CROSSFADE(o,v)			o.ditherScreenPos = ComputeDitherScreenPos(mul(UNITY_MATRIX_MVP, v));
+	#define UNITY_TRANSFER_DITHER_CROSSFADE_HPOS(o,hpos)	o.ditherScreenPos = ComputeDitherScreenPos(hpos);
+	half3 ComputeDitherScreenPos(float4 hPos)
+	{
+		half3 screenPos = ComputeScreenPos(hPos).xyw;
+		screenPos.xy *= _ScreenParams.xy * 0.25;
+		return screenPos;
+	}
+	#define UNITY_APPLY_DITHER_CROSSFADE(i)					ApplyDitherCrossFade(i.ditherScreenPos);
+	uniform sampler2D _DitherMaskLOD2D;
+	void ApplyDitherCrossFade(half3 ditherScreenPos)
+	{
+		half2 projUV = ditherScreenPos.xy / ditherScreenPos.z;
+		projUV.y = frac(projUV.y) * 0.0625 /* 1/16 */ + unity_LODFade.y; // quantized lod fade by 16 levels
+		clip(tex2D(_DitherMaskLOD2D, projUV).a - 0.5);
+	}
+#else
+	#define UNITY_DITHER_CROSSFADE_COORDS
+	#define UNITY_DITHER_CROSSFADE_COORDS_IDX(idx)
+	#define UNITY_TRANSFER_DITHER_CROSSFADE(o,v)
+	#define UNITY_TRANSFER_DITHER_CROSSFADE_HPOS(o,hpos)
+	#define UNITY_APPLY_DITHER_CROSSFADE(i)
 #endif
 
 

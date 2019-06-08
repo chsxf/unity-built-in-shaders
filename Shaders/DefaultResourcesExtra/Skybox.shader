@@ -50,7 +50,7 @@ SubShader {
 	{
 		half4 tex = tex2D (smp, i.texcoord);
 		half3 c = DecodeHDR (tex, smpDecode);
-		c = c * _Tint.rgb * unity_ColorSpaceDouble;
+		c = c * _Tint.rgb * unity_ColorSpaceDouble.rgb;
 		c *= _Exposure;
 		return half4(c, 1);
 	}

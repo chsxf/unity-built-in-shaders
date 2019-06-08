@@ -1,7 +1,6 @@
 Shader "Hidden/InternalSplashShadowBlur" {
 
 	CGINCLUDE
-	#pragma exclude_renderers gles gles3
 	#pragma vertex vert
 	#pragma fragment frag
 	#include "UnityShaderVariables.cginc"

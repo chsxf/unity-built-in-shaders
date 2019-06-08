@@ -1,7 +1,6 @@
 Shader "Hidden/InternalSplashShadowReceiverSimple" {
 
 	CGINCLUDE
-	#pragma exclude_renderers gles gles3
 	#pragma vertex vert
 	#pragma fragment frag
 	#include "UnityShaderVariables.cginc"
@@ -38,6 +37,9 @@ Shader "Hidden/InternalSplashShadowReceiverSimple" {
 		fixed4 shadowSample0 = tex2D(unity_SplashScreenShadowTex0, input.texCoord);
 		fixed4 shadowSample1 = tex2D(unity_SplashScreenShadowTex1, input.texCoord);
 		float4 planeShadows = 0;
+
+		// HLSL thinks planeIndex is used as l-value below, and will print a non-disableable X3550 warning about forced unroll
+		UNITY_UNROLL
 		for (int planeIndex = 0; planeIndex < 4; planeIndex++)
 		{
 			float4 casterPlaneEquation = unity_World2Shadow[1][planeIndex];

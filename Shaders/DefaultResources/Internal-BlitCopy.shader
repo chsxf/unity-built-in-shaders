@@ -1,5 +1,5 @@
 Shader "Hidden/BlitCopy" {
-	Properties { _MainTex ("", any) = "" {} }
+	Properties { _MainTex ("Texture", any) = "" {} }
 	SubShader { 
 		Pass {
  			ZTest Always Cull Off ZWrite Off

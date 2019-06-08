@@ -255,7 +255,7 @@ half3 Unity_GlossyEnvironment (UNITY_ARGS_TEXCUBE(tex), half4 hdr, half3 worldNo
 	float mip = pow(roughness,3.0/4.0) * UNITY_SPECCUBE_LOD_STEPS;
 #endif
 
-	half4 rgbm = SampleCubeReflection(tex, worldNormal.xyz, mip);
+	half4 rgbm = UNITY_SAMPLE_TEXCUBE_LOD(tex, worldNormal.xyz, mip);
 	return DecodeHDR_NoLinearSupportInSM2 (rgbm, hdr);
 }
 

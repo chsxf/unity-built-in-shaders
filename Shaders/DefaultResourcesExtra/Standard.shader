@@ -31,9 +31,6 @@ Shader "Standard"
 
 		[Enum(UV0,0,UV1,1)] _UVSec ("UV Set for secondary textures", Float) = 0
 
-		// UI-only data
-		[HideInInspector] _EmissionScaleUI("Scale", Float) = 0.0
-		[HideInInspector] _EmissionColorUI("Color", Color) = (1,1,1)
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
