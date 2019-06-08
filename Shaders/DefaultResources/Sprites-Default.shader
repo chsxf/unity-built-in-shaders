@@ -29,7 +29,7 @@ Shader "Sprites/Default"
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile _ PIXELSNAP_ON
-			#pragma shader_feature ETC1_EXTERNAL_ALPHA
+			#pragma multi_compile _ ETC1_EXTERNAL_ALPHA
 			#include "UnityCG.cginc"
 			
 			struct appdata_t

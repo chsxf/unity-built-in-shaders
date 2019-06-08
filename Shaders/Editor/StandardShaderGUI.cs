@@ -116,15 +116,16 @@ internal class StandardShaderGUI : ShaderGUI
 		m_MaterialEditor = materialEditor;
 		Material material = materialEditor.target as Material;
 
-		ShaderPropertiesGUI (material);
-
 		// Make sure that needed keywords are set up if we're switching some existing
 		// material to a standard shader.
+		// Do this before any GUI code has been issued to prevent layout issues in subsequent GUILayout statements (case 780071)
 		if (m_FirstTimeApply)
 		{
 			SetMaterialKeywords (material, m_WorkflowMode);
 			m_FirstTimeApply = false;
 		}
+
+		ShaderPropertiesGUI (material);
 	}
 
 	public void ShaderPropertiesGUI (Material material)

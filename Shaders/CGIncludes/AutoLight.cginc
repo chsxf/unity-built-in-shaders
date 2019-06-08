@@ -120,17 +120,17 @@ inline fixed unitySampleShadow (unityShadowCoord4 shadowCoord)
 
 
 #ifdef POINT
-uniform sampler2D _LightTexture0;
-uniform unityShadowCoord4x4 _LightMatrix0;
+sampler2D _LightTexture0;
+unityShadowCoord4x4 _LightMatrix0;
 #define UNITY_LIGHT_ATTENUATION(destName, input, worldPos) \
 	unityShadowCoord3 lightCoord = mul(_LightMatrix0, unityShadowCoord4(worldPos, 1)).xyz; \
 	fixed destName = (tex2D(_LightTexture0, dot(lightCoord, lightCoord).rr).UNITY_ATTEN_CHANNEL * SHADOW_ATTENUATION(input));
 #endif
 
 #ifdef SPOT
-uniform sampler2D _LightTexture0;
-uniform unityShadowCoord4x4 _LightMatrix0;
-uniform sampler2D _LightTextureB0;
+sampler2D _LightTexture0;
+unityShadowCoord4x4 _LightMatrix0;
+sampler2D _LightTextureB0;
 inline fixed UnitySpotCookie(unityShadowCoord4 LightCoord)
 {
 	return tex2D(_LightTexture0, LightCoord.xy / LightCoord.w + 0.5).w;
@@ -151,17 +151,17 @@ inline fixed UnitySpotAttenuate(unityShadowCoord3 LightCoord)
 
 
 #ifdef POINT_COOKIE
-uniform samplerCUBE _LightTexture0;
-uniform unityShadowCoord4x4 _LightMatrix0;
-uniform sampler2D _LightTextureB0;
+samplerCUBE _LightTexture0;
+unityShadowCoord4x4 _LightMatrix0;
+sampler2D _LightTextureB0;
 #define UNITY_LIGHT_ATTENUATION(destName, input, worldPos) \
 	unityShadowCoord3 lightCoord = mul(_LightMatrix0, unityShadowCoord4(worldPos, 1)).xyz; \
 	fixed destName = tex2D(_LightTextureB0, dot(lightCoord, lightCoord).rr).UNITY_ATTEN_CHANNEL * texCUBE(_LightTexture0, lightCoord).w * SHADOW_ATTENUATION(input);
 #endif
 
 #ifdef DIRECTIONAL_COOKIE
-uniform sampler2D _LightTexture0;
-uniform unityShadowCoord4x4 _LightMatrix0;
+sampler2D _LightTexture0;
+unityShadowCoord4x4 _LightMatrix0;
 #define UNITY_LIGHT_ATTENUATION(destName, input, worldPos) \
 	unityShadowCoord2 lightCoord = mul(_LightMatrix0, unityShadowCoord4(worldPos, 1)).xy; \
 	fixed destName = tex2D(_LightTexture0, lightCoord).w * SHADOW_ATTENUATION(input);

@@ -26,29 +26,29 @@ struct Input
 // Define uniforms
 
 #define mainTexUV interpolator1.xy
-uniform sampler2D _MainTex;
+sampler2D _MainTex;
 
 #ifdef GEOM_TYPE_BRANCH_DETAIL
 	#define Detail interpolator2
-	uniform sampler2D _DetailTex;
+	sampler2D _DetailTex;
 #endif
 
 #if defined(GEOM_TYPE_FROND) || defined(GEOM_TYPE_LEAF) || defined(GEOM_TYPE_FACING_LEAF)
 	#define SPEEDTREE_ALPHATEST
-	uniform fixed _Cutoff;
+	fixed _Cutoff;
 #endif
 
 #ifdef EFFECT_HUE_VARIATION
 	#define HueVariationAmount interpolator1.z
-	uniform half4 _HueVariation;
+	half4 _HueVariation;
 #endif
 
 #ifdef EFFECT_BUMP
-	uniform sampler2D _BumpMap;
+	sampler2D _BumpMap;
 #endif
 
-uniform fixed4 _Color;
-uniform half _Shininess;
+fixed4 _Color;
+half _Shininess;
 
 // Vertex processing
 

@@ -5,10 +5,10 @@
 
 #include "UnityShaderVariables.cginc"
 
-uniform fixed4 unity_ColorSpaceGrey;
-uniform fixed4 unity_ColorSpaceDouble;
-uniform half4  unity_ColorSpaceDielectricSpec;
-uniform half4  unity_ColorSpaceLuminance;
+fixed4 unity_ColorSpaceGrey;
+fixed4 unity_ColorSpaceDouble;
+half4  unity_ColorSpaceDielectricSpec;
+half4  unity_ColorSpaceLuminance;
 
 // -------------------------------------------------------------------
 //  helper functions and macros used in many standard shaders
@@ -874,7 +874,7 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 		return screenPos;
 	}
 	#define UNITY_APPLY_DITHER_CROSSFADE(i)					ApplyDitherCrossFade(i.ditherScreenPos);
-	uniform sampler2D _DitherMaskLOD2D;
+	sampler2D _DitherMaskLOD2D;
 	void ApplyDitherCrossFade(half3 ditherScreenPos)
 	{
 		half2 projUV = ditherScreenPos.xy / ditherScreenPos.z;

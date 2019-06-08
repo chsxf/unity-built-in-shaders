@@ -2,22 +2,22 @@
 #define SPEEDTREE_BILLBOARD_COMMON_INCLUDED
 
 #define SPEEDTREE_ALPHATEST
-uniform fixed _Cutoff;
+fixed _Cutoff;
 
 #include "SpeedTreeCommon.cginc"
 
 CBUFFER_START(UnityBillboardPerCamera)
-	uniform float3 unity_BillboardNormal;
-	uniform float3 unity_BillboardTangent;
-	uniform float4 unity_BillboardCameraParams;
+	float3 unity_BillboardNormal;
+	float3 unity_BillboardTangent;
+	float4 unity_BillboardCameraParams;
 	#define unity_BillboardCameraPosition (unity_BillboardCameraParams.xyz)
 	#define unity_BillboardCameraXZAngle (unity_BillboardCameraParams.w)
 CBUFFER_END
 
 CBUFFER_START(UnityBillboardPerBatch)
-	uniform float4 unity_BillboardInfo; // x: num of billboard slices; y: 1.0f / (delta angle between slices)
-	uniform float4 unity_BillboardSize; // x: width; y: height; z: bottom
-	uniform float4 unity_BillboardImageTexCoords[16];
+	float4 unity_BillboardInfo; // x: num of billboard slices; y: 1.0f / (delta angle between slices)
+	float4 unity_BillboardSize; // x: width; y: height; z: bottom
+	float4 unity_BillboardImageTexCoords[16];
 CBUFFER_END
 
 struct SpeedTreeBillboardData

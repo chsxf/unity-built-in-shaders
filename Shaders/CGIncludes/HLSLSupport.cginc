@@ -64,6 +64,8 @@
 
 #define Buffer DataBuffer
 #define RWBuffer RW_DataBuffer
+#define ByteAddressBuffer ByteBuffer
+#define RWByteAddressBuffer RW_ByteBuffer
 #define StructuredBuffer RegularBuffer
 #define RWStructuredBuffer RW_RegularBuffer
 #define AppendStructuredBuffer AppendRegularBuffer
@@ -131,9 +133,14 @@
 #define min10float4 fixed4
 #endif
 
+#if defined(SHADER_API_PSSL)
+#define SAMPLER_UNIFORM uniform
+#else
+#define SAMPLER_UNIFORM
+#endif
+
 
 #if defined(SHADER_API_PSSL)
-#define uniform
 #define half float
 #define half2 float2
 #define half3 float3

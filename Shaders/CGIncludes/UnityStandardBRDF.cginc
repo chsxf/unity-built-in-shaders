@@ -356,11 +356,17 @@ half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 	half roughness = 1-oneMinusRoughness;
 	half3 halfDir = Unity_SafeNormalize (light.dir + viewDir);
 
-#if UNITY_BRDF_GGX 
 	// NdotV should not be negative for visible pixels, but it can happen due to perspective projection and normal mapping
-	// In this case we will modify the normal so it become valid and not cause weird artifact (other game try to clamp or abs the NdotV to prevent this trouble).
-	// The amount we shift the normal toward the view vector is define by the dot product.
-	// This correction is only apply with smithJoint visibility function because artifact are more visible in this case due to highlight edge of rough surface
+	// In this case normal should be modified to become valid (i.e facing camera) and not cause weird artifacts.
+	// but this operation adds few ALU and users may not want it. Alternative is to simply take the abs of NdotV (less correct but works too).
+	// Following define allow to control this. Set it to 0 if ALU is critical on your platform.
+	// This correction is interesting for GGX with SmithJoint visibility function because artifacts are more visible in this case due to highlight edge of rough surface
+	// Edit: Disable this code by default for now as it is not compatible with two sided lighting used in SpeedTree.
+	#define UNITY_HANDLE_CORRECTLY_NEGATIVE_NDOTV 0 
+
+#if UNITY_HANDLE_CORRECTLY_NEGATIVE_NDOTV
+	// The amount we shift the normal toward the view vector is defined by the dot product.
+	// This correction is only applied with SmithJoint visibility function because artifacts are more visible in this case due to highlight edge of rough surface
 	half shiftAmount = dot(normal, viewDir);
 	normal = shiftAmount < 0.0f ? normal + viewDir * (-shiftAmount + 1e-5f) : normal;
 	// A re-normalization should be apply here but as the shift is small we don't do it to save ALU.

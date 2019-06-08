@@ -26,7 +26,7 @@ Shader "Sprites/Diffuse"
 		CGPROGRAM
 		#pragma surface surf Lambert vertex:vert nofog keepalpha
 		#pragma multi_compile _ PIXELSNAP_ON
-		#pragma shader_feature ETC1_EXTERNAL_ALPHA
+		#pragma multi_compile _ ETC1_EXTERNAL_ALPHA
 
 		sampler2D _MainTex;
 		fixed4 _Color;

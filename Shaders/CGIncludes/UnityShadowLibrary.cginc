@@ -18,7 +18,7 @@ UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 
 // shadow sampling offsets
 #if defined (SHADOWS_SOFT)
-uniform float4 _ShadowOffsets[4];
+float4 _ShadowOffsets[4];
 #endif
 
 inline fixed UnitySampleShadowmap (float4 shadowCoord)
@@ -91,7 +91,7 @@ inline fixed UnitySampleShadowmap (float4 shadowCoord)
 
 #if defined (SHADOWS_CUBE)
 
-uniform samplerCUBE_float _ShadowMapTexture;
+samplerCUBE_float _ShadowMapTexture;
 inline float SampleCubeDistance (float3 vec)
 {
 	return UnityDecodeCubeShadowDepth (texCUBE (_ShadowMapTexture, vec));
