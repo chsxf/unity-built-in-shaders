@@ -84,17 +84,17 @@
 #   endif
 #endif
 #if !defined(SV_Target1)
-#   if !defined(SHADER_API_XBOXONE)
+#   if !defined(SHADER_API_XBOXONE) && !defined(SHADER_API_PSP2)
 #       define SV_Target1 COLOR1
 #   endif
 #endif
 #if !defined(SV_Target2)
-#   if !defined(SHADER_API_XBOXONE)
+#   if !defined(SHADER_API_XBOXONE) && !defined(SHADER_API_PSP2)
 #       define SV_Target2 COLOR2
 #   endif
 #endif
 #if !defined(SV_Target3)
-#   if !defined(SHADER_API_XBOXONE)
+#   if !defined(SHADER_API_XBOXONE) && !defined(SHADER_API_PSP2)
 #       define SV_Target3 COLOR3
 #   endif
 #endif
@@ -308,15 +308,15 @@
 // SAMPLE_DEPTH_TEXTURE_LOD(sampler,uv): sample with LOD level
 
 #if defined(SHADER_API_PSP2)
-    half4 SAMPLE_DEPTH_TEXTURE(sampler2D s, float4 uv) { return tex2D<float>(s, (float3)uv); }
-    half4 SAMPLE_DEPTH_TEXTURE(sampler2D s, float3 uv) { return tex2D<float>(s, uv); }
-    half4 SAMPLE_DEPTH_TEXTURE(sampler2D s, float2 uv) { return tex2D<float>(s, uv); }
+    half SAMPLE_DEPTH_TEXTURE(sampler2D s, float4 uv) { return tex2D<float>(s, (float3)uv); }
+    half SAMPLE_DEPTH_TEXTURE(sampler2D s, float3 uv) { return tex2D<float>(s, uv); }
+    half SAMPLE_DEPTH_TEXTURE(sampler2D s, float2 uv) { return tex2D<float>(s, uv); }
 #   define SAMPLE_DEPTH_TEXTURE_PROJ(sampler, uv) (tex2DprojShadow(sampler, uv))
 #   define SAMPLE_DEPTH_TEXTURE_LOD(sampler, uv) (tex2Dlod<float>(sampler, uv))
 #   define SAMPLE_RAW_DEPTH_TEXTURE(sampler, uv) SAMPLE_DEPTH_TEXTURE(sampler, uv)
 #   define SAMPLE_RAW_DEPTH_TEXTURE_PROJ(sampler, uv) SAMPLE_DEPTH_TEXTURE_PROJ(sampler, uv)
 #   define SAMPLE_RAW_DEPTH_TEXTURE_LOD(sampler, uv) SAMPLE_DEPTH_TEXTURE_LOD(sampler, uv)
-    half4 SAMPLE_DEPTH_CUBE_TEXTURE(samplerCUBE s, float3 uv) { return texCUBE<float>(s, uv); }
+    half SAMPLE_DEPTH_CUBE_TEXTURE(samplerCUBE s, float3 uv) { return texCUBE<float>(s, uv); }
 #else
     // Sample depth, just the red component.
 #   define SAMPLE_DEPTH_TEXTURE(sampler, uv) (tex2D(sampler, uv).r)
