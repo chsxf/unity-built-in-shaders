@@ -270,7 +270,7 @@
 
 #if !defined(SHADOWS_NATIVE)
 	// No native shadowmaps: regular texture and do manual comparison
-	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D tex
+	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D_float tex
 	#define UNITY_SAMPLE_SHADOW(tex,coord) ((SAMPLE_DEPTH_TEXTURE(tex,(coord).xy) < (coord).z) ? 0.0 : 1.0)
 	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) ((SAMPLE_DEPTH_TEXTURE_PROJ(tex,UNITY_PROJ_COORD(coord)) < ((coord).z/(coord).w)) ? 0.0 : 1.0)
 #elif defined(SHADER_API_PSSL)
@@ -410,7 +410,7 @@
 #define UNITY_UV_STARTS_AT_TOP 1
 #endif
 
-#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_METAL)
+#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_METAL) || defined(SHADER_API_PSSL)
 #define UNITY_NEAR_CLIP_VALUE (0.0)
 #else
 #define UNITY_NEAR_CLIP_VALUE (-1.0)

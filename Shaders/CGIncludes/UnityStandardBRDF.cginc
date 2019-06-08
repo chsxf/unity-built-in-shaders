@@ -259,6 +259,13 @@ half3 Unity_GlossyEnvironment (UNITY_ARGS_TEXCUBE(tex), half4 hdr, half3 worldNo
 	return DecodeHDR_NoLinearSupportInSM2 (rgbm, hdr);
 }
 
+
+inline half3 Unity_SafeNormalize(half3 inVec)
+{
+	half dp3 = max(0.001f, dot(inVec, inVec));
+	return inVec * rsqrt(dp3);
+}
+
 //-------------------------------------------------------------------------------------
 
 // Note: BRDF entry points use oneMinusRoughness (aka "smoothness") and oneMinusReflectivity for optimization
@@ -282,7 +289,7 @@ half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 	UnityLight light, UnityIndirect gi)
 {
 	half roughness = 1-oneMinusRoughness;
-	half3 halfDir = normalize (light.dir + viewDir);
+	half3 halfDir = Unity_SafeNormalize (light.dir + viewDir);
 
 	half nl = light.ndotl;
 	half nh = BlinnTerm (normal, halfDir);
@@ -329,7 +336,7 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 	half3 normal, half3 viewDir,
 	UnityLight light, UnityIndirect gi)
 {
-	half3 halfDir = normalize (light.dir + viewDir);
+	half3 halfDir = Unity_SafeNormalize (light.dir + viewDir);
 
 	half nl = light.ndotl;
 	half nh = BlinnTerm (normal, halfDir);
@@ -375,7 +382,7 @@ half4 BRDF3_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 	half LUT_RANGE = 16.0; // must match range in NHxRoughness() function in GeneratedTextures.cpp
 
 	half3 reflDir = reflect (viewDir, normal);
-	half3 halfDir = normalize (light.dir + viewDir);
+	half3 halfDir = Unity_SafeNormalize (light.dir + viewDir);
 
 	half nl = light.ndotl;
 	half nh = BlinnTerm (normal, halfDir);

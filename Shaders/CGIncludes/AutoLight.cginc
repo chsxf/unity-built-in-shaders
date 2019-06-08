@@ -7,9 +7,15 @@
 #if (SHADER_TARGET < 30) || defined(SHADER_API_MOBILE)
 	// We prefer performance over quality on SM2.0 and Mobiles
 	// mobile or SM2.0: half precision for shadow coords
-	#define unityShadowCoord half
-	#define unityShadowCoord2 half2
-	#define unityShadowCoord3 half3
+	#if defined (SHADOWS_NATIVE)
+		#define unityShadowCoord half
+		#define unityShadowCoord2 half2
+		#define unityShadowCoord3 half3
+	#else
+		#define unityShadowCoord float
+		#define unityShadowCoord2 float2
+		#define unityShadowCoord3 float3
+	#endif	
 #if defined(SHADER_API_PSP2)
 	#define unityShadowCoord4 float4	// Vita PCF only works when using float4 with tex2Dproj, doesn't work with half4.
 #else
