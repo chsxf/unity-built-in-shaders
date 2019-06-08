@@ -11,8 +11,8 @@ Only fully released versions of Unity are taken into account. Releases from the 
 
 You can access shader code through:
 
-* Branches to access all minor releases inside a major versions and stay up-to-date (ie. 2017.2)
-* Tags to access a specific version (ie. v2019.1.5f1)
+* Branches to access all minor releases inside a major version and stay up-to-date (2017.2, 2018.3, ...)
+* Tags to access a specific version (v2017.4.1f1, v2019.1.5f1, ...)
 
 ## Master branch
 
