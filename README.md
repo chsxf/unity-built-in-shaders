@@ -7,6 +7,6 @@ It is useful to compare changes between versions and keep up to date versions of
 
 Only fully released versions of Unity are taken into account. Releases from the Alpha, Beta or Patch channels are not considered.
 
-## Licence
+## License
 
 See [license.txt](license.txt)
