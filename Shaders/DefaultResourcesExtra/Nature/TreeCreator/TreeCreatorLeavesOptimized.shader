@@ -71,7 +71,7 @@ ENDCG
 
 		#include "UnityBuiltin3xTreeLibrary.cginc"
 
-		sampler2D _ShadowTex;
+		sampler2D _MainTex;
 
 		struct Input {
 			float2 uv_MainTex;
@@ -81,17 +81,17 @@ ENDCG
 			V2F_SHADOW_CASTER;
 			float2 hip_pack0 : TEXCOORD1;
 		};
-		float4 _ShadowTex_ST;
+		float4 _MainTex_ST;
 		v2f_surf vert_surf (appdata_full v) {
 			v2f_surf o;
 			TreeVertLeaf (v);
-			o.hip_pack0.xy = TRANSFORM_TEX(v.texcoord, _ShadowTex);
+			o.hip_pack0.xy = TRANSFORM_TEX(v.texcoord, _MainTex);
 			TRANSFER_SHADOW_CASTER_NORMALOFFSET(o)
 			return o;
 		}
 		fixed _Cutoff;
 		float4 frag_surf (v2f_surf IN) : SV_Target {
-			half alpha = tex2D(_ShadowTex, IN.hip_pack0.xy).r;
+			half alpha = tex2D(_MainTex, IN.hip_pack0.xy).a;
 			clip (alpha - _Cutoff);
 			SHADOW_CASTER_FRAGMENT(IN)
 		}

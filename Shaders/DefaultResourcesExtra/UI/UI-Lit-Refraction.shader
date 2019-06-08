@@ -1,4 +1,4 @@
-Shader "UI/Lit/Refraction (Pro Only)"
+Shader "UI/Lit/Refraction"
 {
 	Properties
 	{
@@ -50,17 +50,16 @@ Shader "UI/Lit/Refraction (Pro Only)"
 		Lighting Off
 		ZWrite Off
 		ZTest [unity_GUIZTestMode]
-		Offset -1, -1
 		Blend SrcAlpha OneMinusSrcAlpha
-		AlphaTest Greater 0
 		ColorMask [_ColorMask]
 
 		CGPROGRAM
 			#pragma target 3.0
 			#pragma surface surf PPL alpha noshadow novertexlights nolightmap vertex:vert nofog
-				
+
 			#include "UnityCG.cginc"
-	
+			#include "UnityUI.cginc"
+
 			struct appdata_t
 			{
 				float4 vertex : POSITION;
@@ -75,6 +74,7 @@ Shader "UI/Lit/Refraction (Pro Only)"
 				float4 texcoord1;
 				float4 proj;
 				fixed4 color : COLOR;
+				float4 worldPosition;
 			};
 
 			sampler2D _GrabTexture;
@@ -91,10 +91,20 @@ Shader "UI/Lit/Refraction (Pro Only)"
 			fixed4 _Specular;
 			half _Shininess;
 			half _Focus;
+
+			fixed4 _TextureSampleAdd;
+
+			bool _UseClipRect;
+			float4 _ClipRect;
+				
+			bool _UseAlphaClip;
 				
 			void vert (inout appdata_t v, out Input o)
 			{
 				UNITY_INITIALIZE_OUTPUT(Input, o);
+				o.worldPosition = v.vertex;
+				v.vertex = o.worldPosition;
+				v.color = v.color * _Color;
 
 				o.texcoord1.xy = TRANSFORM_TEX(v.texcoord1, _MainTex);
 				o.texcoord1.zw = TRANSFORM_TEX(v.texcoord1, _MainBump);
@@ -109,7 +119,7 @@ Shader "UI/Lit/Refraction (Pro Only)"
 				
 			void surf (Input IN, inout SurfaceOutput o)
 			{
-				fixed4 col = tex2D(_MainTex, IN.texcoord1.xy);
+				fixed4 col = tex2D(_MainTex, IN.texcoord1.xy) + _TextureSampleAdd;
 				half3 normal = UnpackNormal(tex2D(_MainBump, IN.texcoord1.zw));
 				half3 mask = tex2D(_Mask, IN.texcoord1.xy);
 
@@ -118,13 +128,19 @@ Shader "UI/Lit/Refraction (Pro Only)"
 				half4 ref = tex2Dproj( _GrabTexture, UNITY_PROJ_COORD(IN.proj));
 
 				col.rgb = lerp(col.rgb, ref.rgb, mask.b);
-				col *= _Color * IN.color;
+				col *= IN.color;
 					
 				o.Albedo = col.rgb;
 				o.Normal = normalize(normal);
 				o.Specular = _Specular.a * mask.r;
 				o.Gloss = _Shininess * mask.g;
 				o.Alpha = col.a;
+				
+				if (_UseClipRect)
+					o.Alpha *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
+				
+				if (_UseAlphaClip)
+					clip (o.Alpha - 0.001);
 			}
 
 			half4 LightingPPL (SurfaceOutput s, half3 lightDir, half3 viewDir, half atten)
@@ -149,7 +165,6 @@ Shader "UI/Lit/Refraction (Pro Only)"
 				c.rgb = (s.Albedo * diffuseFactor + _Specular.rgb * specularFactor) * _LightColor0.rgb;
 				c.rgb *= atten;
 				c.a = s.Alpha;
-				clip (c.a - 0.01);
 				return c;
 			}
 		ENDCG

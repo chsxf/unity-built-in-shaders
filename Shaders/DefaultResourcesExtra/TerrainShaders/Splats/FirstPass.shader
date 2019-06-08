@@ -15,7 +15,7 @@ Shader "Nature/Terrain/Diffuse" {
 	}
 
 	CGINCLUDE
-		#pragma surface surf Lambert vertex:SplatmapVert finalcolor:myfinal exclude_path:prepass exclude_path:deferred
+		#pragma surface surf Lambert vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer
 		#pragma multi_compile_fog
 		#include "TerrainSplatmapCommon.cginc"
 
@@ -28,13 +28,6 @@ Shader "Nature/Terrain/Diffuse" {
 			o.Albedo = mixedDiffuse.rgb;
 			o.Alpha = weight;
 		}
-
-		void myfinal(Input IN, SurfaceOutput o, inout fixed4 color)
-		{
-			SplatmapApplyWeight(color, o.Alpha);
-			SplatmapApplyFog(color, IN);
-		}
-
 	ENDCG
 
 	Category {

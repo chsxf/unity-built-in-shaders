@@ -5,6 +5,7 @@ Properties {
 	_Shininess ("Shininess", Range (0.01, 1)) = 0.078125
 	_MainTex ("Base (RGB) Gloss (A)", 2D) = "white" {}
 	_Illum ("Illumin (A)", 2D) = "white" {}
+	_Emission ("Emission (Lightmapper)", Range (0.0, 8.0)) = 1.0
 }
 SubShader {
 	Tags { "RenderType"="Opaque" }
@@ -17,6 +18,7 @@ sampler2D _MainTex;
 sampler2D _Illum;
 fixed4 _Color;
 half _Shininess;
+fixed _Emission;
 
 struct Input {
 	float2 uv_MainTex;
@@ -28,6 +30,9 @@ void surf (Input IN, inout SurfaceOutput o) {
 	fixed4 c = tex * _Color;
 	o.Albedo = c.rgb;
 	o.Emission = c.rgb * tex2D(_Illum, IN.uv_Illum).a;
+#if defined (UNITY_PASS_META)
+	o.Emission *= _Emission.rrr;
+#endif
 	o.Gloss = tex.a;
 	o.Alpha = c.a;
 	o.Specular = _Shininess;

@@ -36,10 +36,10 @@ struct UnityGIInput
 	UnityLight light; // pixel light, sent from the engine
 
 	float3 worldPos;
-	float3 worldViewDir;
+	half3 worldViewDir;
 	half atten;
 	half3 ambient;
-	float4 lightmapUV; // .xy = static lightmap UV, .zw = dynamic lightmap UV
+	half4 lightmapUV; // .xy = static lightmap UV, .zw = dynamic lightmap UV
 
 	float4 boxMax[2];
 	float4 boxMin[2];

@@ -9,10 +9,10 @@
 
 // texcoord setup
 //
-//		BRANCHES					FRONDS						LEAVES
-// 0	diffuse uv, branch wind xy	"							"
-// 1	lod xyz, seam amount		lod xyz, 0					anchor xyz, lod scalar
-// 2	detail uv, seam uv			frond wind xyz, 0			leaf wind xyz, leaf group
+//		BRANCHES						FRONDS						LEAVES
+// 0	diffuse uv, branch wind xy		"							"
+// 1	lod xyz, 0						lod xyz, 0					anchor xyz, lod scalar
+// 2	detail/seam uv, seam amount, 0	frond wind xyz, 0			leaf wind xyz, leaf group
 
 struct SpeedTreeVB 
 {
@@ -49,25 +49,24 @@ uniform half _WindEnabled;
 ///////////////////////////////////////////////////////////////////////  
 //  OffsetSpeedTreeVertex
 
-void OffsetSpeedTreeVertex(inout SpeedTreeVB Data, float LodValue)
+void OffsetSpeedTreeVertex(inout SpeedTreeVB data, float lodValue)
 {
-	float3 FinalPosition = Data.vertex.xyz;
-	float3 TreePos = float3(_Object2World[0].w, _Object2World[1].w, _Object2World[2].w);
+	float3 finalPosition = data.vertex.xyz;
 
 	#ifdef ENABLE_WIND
 		half windQuality = _WindQuality * _WindEnabled;
 
-		float3 vRotatedWindVector, vRotatedBranchAnchor;
-		if (windQuality > WIND_QUALITY_NONE)
+		float3 rotatedWindVector, rotatedBranchAnchor;
+		if (windQuality <= WIND_QUALITY_NONE)
 		{
-			// compute rotated wind parameters
-			vRotatedWindVector = normalize(mul((float3x3)_World2Object, _ST_WindVector.xyz));
-			vRotatedBranchAnchor = normalize(mul((float3x3)_World2Object, _ST_WindBranchAnchor.xyz)) * _ST_WindBranchAnchor.w;
+			rotatedWindVector = float3(0.0f, 0.0f, 0.0f);
+			rotatedBranchAnchor = float3(0.0f, 0.0f, 0.0f);
 		}
 		else
 		{
-			vRotatedWindVector = float3(0.0f, 0.0f, 0.0f);
-			vRotatedBranchAnchor = float3(0.0f, 0.0f, 0.0f);
+			// compute rotated wind parameters
+			rotatedWindVector = normalize(mul((float3x3)_World2Object, _ST_WindVector.xyz));
+			rotatedBranchAnchor = normalize(mul((float3x3)_World2Object, _ST_WindBranchAnchor.xyz)) * _ST_WindBranchAnchor.w;
 		}
 	#endif
 
@@ -75,68 +74,72 @@ void OffsetSpeedTreeVertex(inout SpeedTreeVB Data, float LodValue)
 
 		// smooth LOD
 		#ifdef LOD_FADE_PERCENTAGE
-			FinalPosition = lerp(FinalPosition, Data.texcoord1.xyz, LodValue);
+			finalPosition = lerp(finalPosition, data.texcoord1.xyz, lodValue);
 		#endif
 
 		// frond wind, if needed
 		#if defined(ENABLE_WIND) && defined(GEOM_TYPE_FROND)
 			if (windQuality == WIND_QUALITY_PALM)
-				FinalPosition = RippleFrond(FinalPosition, Data.normal, Data.texcoord.x, Data.texcoord.y, Data.texcoord2.x, Data.texcoord2.y, Data.texcoord2.z);
+				finalPosition = RippleFrond(finalPosition, data.normal, data.texcoord.x, data.texcoord.y, data.texcoord2.x, data.texcoord2.y, data.texcoord2.z);
 		#endif
 
-	#elif defined(GEOM_TYPE_FACING_LEAF) || defined(GEOM_TYPE_LEAF)
+	#elif defined(GEOM_TYPE_LEAF)
 
 		// remove anchor position
-		FinalPosition -= Data.texcoord1.xyz;
+		finalPosition -= data.texcoord1.xyz;
 
-		// smooth LOD
-		#ifdef LOD_FADE_PERCENTAGE
-			#if defined(GEOM_TYPE_FACING_LEAF)
-				FinalPosition *= lerp(1.0, Data.texcoord1.w, LodValue);
-			#else
-				float3 LodPosition = float3(Data.texcoord1.w, Data.texcoord3.x, Data.texcoord3.y);
-				FinalPosition = lerp(FinalPosition, LodPosition, LodValue);
+		bool isFacingLeaf = data.color.a == 0;
+		if (isFacingLeaf)
+		{
+			#ifdef LOD_FADE_PERCENTAGE
+				finalPosition *= lerp(1.0, data.texcoord1.w, lodValue);
 			#endif
-		#endif
-
-		// face camera-facing leaf to camera
-		#ifdef GEOM_TYPE_FACING_LEAF
-			float offsetLen = length(FinalPosition);
-			FinalPosition = mul(FinalPosition.xyz, (float3x3)UNITY_MATRIX_IT_MV); // inv(MV) * FinalPosition
-			FinalPosition = normalize(FinalPosition) * offsetLen; // make sure the offset vector is still scaled
-		#endif
+			// face camera-facing leaf to camera
+			float offsetLen = length(finalPosition);
+			finalPosition = mul(finalPosition.xyz, (float3x3)UNITY_MATRIX_IT_MV); // inv(MV) * finalPosition
+			finalPosition = normalize(finalPosition) * offsetLen; // make sure the offset vector is still scaled
+		}
+		else
+		{
+			#ifdef LOD_FADE_PERCENTAGE
+				float3 lodPosition = float3(data.texcoord1.w, data.texcoord3.x, data.texcoord3.y);
+				finalPosition = lerp(finalPosition, lodPosition, lodValue);
+			#endif
+		}
 
 		#ifdef ENABLE_WIND
 			// leaf wind
 			if (windQuality > WIND_QUALITY_FASTEST && windQuality < WIND_QUALITY_PALM)
 			{
-				float LeafWindTrigOffset = Data.texcoord1.x + Data.texcoord1.y;
-				FinalPosition = LeafWind(windQuality == WIND_QUALITY_BEST, Data.texcoord2.w > 0.0, FinalPosition, Data.normal, Data.texcoord2.x, float3(0,0,0), Data.texcoord2.y, Data.texcoord2.z, LeafWindTrigOffset, vRotatedWindVector);
+				float leafWindTrigOffset = data.texcoord1.x + data.texcoord1.y;
+				finalPosition = LeafWind(windQuality == WIND_QUALITY_BEST, data.texcoord2.w > 0.0, finalPosition, data.normal, data.texcoord2.x, float3(0,0,0), data.texcoord2.y, data.texcoord2.z, leafWindTrigOffset, rotatedWindVector);
 			}
 		#endif
 
 		// move back out to anchor
-		FinalPosition += Data.texcoord1.xyz;
+		finalPosition += data.texcoord1.xyz;
 
 	#endif
 
 	#ifdef ENABLE_WIND
+		float3 treePos = float3(_Object2World[0].w, _Object2World[1].w, _Object2World[2].w);
+
 		#ifndef GEOM_TYPE_MESH
 			if (windQuality >= WIND_QUALITY_BETTER)
 			{
 				// branch wind (applies to all 3D geometry)
-				FinalPosition = BranchWind(windQuality == WIND_QUALITY_PALM, FinalPosition, TreePos, float4(Data.texcoord.zw, 0, 0), vRotatedWindVector, vRotatedBranchAnchor);
+				finalPosition = BranchWind(windQuality == WIND_QUALITY_PALM, finalPosition, treePos, float4(data.texcoord.zw, 0, 0), rotatedWindVector, rotatedBranchAnchor);
 			}
 		#endif
 
 		if (windQuality > WIND_QUALITY_NONE)
 		{
 			// global wind
-			FinalPosition = GlobalWind(FinalPosition, TreePos, true, vRotatedWindVector, _ST_WindGlobal.x);
+			finalPosition = GlobalWind(finalPosition, treePos, true, rotatedWindVector, _ST_WindGlobal.x);
 		}
 	#endif
 
-	Data.vertex.xyz = FinalPosition;
+	data.vertex.xyz = finalPosition;
 }
 
 #endif // SPEEDTREE_VERTEX_INCLUDED

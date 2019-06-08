@@ -5,6 +5,7 @@ Properties {
 	_Shininess ("Shininess", Range (0.1, 1)) = 0.7
 	_MainTex ("Base (RGB)", 2D) = "white" {}
 	_Illum ("Illumin (A)", 2D) = "white" {}
+	_Emission ("Emission (Lightmapper)", Range (0.0, 8.0)) = 1.0
 }
 
 SubShader {
@@ -65,6 +66,7 @@ SubShader {
 		sampler2D _MainTex;
 		sampler2D _Illum;
 		fixed4 _Color;
+		fixed _Emission;
 
 		half4 frag (v2f i) : SV_Target
 		{
@@ -75,6 +77,9 @@ SubShader {
 			fixed4 c = tex * _Color;
 			metaIN.Albedo = c.rgb;
 			metaIN.Emission = c.rgb * tex2D(_Illum, i.uvIllum).a;
+#if defined (UNITY_PASS_META)
+			o.Emission *= _Emission.rrr;
+#endif
 			return UnityMetaFragment(metaIN);
 		}
 		ENDCG

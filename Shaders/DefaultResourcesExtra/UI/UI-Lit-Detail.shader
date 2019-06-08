@@ -45,14 +45,14 @@ Shader "UI/Lit/Detail"
 		Lighting Off
 		ZWrite Off
 		ZTest [unity_GUIZTestMode]
-		Offset -1, -1
 		Blend SrcAlpha OneMinusSrcAlpha
 		ColorMask [_ColorMask]
 
 		CGPROGRAM
 			#pragma surface surf PPL alpha noshadow novertexlights nolightmap vertex:vert nofog
-
+			
 			#include "UnityCG.cginc"
+			#include "UnityUI.cginc"
 	
 			struct appdata_t
 			{
@@ -69,6 +69,7 @@ Shader "UI/Lit/Detail"
 				half2 uv_MainTex;
 				half2 uv2_DetailTex;
 				fixed4 color : COLOR;
+				float4 worldPosition;
 			};
 
 			sampler2D _MainTex;
@@ -81,17 +82,27 @@ Shader "UI/Lit/Detail"
 			fixed4 _Specular;
 			half _Strength;
 			half _Shininess;
-				
+			
+			fixed4 _TextureSampleAdd;
+
+			bool _UseClipRect;
+			float4 _ClipRect;
+
+			bool _UseAlphaClip;
+
 			void vert (inout appdata_t v, out Input o)
 			{
 				UNITY_INITIALIZE_OUTPUT(Input, o);
+				o.worldPosition = v.vertex;
+				v.vertex = o.worldPosition;
+
 				v.texcoord1.xy *= _DetailTex_TexelSize.xy;
-				v.color *= _Color;
+				v.color = v.color * _Color;
 			}
 				
 			void surf (Input IN, inout SurfaceOutput o)
 			{
-				fixed4 col = tex2D(_MainTex, IN.uv_MainTex);
+				fixed4 col = tex2D(_MainTex, IN.uv_MainTex) + _TextureSampleAdd;
 				fixed4 detail = tex2D(_DetailTex, IN.uv2_DetailTex);
 
 				// Mix normals by just averaging the data and then doing unpack.
@@ -110,6 +121,12 @@ Shader "UI/Lit/Detail"
 				o.Specular = _Specular.a;
 				o.Gloss = _Shininess;
 				o.Alpha = col.a;
+
+				if (_UseClipRect)
+					o.Alpha *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
+				
+				if (_UseAlphaClip)
+					clip (o.Alpha - 0.001);
 			}
 
 			half4 LightingPPL (SurfaceOutput s, half3 lightDir, half3 viewDir, half atten)
@@ -133,7 +150,6 @@ Shader "UI/Lit/Detail"
 				c.rgb = (s.Albedo * diffuseFactor + _Specular.rgb * specularFactor) * _LightColor0.rgb;
 				c.rgb *= atten;
 				c.a = s.Alpha;
-				clip (c.a - 0.01);
 				return c;
 			}
 		ENDCG

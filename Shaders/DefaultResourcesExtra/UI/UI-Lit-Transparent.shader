@@ -2,10 +2,10 @@ Shader "UI/Lit/Transparent"
 {
 	Properties
 	{
-		_Color ("Main Color", Color) = (1,1,1,1)
+		[PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
+		_Color ("Tint", Color) = (1,1,1,1)
 		_Specular ("Specular Color", Color) = (0,0,0,0)
-		_MainTex ("Diffuse (RGB), Alpha (A)", 2D) = "white" {}
-		
+
 		_StencilComp ("Stencil Comparison", Float) = 8
 		_Stencil ("Stencil ID", Float) = 0
 		_StencilOp ("Stencil Operation", Float) = 0
@@ -25,6 +25,7 @@ Shader "UI/Lit/Transparent"
 			"IgnoreProjector" = "True"
 			"RenderType" = "Transparent"
 			"PreviewType"="Plane"
+			"CanUseSpriteAtlas"="True"
 		}
 
 		Stencil
@@ -40,14 +41,14 @@ Shader "UI/Lit/Transparent"
 		Lighting Off
 		ZWrite Off
 		ZTest [unity_GUIZTestMode]
-		Offset -1, -1
 		Blend SrcAlpha OneMinusSrcAlpha
-		AlphaTest Greater 0
 		ColorMask [_ColorMask]
 
 		CGPROGRAM
-			#pragma surface surf PPL alpha noshadow novertexlights nolightmap nofog
+			#pragma surface surf PPL alpha noshadow novertexlights nolightmap nofog vertex:vert
+
 			#include "UnityCG.cginc"
+			#include "UnityUI.cginc"
 	
 			struct appdata_t
 			{
@@ -62,17 +63,40 @@ Shader "UI/Lit/Transparent"
 			{
 				half2 uv_MainTex;
 				fixed4 color : COLOR;
+				float4 worldPosition;
 			};
 
 			sampler2D _MainTex;
 			fixed4 _Color;
 			fixed4 _Specular;
+	
+			fixed4 _TextureSampleAdd;
+
+			bool _UseClipRect;
+			float4 _ClipRect;
 				
+			bool _UseAlphaClip;
+
+			void vert (inout appdata_t v, out Input o)
+			{
+				UNITY_INITIALIZE_OUTPUT(Input, o);
+				o.worldPosition = v.vertex;
+				v.vertex = o.worldPosition;
+				
+				v.color = v.color * _Color;
+			}
+
 			void surf (Input IN, inout SurfaceOutput o)
 			{			
-				fixed4 col = tex2D(_MainTex, IN.uv_MainTex) * _Color * IN.color;
+				fixed4 col = (tex2D(_MainTex, IN.uv_MainTex) + _TextureSampleAdd) * IN.color;
 				o.Albedo = col.rgb;
 				o.Alpha = col.a;
+
+				if (_UseClipRect)
+					o.Alpha *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
+				
+				if (_UseAlphaClip)
+					clip (o.Alpha - 0.001);
 			}
 
 			half4 LightingPPL (SurfaceOutput s, half3 lightDir, half3 viewDir, half atten)
@@ -97,7 +121,6 @@ Shader "UI/Lit/Transparent"
 				c.rgb = (s.Albedo * diffuseFactor + _Specular.rgb * specularFactor) * _LightColor0.rgb;
 				c.rgb *= atten;
 				c.a = s.Alpha;
-				clip (c.a - 0.01);
 				return c;
 			}
 		ENDCG

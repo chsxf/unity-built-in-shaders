@@ -29,9 +29,7 @@ Shader "Hidden/TerrainEngine/Splatmap/Standard-AddPass" {
 		}
 
 		CGPROGRAM
-		// As we can't blend normals in g-buffer, this shader will not work in standard deferred path. 
-		// So we use exclude_path:deferred to force it to only use the forward path.
-		#pragma surface surf Standard decal:add vertex:SplatmapVert finalcolor:myfinal exclude_path:prepass exclude_path:deferred fullforwardshadows
+		#pragma surface surf Standard decal:add vertex:SplatmapVert finalcolor:SplatmapFinalColor finalgbuffer:SplatmapFinalGBuffer fullforwardshadows
 		#pragma multi_compile_fog
 		#pragma target 3.0
 		// needs more than 8 texcoords
@@ -42,6 +40,7 @@ Shader "Hidden/TerrainEngine/Splatmap/Standard-AddPass" {
 
 		#define TERRAIN_SPLAT_ADDPASS
 		#define TERRAIN_STANDARD_SHADER
+		#define TERRAIN_SURFACE_OUTPUT SurfaceOutputStandard
 		#include "TerrainSplatmapCommon.cginc"
 
 		half _Metallic0;
@@ -65,13 +64,6 @@ Shader "Hidden/TerrainEngine/Splatmap/Standard-AddPass" {
 			o.Smoothness = mixedDiffuse.a;
 			o.Metallic = dot(splat_control, half4(_Metallic0, _Metallic1, _Metallic2, _Metallic3));
 		}
-
-		void myfinal(Input IN, SurfaceOutputStandard o, inout fixed4 color)
-		{
-			SplatmapApplyWeight(color, o.Alpha);
-			SplatmapApplyFog(color, IN);
-		}
-
 		ENDCG
 	}
 

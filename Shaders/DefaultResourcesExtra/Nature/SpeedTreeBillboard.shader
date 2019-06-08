@@ -51,7 +51,6 @@
 		[HideInInspector] _ImageTexCoords29 ("ImageTexCoords29", Vector) = (0,0,0,0)
 		[HideInInspector] _ImageTexCoords30 ("ImageTexCoords30", Vector) = (0,0,0,0)
 		[HideInInspector] _ImageTexCoords31 ("ImageTexCoords31", Vector) = (0,0,0,0)
-		[HideInInspector] _InstanceData ("InstanceData", Vector) = (0,0,0,0)
 	}
 	
 	// targeting SM3.0+

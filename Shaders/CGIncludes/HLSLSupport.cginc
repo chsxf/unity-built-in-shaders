@@ -1,17 +1,20 @@
 #ifndef HLSL_SUPPORT_INCLUDED
 #define HLSL_SUPPORT_INCLUDED
 
+// Define the underlying compiler being used
 #if defined(SHADER_TARGET_SURFACE_ANALYSIS)
 	// Cg is used for surface shader analysis step
 	#define UNITY_COMPILER_CG
 #elif defined(SHADER_API_D3D11) || defined(SHADER_API_XBOX360) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_D3D9) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_XBOXONE)
 	#define UNITY_COMPILER_HLSL
-#elif defined(SHADER_TARGET_GLSL)
+#elif defined(SHADER_TARGET_GLSL) || defined(SHADER_API_WIIU)
 	#define UNITY_COMPILER_HLSL2GLSL
 #else
 	#define UNITY_COMPILER_CG
 #endif
 
+
+// SV_Target[n] / SV_Depth defines, if not defined by compiler already
 #if !defined(SV_Target)
 #	if defined(SHADER_API_PSSL)
 #		define SV_Target S_TARGET_OUTPUT
@@ -19,8 +22,6 @@
 #		define SV_Target COLOR
 #	endif
 #endif
-
-
 #if !defined(SV_Target0)
 #	if defined(SHADER_API_PSSL)
 #		define SV_Target0 S_TARGET_OUTPUT0
@@ -28,8 +29,6 @@
 #		define SV_Target0 COLOR0
 #	endif
 #endif
-
-
 #if !defined(SV_Target1)
 #	if defined(SHADER_API_PSSL)
 #		define SV_Target1 S_TARGET_OUTPUT1
@@ -37,7 +36,6 @@
 #		define SV_Target1 COLOR1
 #	endif
 #endif
-
 #if !defined(SV_Target2)
 #	if defined(SHADER_API_PSSL)
 #		define SV_Target2 S_TARGET_OUTPUT2
@@ -45,7 +43,6 @@
 #		define SV_Target2 COLOR2
 #	endif
 #endif
-
 #if !defined(SV_Target3)
 #	if defined(SHADER_API_PSSL)
 #		define SV_Target3 S_TARGET_OUTPUT3
@@ -53,9 +50,6 @@
 #		define SV_Target3 COLOR3
 #	endif
 #endif
-
-
-
 #if !defined(SV_Depth)
 #	if defined(SHADER_API_PSSL)
 #		define SV_Depth S_DEPTH_OUTPUT
@@ -64,16 +58,18 @@
 #	endif
 #endif
 
+
 #if defined(SHADER_API_PSSL)
-// compute shader defines
+// compute shader defines for PS4
 #define StructuredBuffer RegularBuffer
 #define RWStructuredBuffer RW_RegularBuffer
 #define AppendStructuredBuffer AppendRegularBuffer
 #define SV_VertexID S_VERTEX_ID
 #define SV_InstanceID S_INSTANCE_ID
+#endif // defined(SHADER_API_PSSL)
 
-#endif 
 
+// Disable warnings we aren't interested in
 #if defined(UNITY_COMPILER_HLSL)
 #pragma warning (disable : 3205) // conversion of larger type to smaller
 #pragma warning (disable : 3568) // unknown pragma ignored
@@ -114,8 +110,8 @@
 #define half2x2 min16float2x2
 #define half3x3 min16float3x3
 #define half4x4 min16float4x4
+#endif // defined(SHADER_API_GLES3)
 
-#endif
 
 // Define min16float/min10float to be half/fixed on non-D3D11 platforms.
 // This allows people to use min16float and friends in their shader code if they
@@ -289,18 +285,8 @@
 // UNITY_SAMPLE_SHADOW samples with a float3 coordinate (UV in xy, Z in z) and returns 0..1 scalar result.
 // UNITY_SAMPLE_SHADOW_PROJ samples with a projected coordinate (UV and Z divided by w).
 
-#if !defined(SHADOWS_NATIVE)
-	// No native shadowmaps: regular texture and do manual comparison
-	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D_float tex
-	#define UNITY_SAMPLE_SHADOW(tex,coord) ((SAMPLE_DEPTH_TEXTURE(tex,(coord).xy) < (coord).z) ? 0.0 : 1.0)
-	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) ((SAMPLE_DEPTH_TEXTURE_PROJ(tex,UNITY_PROJ_COORD(coord)) < ((coord).z/(coord).w)) ? 0.0 : 1.0)
-#elif defined(SHADER_API_PSSL)
-	// PS4
-	#define UNITY_DECLARE_SHADOWMAP(tex)		Texture2D tex; SamplerComparisonState sampler##tex
-	#define UNITY_SAMPLE_SHADOW(tex,coord)		tex.SampleCmpLOD0(sampler##tex,(coord).xy,(coord).z)
-	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord)	tex.SampleCmpLOD0(sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
-#elif defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)
-	// DX11
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)
+	// DX11 & hlslcc platforms: built-in PCF
 	#if defined(SHADER_API_D3D11_9X)
 		// FL9.x has some bug where the runtime really wants resource & sampler to be bound to the same slot,
 		// otherwise it is skipping draw calls that use shadowmap sampling. Let's bind to #15
@@ -311,30 +297,41 @@
 	#endif
 	#define UNITY_SAMPLE_SHADOW(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy,(coord).z)
 	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
-#elif defined(SHADER_TARGET_GLSL)
-	// OpenGL-like platforms, when "native shadow maps" are supported: special hlsl2glsl syntax
+#elif (defined(UNITY_COMPILER_HLSL2GLSL) && (defined(SHADOWS_NATIVE) || !defined(SHADER_API_GLES))) || defined(SHADER_API_WIIU)
+	// OpenGL-like hlsl2glsl platforms: most of them always have built-in PCF
+	// Exception is GLES2.0 which might not have it; so that one needs a SHADOWS_NATIVE check
 	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2DShadow tex
 	#define UNITY_SAMPLE_SHADOW(tex,coord) shadow2D (tex,(coord).xyz)
 	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) shadow2Dproj (tex,coord)
-#elif defined(SHADER_API_PSP2) && !defined(SHADER_API_PSM)
-	// Vita
-	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D tex
-	#define UNITY_SAMPLE_SHADOW(tex,coord) tex2D<float>(tex, (coord).xyz)
-	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex2DprojShadow(tex, coord)
 #elif defined(SHADER_API_D3D9)
-	// Native shadow maps FOURCC "driver hack" on D3D9: looks just like a regular
+	// D3D9: Native shadow maps FOURCC "driver hack", looks just like a regular
 	// texture sample. Have to always do a projected sample
 	// so that HLSL compiler doesn't try to be too smart and mess up swizzles
 	// (thinking that Z is unused).
 	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D tex
 	#define UNITY_SAMPLE_SHADOW(tex,coord) tex2Dproj (tex,float4((coord).xyz,1)).r
 	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex2Dproj (tex,coord).r
-#else
-	// Any other platforms: looks just like a regular texture sample.
+#elif defined(SHADER_API_PSSL)
+	// PS4: built-in PCF
+	#define UNITY_DECLARE_SHADOWMAP(tex)		Texture2D tex; SamplerComparisonState sampler##tex
+	#define UNITY_SAMPLE_SHADOW(tex,coord)		tex.SampleCmpLOD0(sampler##tex,(coord).xy,(coord).z)
+	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord)	tex.SampleCmpLOD0(sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
+#elif defined(SHADER_API_PSP2) && !defined(SHADER_API_PSM)
+	// Vita
+	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D tex
+	#define UNITY_SAMPLE_SHADOW(tex,coord) tex2D<float>(tex, (coord).xyz)
+	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex2DprojShadow(tex, coord)
+#elif defined(SHADER_API_PS3)
 	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D tex
 	#define UNITY_SAMPLE_SHADOW(tex,coord) tex2D (tex,(coord).xyz).r
 	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex2Dproj (tex,coord).r
+#else
+	// Fallback / No native shadowmaps: regular texture sample and do manual depth comparison
+	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D_float tex
+	#define UNITY_SAMPLE_SHADOW(tex,coord) ((SAMPLE_DEPTH_TEXTURE(tex,(coord).xy) < (coord).z) ? 0.0 : 1.0)
+	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) ((SAMPLE_DEPTH_TEXTURE_PROJ(tex,UNITY_PROJ_COORD(coord)) < ((coord).z/(coord).w)) ? 0.0 : 1.0)
 #endif
+
 
 // Macros to declare textures and samplers, possibly separately. For platforms
 // that have separate samplers & textures (like DX11), and we'd want to conserve
@@ -440,15 +437,15 @@
 #define UNITY_ATTEN_CHANNEL a
 #endif
 
-#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PSP2)
+#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360)
 #define UNITY_HALF_TEXEL_OFFSET
 #endif
 
-#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL)
+#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL) || defined(SHADER_API_WIIU)
 #define UNITY_UV_STARTS_AT_TOP 1
 #endif
 
-#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_METAL) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D9) || defined(SHADER_API_XBOX360) || defined(SHADER_API_PS3) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_METAL) || defined(SHADER_API_PSSL) || defined(SHADER_API_WIIU)
 #define UNITY_NEAR_CLIP_VALUE (0.0)
 #else
 #define UNITY_NEAR_CLIP_VALUE (-1.0)
@@ -460,27 +457,17 @@
 #endif
 
 
-
-// Platforms which do not use cascaded/screenspace shadow maps: more or less "mobile" platforms
-#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2)
-#define UNITY_NO_SCREENSPACE_SHADOWS
-#endif
-
-#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2)
-#define UNITY_NO_LINEAR_COLORSPACE
-#endif
+// "platform caps" defines that were moved to editor, so they are set automatically when compiling shader
+// UNITY_NO_DXT5nm
+// UNITY_NO_RGBM
+// UNITY_NO_SCREENSPACE_SHADOWS
+// UNITY_NO_LINEAR_COLORSPACE
 
 #if defined(SHADER_API_PSP2)
 // To get acceptable precision from the SGX interpolators when decoding RGBM type
 // textures we have to disable sRGB reads and then convert to gamma space in the shader
 // explicitly.
 #define UNITY_FORCE_LINEAR_READ_FOR_RGBM
-#endif
-
-// Platforms which do not use RGBM lightmap compression, or DXT5nm normal map compression
-#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL)
-#define UNITY_NO_RGBM
-#define UNITY_NO_DXT5nm
 #endif
 
 // Platforms which can support "framebuffer fetch" on some devices
@@ -525,6 +512,7 @@
 #	define SV_GroupID					S_GROUP_ID
 #	define SV_GroupThreadID				S_GROUP_THREAD_ID
 #	define SV_GroupIndex				S_GROUP_INDEX
+#	define SV_PrimitiveID				S_PRIMITIVE_ID
 
 #	define groupshared					thread_group_memory
 

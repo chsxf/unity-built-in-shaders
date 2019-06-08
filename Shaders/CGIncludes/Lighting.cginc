@@ -73,7 +73,7 @@ inline void LightingLambert_GI (
 	UnityGIInput data,
 	inout UnityGI gi)
 {
-	gi = UnityGlobalIllumination (data, 1.0, 0.0, s.Normal, false);
+	gi = UnityGlobalIllumination (data, 1.0, s.Normal);
 }
 
 inline fixed4 LightingLambert_PrePass (SurfaceOutput s, half4 light)
@@ -142,7 +142,7 @@ inline void LightingBlinnPhong_GI (
 	UnityGIInput data,
 	inout UnityGI gi)
 {
-	gi = UnityGlobalIllumination (data, 1.0, s.Gloss, s.Normal, false);
+	gi = UnityGlobalIllumination (data, 1.0, s.Normal);
 }
 
 inline fixed4 LightingBlinnPhong_PrePass (SurfaceOutput s, half4 light)

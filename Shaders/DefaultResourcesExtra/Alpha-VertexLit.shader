@@ -11,7 +11,6 @@ SubShader {
 	Tags {"Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent"}
 	LOD 100
 	
-	Alphatest Greater 0
 	ZWrite Off
 	Blend SrcAlpha OneMinusSrcAlpha 
 	ColorMask RGB

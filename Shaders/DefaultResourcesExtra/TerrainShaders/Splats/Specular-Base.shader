@@ -16,7 +16,7 @@ Shader "Hidden/TerrainEngine/Splatmap/Specular-Base" {
 		LOD 200
 
 		CGPROGRAM
-		#pragma surface surf BlinnPhong exclude_path:deferred
+		#pragma surface surf BlinnPhong
 		
 		sampler2D _MainTex;
 		half _Shininess;

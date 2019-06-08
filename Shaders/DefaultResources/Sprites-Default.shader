@@ -29,6 +29,7 @@ Shader "Sprites/Default"
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile _ PIXELSNAP_ON
+			#pragma multi_compile _ UNITY_ETC1_EXTERNAL_ALPHA
 			#include "UnityCG.cginc"
 			
 			struct appdata_t
@@ -61,10 +62,24 @@ Shader "Sprites/Default"
 			}
 
 			sampler2D _MainTex;
+			sampler2D _AlphaTex;
+			float _AlphaSplitEnabled;
+
+			fixed4 SampleSpriteTexture (float2 uv)
+			{
+				fixed4 color = tex2D (_MainTex, uv);
+
+#if UNITY_ETC1_EXTERNAL_ALPHA
+				if (_AlphaSplitEnabled)
+					color.a = tex2D (_AlphaTex, uv).r;
+#endif //UNITY_ETC1_EXTERNAL_ALPHA
+
+				return color;
+			}
 
 			fixed4 frag(v2f IN) : SV_Target
 			{
-				fixed4 c = tex2D(_MainTex, IN.texcoord) * IN.color;
+				fixed4 c = SampleSpriteTexture (IN.texcoord) * IN.color;
 				c.rgb *= c.a;
 				return c;
 			}

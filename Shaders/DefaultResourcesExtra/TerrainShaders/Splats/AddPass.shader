@@ -12,7 +12,7 @@ Shader "Hidden/TerrainEngine/Splatmap/Diffuse-AddPass" {
 	}
 
 	CGINCLUDE
-		#pragma surface surf Lambert decal:add vertex:SplatmapVert finalcolor:myfinal exclude_path:prepass exclude_path:deferred
+		#pragma surface surf Lambert decal:add vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer
 		#pragma multi_compile_fog
 		#define TERRAIN_SPLAT_ADDPASS
 		#include "TerrainSplatmapCommon.cginc"
@@ -26,13 +26,6 @@ Shader "Hidden/TerrainEngine/Splatmap/Diffuse-AddPass" {
 			o.Albedo = mixedDiffuse.rgb;
 			o.Alpha = weight;
 		}
-
-		void myfinal(Input IN, SurfaceOutput o, inout fixed4 color)
-		{
-			SplatmapApplyWeight(color, o.Alpha);
-			SplatmapApplyFog(color, IN);
-		}
-
 	ENDCG
 
 	Category {
