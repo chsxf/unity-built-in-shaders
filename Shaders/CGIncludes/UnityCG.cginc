@@ -844,10 +844,10 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 #if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)
 	#if (SHADER_TARGET < 30) || defined(SHADER_API_MOBILE)
 		// mobile or SM2.0: fog factor was already calculated per-vertex, so just lerp the color
-		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_FOG_LERP_COLOR(col,fogCol,coord.x)
+		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_FOG_LERP_COLOR(col,fogCol,(coord).x)
 	#else
 		// SM3.0 and PC/console: calculate fog factor and lerp fog color
-		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_CALC_FOG_FACTOR(coord.x); UNITY_FOG_LERP_COLOR(col,fogCol,unityFogFactor)
+		#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_CALC_FOG_FACTOR((coord).x); UNITY_FOG_LERP_COLOR(col,fogCol,unityFogFactor)
 	#endif
 #else
 	#define UNITY_APPLY_FOG_COLOR(coord,col,fogCol)
