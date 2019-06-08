@@ -1,3 +1,4 @@
+* Version 2018.2.18f1: https://download.unity3d.com/download_unity/4550892b6062/builtin_shaders-2018.2.18f1.zip
 * Version 2018.2.17f1: https://download.unity3d.com/download_unity/88933597c842/builtin_shaders-2018.2.17f1.zip
 * Version 2018.2.16f1: https://download.unity3d.com/download_unity/39a4ac3d51f6/builtin_shaders-2018.2.16f1.zip
 * Version 2018.2.15f1: https://download.unity3d.com/download_unity/65e0713a5949/builtin_shaders-2018.2.15f1.zip
