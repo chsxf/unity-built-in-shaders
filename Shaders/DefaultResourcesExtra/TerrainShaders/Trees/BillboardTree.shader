@@ -23,11 +23,14 @@ Shader "Hidden/TerrainEngine/BillboardTree" {
 				fixed4 color : COLOR0;
 				float2 uv : TEXCOORD0;
 				UNITY_FOG_COORDS(1)
+				UNITY_VERTEX_OUTPUT_STEREO
 			};
 
 			v2f vert (appdata_tree_billboard v) {
 				v2f o;
-				TerrainBillboardTree(v.vertex, v.texcoord1.xy, v.texcoord.y);	
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+				TerrainBillboardTree(v.vertex, v.texcoord1.xy, v.texcoord.y);
 				o.pos = UnityObjectToClipPos(v.vertex);
 				o.uv.x = v.texcoord.x;
 				o.uv.y = v.texcoord.y > 0;

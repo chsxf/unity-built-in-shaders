@@ -61,11 +61,12 @@ Shader "UI/Lit/Transparent"
 				float2 texcoord1 : TEXCOORD1;
 				fixed4 color : COLOR;
 				float3 normal : NORMAL;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
 			struct Input
 			{
-				half2 uv_MainTex;
+				float2 uv_MainTex;
 				fixed4 color : COLOR;
 				float4 worldPosition;
 			};

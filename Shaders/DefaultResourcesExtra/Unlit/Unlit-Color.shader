@@ -23,11 +23,13 @@ SubShader {
 
 			struct appdata_t {
 				float4 vertex : POSITION;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
 			struct v2f {
 				float4 vertex : SV_POSITION;
 				UNITY_FOG_COORDS(0)
+				UNITY_VERTEX_OUTPUT_STEREO
 			};
 
 			fixed4 _Color;
@@ -35,6 +37,8 @@ SubShader {
 			v2f vert (appdata_t v)
 			{
 				v2f o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				UNITY_TRANSFER_FOG(o,o.vertex);
 				return o;

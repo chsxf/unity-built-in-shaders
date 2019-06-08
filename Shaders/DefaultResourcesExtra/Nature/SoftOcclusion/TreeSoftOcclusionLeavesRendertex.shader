@@ -15,7 +15,7 @@ Shader "Hidden/Nature/Tree Soft Occlusion Leaves Rendertex" {
 	}
 	SubShader {
 
-		Tags { "Queue" = "Transparent-99" }
+		Tags { "Queue" = "AlphaTest" }
 		Cull Off
 		
 		Pass {

@@ -50,11 +50,14 @@ SubShader {
 			float4 screenPos : TEXCOORD1;
 		#endif
 			UNITY_FOG_COORDS(2)
+			UNITY_VERTEX_OUTPUT_STEREO
 		};
 
 		v2f_leaf VertexLeaf (appdata_full v)
 		{
 			v2f_leaf o;
+			UNITY_SETUP_INSTANCE_ID(v);
+			UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 			TreeVertLeaf(v);
 			o.pos = UnityObjectToClipPos(v.vertex);
 

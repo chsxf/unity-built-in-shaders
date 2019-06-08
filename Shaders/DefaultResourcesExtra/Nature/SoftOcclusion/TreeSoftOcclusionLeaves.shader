@@ -15,7 +15,7 @@ Shader "Nature/Tree Soft Occlusion Leaves" {
 	
 	SubShader {
 		Tags {
-			"Queue" = "Transparent-99"
+			"Queue" = "AlphaTest"
 			"IgnoreProjector"="True"
 			"RenderType" = "TreeTransparentCutout"
 			"DisableBatching"="True"
@@ -99,7 +99,7 @@ Shader "Nature/Tree Soft Occlusion Leaves" {
 	// and earlier.
 	SubShader {
 		Tags {
-			"Queue" = "Transparent-99"
+			"Queue" = "AlphaTest"
 			"IgnoreProjector"="True"
 			"RenderType" = "TransparentCutout"
 		}

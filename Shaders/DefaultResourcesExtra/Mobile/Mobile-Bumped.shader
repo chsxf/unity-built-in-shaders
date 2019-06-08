@@ -6,7 +6,7 @@
 Shader "Mobile/Bumped Diffuse" {
 Properties {
 	_MainTex ("Base (RGB)", 2D) = "white" {}
-	_BumpMap ("Normalmap", 2D) = "bump" {}
+	[NoScaleOffset] _BumpMap ("Normalmap", 2D) = "bump" {}
 }
 
 SubShader {

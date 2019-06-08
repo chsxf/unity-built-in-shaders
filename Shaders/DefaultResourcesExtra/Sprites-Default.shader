@@ -38,6 +38,7 @@ Shader "Sprites/Default"
 				float4 vertex   : POSITION;
 				float4 color    : COLOR;
 				float2 texcoord : TEXCOORD0;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
 			struct v2f
@@ -45,13 +46,17 @@ Shader "Sprites/Default"
 				float4 vertex   : SV_POSITION;
 				fixed4 color    : COLOR;
 				float2 texcoord  : TEXCOORD0;
+				UNITY_VERTEX_OUTPUT_STEREO
 			};
 			
 			fixed4 _Color;
+			float _EnableExternalAlpha;
 
 			v2f vert(appdata_t IN)
 			{
 				v2f OUT;
+				UNITY_SETUP_INSTANCE_ID(IN);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
 				OUT.vertex = UnityObjectToClipPos(IN.vertex);
 				OUT.texcoord = IN.texcoord;
 				OUT.color = IN.color * _Color;
@@ -71,7 +76,8 @@ Shader "Sprites/Default"
 
 #if ETC1_EXTERNAL_ALPHA
 				// get the color from an external texture (usecase: Alpha support for ETC1 on android)
-				color.a = tex2D (_AlphaTex, uv).r;
+				fixed4 alpha = tex2D (_AlphaTex, uv);
+				color.a = lerp (color.a, alpha.r, _EnableExternalAlpha);
 #endif //ETC1_EXTERNAL_ALPHA
 
 				return color;

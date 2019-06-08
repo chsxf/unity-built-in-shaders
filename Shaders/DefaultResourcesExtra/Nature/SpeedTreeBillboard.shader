@@ -3,7 +3,6 @@
 	Properties
 	{
 		_Color ("Main Color", Color) = (1,1,1,1)
-		_SpecColor ("Specular Color", Color) = (0.5, 0.5, 0.5, 0)
 		_HueVariation ("Hue Variation", Color) = (1.0,0.5,0.0,0.1)
 		_MainTex ("Base (RGB)", 2D) = "white" {}
 		_BumpMap ("Normalmap", 2D) = "bump" {}
@@ -22,7 +21,6 @@
 			"DisableBatching"="LODFading"
 		}
 		LOD 400
-		Cull Off
 
 		CGPROGRAM
 			#pragma surface surf Lambert vertex:SpeedTreeBillboardVert nolightmap addshadow
@@ -62,11 +60,14 @@
 					float4 vertex	: SV_POSITION;
 					UNITY_FOG_COORDS(0)
 					Input data		: TEXCOORD1;
+					UNITY_VERTEX_OUTPUT_STEREO
 				};
 
 				v2f vert(SpeedTreeBillboardData v)
 				{
 					v2f o;
+					UNITY_SETUP_INSTANCE_ID(v);
+					UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 					SpeedTreeBillboardVert(v, o.data);
 					o.data.color.rgb *= ShadeVertexLightsFull(v.vertex, v.normal, 4, true);
 					o.vertex = UnityObjectToClipPos(v.vertex);
@@ -96,7 +97,6 @@
 			"RenderType"="TransparentCutout"
 		}
 		LOD 400
-		Cull Off
 
 		CGPROGRAM
 			#pragma surface surf Lambert vertex:SpeedTreeBillboardVert nolightmap
@@ -126,11 +126,14 @@
 					float4 vertex	: SV_POSITION;
 					UNITY_FOG_COORDS(0)
 					Input data		: TEXCOORD1;
+					UNITY_VERTEX_OUTPUT_STEREO
 				};
 
 				v2f vert(SpeedTreeBillboardData v)
 				{
 					v2f o;
+					UNITY_SETUP_INSTANCE_ID(v);
+					UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 					SpeedTreeBillboardVert(v, o.data);
 					o.data.color.rgb *= ShadeVertexLightsFull(v.vertex, v.normal, 2, false);
 					o.vertex = UnityObjectToClipPos(v.vertex);

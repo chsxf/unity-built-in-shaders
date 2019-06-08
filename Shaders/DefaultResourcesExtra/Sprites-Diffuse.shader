@@ -31,6 +31,9 @@ Shader "Sprites/Diffuse"
 		sampler2D _MainTex;
 		fixed4 _Color;
 		sampler2D _AlphaTex;
+		float _AlphaSplitEnabled;
+		float _EnableExternalAlpha;
+
 
 		struct Input
 		{
@@ -53,7 +56,8 @@ Shader "Sprites/Diffuse"
 			fixed4 color = tex2D (_MainTex, uv);
 
 #if ETC1_EXTERNAL_ALPHA
-			color.a = tex2D (_AlphaTex, uv).r;
+			fixed4 alpha = tex2D (_AlphaTex, uv);
+			color.a = lerp (color.a, alpha.r, _EnableExternalAlpha);
 #endif //ETC1_EXTERNAL_ALPHA
 
 			return color;
