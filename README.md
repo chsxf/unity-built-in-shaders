@@ -9,4 +9,4 @@ Only fully released versions of Unity are taken into account. Releases from the 
 
 ## Licence
 
-See [license.txt]
+See https://github.com/cheeseburgames/unity-builtin_shaders/license.txt
