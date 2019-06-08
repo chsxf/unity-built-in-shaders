@@ -48,6 +48,11 @@ half SpecularSetup_Reflectivity()
     return SpecularStrength(_SpecColor.rgb);
 }
 
+half RoughnessSetup_Reflectivity()
+{
+    return MetallicSetup_Reflectivity();
+}
+
 #define JOIN2(a, b) a##b
 #define JOIN(a, b) JOIN2(a,b)
 #define UNIFORM_REFLECTIVITY JOIN(UNITY_SETUP_BRDF_INPUT, _Reflectivity)
