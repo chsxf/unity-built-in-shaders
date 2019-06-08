@@ -23,10 +23,10 @@
 
 // still add safe net for low shader models, otherwise we might end up with shaders failing to compile
 #if SHADER_TARGET < 30
-	#undef UNITY_SPECCUBE_BOX_PROJECTION
-	#define UNITY_SPECCUBE_BOX_PROJECTION 0
-	#undef UNITY_SPECCUBE_BLENDING
-	#define UNITY_SPECCUBE_BLENDING 0
+    #undef UNITY_SPECCUBE_BOX_PROJECTION
+    #define UNITY_SPECCUBE_BOX_PROJECTION 0
+    #undef UNITY_SPECCUBE_BLENDING
+    #define UNITY_SPECCUBE_BLENDING 0
 #endif
 
 #ifndef UNITY_SAMPLE_FULL_SH_PER_PIXEL
@@ -42,7 +42,7 @@
 // Necessary to support high-quality normal-maps. Compatible with Maya and Marmoset.
 // However xNormal expects oldschool non-orthnormalized basis - essentially preventing good looking normal-maps :(
 // Due to the fact that xNormal is probably _the most used tool to bake out normal-maps today_ we have to stick to old ways for now.
-// 
+//
 // Disabled by default, until xNormal has an option to bake proper normal-maps.
 #ifndef UNITY_TANGENT_ORTHONORMALIZE
 #define UNITY_TANGENT_ORTHONORMALIZE 0
@@ -56,12 +56,12 @@
 // for now we keep the code but disable it, as we want more optimization/cleanup passes
 
 #ifndef UNITY_OPTIMIZE_TEXCUBELOD
-	#define UNITY_OPTIMIZE_TEXCUBELOD 0
+    #define UNITY_OPTIMIZE_TEXCUBELOD 0
 #endif
 
 // Simplified Standard Shader is off by default and should not be used for Legacy Shaders
 #ifndef UNITY_STANDARD_SIMPLE
-	#define UNITY_STANDARD_SIMPLE 0
+    #define UNITY_STANDARD_SIMPLE 0
 #endif
 
 // Setup a new define with meaniful name to know if we require world pos in fragment shader

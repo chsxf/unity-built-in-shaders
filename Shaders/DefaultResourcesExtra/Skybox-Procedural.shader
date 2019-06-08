@@ -57,7 +57,7 @@ SubShader {
 
 		static const float kCameraHeight = 0.0001;
 
-		#define kRAYLEIGH (lerp(0, 0.0025, pow(_AtmosphereThickness,2.5)))		// Rayleigh constant
+		#define kRAYLEIGH (lerp(0.0, 0.0025, pow(_AtmosphereThickness,2.5)))		// Rayleigh constant
 		#define kMIE 0.0010      		// Mie constant
 		#define kSUN_BRIGHTNESS 20.0 	// Sun brightness
 
