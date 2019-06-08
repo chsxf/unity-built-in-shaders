@@ -45,6 +45,7 @@ Shader "UI/Default"
 
 		Pass
 		{
+			Name "Default"
 		CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
