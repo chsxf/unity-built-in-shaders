@@ -35,7 +35,7 @@ void SplatmapVert(inout appdata_full v, out Input data)
 }
 
 #ifdef TERRAIN_STANDARD_SHADER
-void SplatmapMix(Input IN, half4 defaultAlpha, out half4 splat_control, out half weight, out fixed4 mixedDiffuse, inout fixed3 mixedNormal)
+void SplatmapMix(Input IN, half4 defaultAlpha, out half4 splat_control, out half weight, out fixed4 mixedDiffuse, inout float3 mixedNormal)
 #else
 void SplatmapMix(Input IN, out half4 splat_control, out half weight, out fixed4 mixedDiffuse, inout fixed3 mixedNormal)
 #endif

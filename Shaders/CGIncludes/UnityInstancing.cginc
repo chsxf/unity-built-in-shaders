@@ -25,6 +25,10 @@
     #define UNITY_SUPPORT_STEREO_INSTANCING
 #endif
 
+#if defined(SHADER_TARGET_SURFACE_ANALYSIS) && defined(UNITY_SUPPORT_INSTANCING)
+    #undef UNITY_SUPPORT_INSTANCING
+#endif
+
 ////////////////////////////////////////////////////////
 // instancing paths
 // - UNITY_INSTANCING_ENABLED               Defined if instancing path is taken.
