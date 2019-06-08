@@ -120,6 +120,8 @@
     #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO                          uint stereoTargetEyeIndex : SV_RenderTargetArrayIndex;
     #define DEFAULT_UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output)       output.stereoTargetEyeIndex = unity_StereoEyeIndex
 #endif
+    #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX                uint stereoTargetEyeIndex : BLENDINDICES0;
+    #define DEFAULT_UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(output)    output.stereoTargetEyeIndex = unity_StereoEyeIndex;
     #define DEFAULT_UNITY_TRANSFER_VERTEX_OUTPUT_STEREO(input, output)  output.stereoTargetEyeIndex = input.stereoTargetEyeIndex;
     #define DEFAULT_UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input) unity_StereoEyeIndex = input.stereoTargetEyeIndex;
 #elif defined(UNITY_STEREO_MULTIVIEW_ENABLED)
@@ -134,12 +136,19 @@
     #endif
 #else
     #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO
+    #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX
+    #define DEFAULT_UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(output)
     #define DEFAULT_UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output)
     #define DEFAULT_UNITY_TRANSFER_VERTEX_OUTPUT_STEREO(input, output)
     #define DEFAULT_UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input)
 #endif
 
-
+#if !defined(UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX)
+#   define UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX                 DEFAULT_UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX
+#endif
+#if !defined(UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX)
+#   define UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(output)     DEFAULT_UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(output)
+#endif
 #if !defined(UNITY_VERTEX_OUTPUT_STEREO)
 #   define UNITY_VERTEX_OUTPUT_STEREO                           DEFAULT_UNITY_VERTEX_OUTPUT_STEREO
 #endif
@@ -237,6 +246,11 @@
         #define UNITY_USE_LODFADE_ARRAY
     #endif
 
+    #if defined(UNITY_INSTANCED_RENDERING_LAYER)
+        #define UNITY_USE_RENDERINGLAYER_ARRAY
+    #endif
+
+
     #ifdef UNITY_INSTANCED_LIGHTMAPSTS
         #ifdef LIGHTMAP_ON
             #define UNITY_USE_LIGHTMAPST_ARRAY
@@ -267,6 +281,10 @@
             // the quantized fade value (unity_LODFade.y) is automatically used for cross-fading instances
             #define unity_LODFade UNITY_ACCESS_INSTANCED_PROP(unity_Builtins0, unity_LODFadeArray).xyxx
         #endif
+        #if defined(UNITY_USE_RENDERINGLAYER_ARRAY) && defined(UNITY_INSTANCING_SUPPORT_FLEXIBLE_ARRAY_SIZE)
+            UNITY_DEFINE_INSTANCED_PROP(float, unity_RenderingLayerArray)
+            #define unity_RenderingLayer UNITY_ACCESS_INSTANCED_PROP(unity_Builtins0, unity_RenderingLayerArray).xxxx
+        #endif
     UNITY_INSTANCING_BUFFER_END(unity_Builtins0)
 
     UNITY_INSTANCING_BUFFER_START(PerDraw1)
@@ -277,6 +295,10 @@
             UNITY_DEFINE_INSTANCED_PROP(float2, unity_LODFadeArray)
             // the quantized fade value (unity_LODFade.y) is automatically used for cross-fading instances
             #define unity_LODFade UNITY_ACCESS_INSTANCED_PROP(unity_Builtins1, unity_LODFadeArray).xyxx
+        #endif
+        #if defined(UNITY_USE_RENDERINGLAYER_ARRAY) && !defined(UNITY_INSTANCING_SUPPORT_FLEXIBLE_ARRAY_SIZE)
+            UNITY_DEFINE_INSTANCED_PROP(float, unity_RenderingLayerArray)
+            #define unity_RenderingLayer UNITY_ACCESS_INSTANCED_PROP(unity_Builtins1, unity_RenderingLayerArray).xxxx
         #endif
     UNITY_INSTANCING_BUFFER_END(unity_Builtins1)
 
