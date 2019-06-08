@@ -188,6 +188,14 @@ float4 tex2Dproj(in sampler2D s, in float3 t)
 #define FOGC FOG
 #endif
 
+// Use VFACE pixel shader input semantic in your shaders to get front-facing scalar value.
+#if defined(UNITY_COMPILER_CG)
+#define VFACE FACE
+#endif
+#if defined(UNITY_COMPILER_HLSL2GLSL)
+#define FACE VFACE
+#endif
+
 #if defined(SHADER_API_PSSL)
 #define SV_POSITION S_POSITION
 #elif !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X)
