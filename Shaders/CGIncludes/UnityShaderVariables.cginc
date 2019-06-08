@@ -7,7 +7,7 @@
 #define USING_DIRECTIONAL_LIGHT
 #endif
 
-#if defined (INSTANCING_ON) || defined (UNITY_SINGLE_PASS_STEREO)
+#if defined (INSTANCING_ON) || defined (UNITY_SINGLE_PASS_STEREO) || defined (UNITY_FORCE_CONCATENATE_MATRICES)
 // Use separate matrices in this case.
 #else
 #define UNITY_USE_PREMULTIPLIED_MATRICES
