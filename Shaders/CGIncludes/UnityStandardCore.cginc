@@ -525,6 +525,8 @@ half4 fragForwardAddInternal (VertexOutputForwardAdd i)
 {
     UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
 
+    UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
+
     FRAGMENT_SETUP_FWDADD(s)
 
     UNITY_LIGHT_ATTENUATION(atten, i, s.posWorld)
