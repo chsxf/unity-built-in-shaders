@@ -166,7 +166,7 @@ CBUFFER_START(UnityPerDraw)
 CBUFFER_END
 
 #if defined(USING_STEREO_MATRICES)
-CBUFFER_START(UnityStereoGlobals)
+GLOBAL_CBUFFER_START(UnityStereoGlobals)
     float4x4 unity_StereoMatrixP[2];
     float4x4 unity_StereoMatrixV[2];
     float4x4 unity_StereoMatrixInvV[2];
@@ -179,13 +179,13 @@ CBUFFER_START(UnityStereoGlobals)
 
     float3 unity_StereoWorldSpaceCameraPos[2];
     float4 unity_StereoScaleOffset[2];
-CBUFFER_END
+GLOBAL_CBUFFER_END
 #endif
 
 #if defined(USING_STEREO_MATRICES) && defined(UNITY_STEREO_MULTIVIEW_ENABLED)
-CBUFFER_START(UnityStereoEyeIndices)
+GLOBAL_CBUFFER_START(UnityStereoEyeIndices)
     float4 unity_StereoEyeIndices[2];
-CBUFFER_END
+GLOBAL_CBUFFER_END
 #endif
 
 #if defined(UNITY_STEREO_MULTIVIEW_ENABLED) && defined(SHADER_STAGE_VERTEX)
@@ -194,9 +194,9 @@ CBUFFER_END
 #elif defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)
     static uint unity_StereoEyeIndex;
 #elif defined(UNITY_SINGLE_PASS_STEREO)
-    CBUFFER_START(UnityStereoEyeIndex)
+    GLOBAL_CBUFFER_START(UnityStereoEyeIndex)
         int unity_StereoEyeIndex;
-    CBUFFER_END
+    GLOBAL_CBUFFER_END
 #endif
 
 CBUFFER_START(UnityPerDrawRare)

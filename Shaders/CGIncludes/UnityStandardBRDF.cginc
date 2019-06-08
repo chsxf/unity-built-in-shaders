@@ -269,6 +269,8 @@ half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
     // and 2) on engine side "Non-important" lights have to be divided by Pi too in cases when they are injected into ambient SH
     float roughness = PerceptualRoughnessToRoughness(perceptualRoughness);
 #if UNITY_BRDF_GGX
+    // GGX with roughtness to 0 would mean no specular at all, using max(roughness, 0.002) here to match HDrenderloop roughtness remapping.
+    roughness = max(roughness, 0.002);
     half V = SmithJointGGXVisibilityTerm (nl, nv, roughness);
     float D = GGXTerm (nh, roughness);
 #else

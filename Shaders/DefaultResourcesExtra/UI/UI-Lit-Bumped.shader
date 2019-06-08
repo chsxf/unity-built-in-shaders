@@ -55,6 +55,7 @@ Shader "UI/Lit/Bumped"
             #include "UnityCG.cginc"
             #include "UnityUI.cginc"
 
+            #pragma multi_compile __ UNITY_UI_CLIP_RECT
             #pragma multi_compile __ UNITY_UI_ALPHACLIP
 
             struct appdata_t
@@ -104,7 +105,9 @@ Shader "UI/Lit/Bumped"
                 o.Gloss = _Shininess;
                 o.Alpha = col.a;
 
+                #ifdef UNITY_UI_CLIP_RECT
                 o.Alpha *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
+                #endif
 
                 #ifdef UNITY_UI_ALPHACLIP
                 clip (o.Alpha - 0.001);

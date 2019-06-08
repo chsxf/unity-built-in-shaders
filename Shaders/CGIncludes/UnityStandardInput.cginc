@@ -173,6 +173,23 @@ half2 MetallicGloss(float2 uv)
     return mg;
 }
 
+half2 MetallicRough(float2 uv)
+{
+    half2 mg;
+#ifdef _METALLICGLOSSMAP
+    mg.r = tex2D(_MetallicGlossMap, uv).r;
+#else
+    mg.r = _Metallic;
+#endif
+
+#ifdef _SPECGLOSSMAP
+    mg.g = 1.0f - tex2D(_SpecGlossMap, uv).r;
+#else
+    mg.g = 1.0f - _Glossiness;
+#endif
+    return mg;
+}
+
 half3 Emission(float2 uv)
 {
 #ifndef _EMISSION

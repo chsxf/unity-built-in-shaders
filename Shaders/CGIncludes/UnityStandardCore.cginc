@@ -208,6 +208,24 @@ inline FragmentCommonData SpecularSetup (float4 i_tex)
     return o;
 }
 
+inline FragmentCommonData RoughnessSetup(float4 i_tex)
+{
+    half2 metallicGloss = MetallicRough(i_tex.xy);
+    half metallic = metallicGloss.x;
+    half smoothness = metallicGloss.y; // this is 1 minus the square root of real roughness m.
+
+    half oneMinusReflectivity;
+    half3 specColor;
+    half3 diffColor = DiffuseAndSpecularFromMetallic(Albedo(i_tex), metallic, /*out*/ specColor, /*out*/ oneMinusReflectivity);
+
+    FragmentCommonData o = (FragmentCommonData)0;
+    o.diffColor = diffColor;
+    o.specColor = specColor;
+    o.oneMinusReflectivity = oneMinusReflectivity;
+    o.smoothness = smoothness;
+    return o;
+}
+
 inline FragmentCommonData MetallicSetup (float4 i_tex)
 {
     half2 metallicGloss = MetallicGloss(i_tex.xy);

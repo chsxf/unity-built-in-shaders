@@ -4,6 +4,7 @@ Shader "Skybox/Procedural" {
 Properties {
     [KeywordEnum(None, Simple, High Quality)] _SunDisk ("Sun", Int) = 2
     _SunSize ("Sun Size", Range(0,1)) = 0.04
+    _SunSizeConvergence("Sun Size Convergence", Range(1,10)) = 5
 
     _AtmosphereThickness ("Atmosphere Thickness", Range(0,5)) = 1.0
     _SkyTint ("Sky Tint", Color) = (.5, .5, .5, 1)
@@ -30,6 +31,7 @@ SubShader {
         uniform half _Exposure;     // HDR exposure
         uniform half3 _GroundColor;
         uniform half _SunSize;
+        uniform half _SunSizeConvergence;
         uniform half3 _SkyTint;
         uniform half _AtmosphereThickness;
 
@@ -64,6 +66,9 @@ SubShader {
         #define kSUN_BRIGHTNESS 20.0    // Sun brightness
 
         #define kMAX_SCATTER 50.0 // Maximum scattering value, to prevent math overflows on Adrenos
+
+        static const half kHDSundiskIntensityFactor = 15.0;
+        static const half kSimpleSundiskIntensityFactor = 27.0;
 
         static const half kSunScale = 400.0 * kSUN_BRIGHTNESS;
         static const float kKmESun = kMIE * kSUN_BRIGHTNESS;
@@ -306,7 +311,16 @@ SubShader {
             OUT.skyColor    = _Exposure * (cIn * getRayleighPhase(_WorldSpaceLightPos0.xyz, -eyeRay));
 
         #if SKYBOX_SUNDISK != SKYBOX_SUNDISK_NONE
-            OUT.sunColor    = _Exposure * (cOut * _LightColor0.xyz);
+            // The sun should have a stable intensity in its course in the sky. Moreover it should match the highlight of a purely specular material.
+            // This matching was done using the standard shader BRDF1 on the 5/31/2017
+            // Finally we want the sun to be always bright even in LDR thus the normalization of the lightColor for low intensity.
+            half lightColorIntensity = clamp(length(_LightColor0.xyz), 0.25, 1);
+            #if SKYBOX_SUNDISK == SKYBOX_SUNDISK_SIMPLE
+                OUT.sunColor    = kSimpleSundiskIntensityFactor * saturate(cOut * kSunScale) * _LightColor0.xyz / lightColorIntensity;
+            #else // SKYBOX_SUNDISK_HQ
+                OUT.sunColor    = kHDSundiskIntensityFactor * saturate(cOut) * _LightColor0.xyz / lightColorIntensity;
+            #endif
+
         #endif
 
         #if defined(UNITY_COLORSPACE_GAMMA) && SKYBOX_COLOR_IN_TARGET_COLOR_SPACE
@@ -334,12 +348,18 @@ SubShader {
             return temp;
         }
 
-        half calcSunSpot(half3 vec1, half3 vec2)
+        // Calculates the sun shape
+        half calcSunAttenuation(half3 lightPos, half3 ray)
         {
-            half3 delta = vec1 - vec2;
+        #if SKYBOX_SUNDISK == SKYBOX_SUNDISK_SIMPLE
+            half3 delta = lightPos - ray;
             half dist = length(delta);
             half spot = 1.0 - smoothstep(0.0, _SunSize, dist);
-            return kSunScale * spot * spot;
+            return spot * spot;
+        #else // SKYBOX_SUNDISK_HQ
+            half focusedEyeCos = pow(saturate(dot(lightPos, ray)), _SunSizeConvergence);
+            return getMiePhase(-focusedEyeCos, focusedEyeCos * focusedEyeCos);
+        #endif
         }
 
         half4 frag (v2f IN) : SV_Target
@@ -365,15 +385,7 @@ SubShader {
         #if SKYBOX_SUNDISK != SKYBOX_SUNDISK_NONE
             if(y < 0.0)
             {
-            #if SKYBOX_SUNDISK == SKYBOX_SUNDISK_SIMPLE
-                half mie = calcSunSpot(_WorldSpaceLightPos0.xyz, -ray);
-            #else // SKYBOX_SUNDISK_HQ
-                half eyeCos = dot(_WorldSpaceLightPos0.xyz, ray);
-                half eyeCos2 = eyeCos * eyeCos;
-                half mie = getMiePhase(eyeCos, eyeCos2);
-            #endif
-
-                col += mie * IN.sunColor;
+                col += IN.sunColor * calcSunAttenuation(_WorldSpaceLightPos0.xyz, -ray);
             }
         #endif
 
@@ -390,5 +402,5 @@ SubShader {
 
 
 Fallback Off
-
+CustomEditor "SkyboxProceduralShaderGUI"
 }

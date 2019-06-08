@@ -97,33 +97,29 @@ half3 LerpWhiteTo(half3 b, half t)
     return half3(oneMinusT, oneMinusT, oneMinusT) + b * t;
 }
 
-half3 UnpackScaleNormal(half4 packednormal, half bumpScale)
+half3 UnpackScaleNormalDXT5nm(half4 packednormal, half bumpScale)
 {
     half3 normal;
-    #if defined(UNITY_NO_DXT5nm)
-        normal = packednormal.xyz * 2 - 1;
-        #if (SHADER_TARGET >= 30)
-            // SM2.0: instruction count limitation
-            // SM2.0: normal scaler is not supported
-            normal.xy *= bumpScale;
-        #endif
-        return normal;
-    #else
-        normal.xy = (packednormal.wy * 2 - 1);
-        #if (SHADER_TARGET >= 30)
-            // SM2.0: instruction count limitation
-            // SM2.0: normal scaler is not supported
-            normal.xy *= bumpScale;
-        #endif
-        normal.z = sqrt(1.0 - saturate(dot(normal.xy, normal.xy)));
-        return normal;
+    normal.xy = (packednormal.wy * 2 - 1);
+    #if (SHADER_TARGET >= 30)
+        // SM2.0: instruction count limitation
+        // SM2.0: normal scaler is not supported
+        normal.xy *= bumpScale;
     #endif
+    normal.z = sqrt(1.0 - saturate(dot(normal.xy, normal.xy)));
+    return normal;
 }
 
 half3 UnpackScaleNormalRGorAG(half4 packednormal, half bumpScale)
 {
     #if defined(UNITY_NO_DXT5nm)
-        return packednormal.xyz * 2 - 1;
+        half3 normal = packednormal.xyz * 2 - 1;
+        #if (SHADER_TARGET >= 30)
+            // SM2.0: instruction count limitation
+            // SM2.0: normal scaler is not supported
+            normal.xy *= bumpScale;
+        #endif
+        return normal;
     #else
         // This do the trick
         packednormal.x *= packednormal.w;
@@ -138,6 +134,11 @@ half3 UnpackScaleNormalRGorAG(half4 packednormal, half bumpScale)
         normal.z = sqrt(1.0 - saturate(dot(normal.xy, normal.xy)));
         return normal;
     #endif
+}
+
+half3 UnpackScaleNormal(half4 packednormal, half bumpScale)
+{
+    return UnpackScaleNormalRGorAG(packednormal, bumpScale);
 }
 
 half3 BlendNormals(half3 n1, half3 n2)
