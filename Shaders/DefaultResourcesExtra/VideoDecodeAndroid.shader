@@ -2,104 +2,109 @@
 
 Shader "Hidden/VideoDecodeAndroid"
 {
-	SubShader
-	{
-		Pass
-		{
-			Name "RGBAExternal_To_RGBA"
-			ZTest Always Cull Off ZWrite Off Blend Off
+GLSLINCLUDE
+    #include "UnityCG.glslinc"
+ENDGLSL
 
-			GLSLPROGRAM
+    SubShader
+    {
+        Pass
+        {
+            Name "RGBAExternal_To_RGBA"
+            ZTest Always Cull Off ZWrite Off Blend Off
 
-			#extension GL_OES_EGL_image_external : require
-			#pragma glsl_es2
-			uniform vec4 _MainTex_ST;
+            GLSLPROGRAM
 
-			#ifdef VERTEX
+            #extension GL_OES_EGL_image_external : require
+            #pragma glsl_es2
 
-			varying vec2 textureCoord;
-			void main()
-			{
-				gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
-				textureCoord = gl_MultiTexCoord0.xy * _MainTex_ST.xy + _MainTex_ST.zw;
-			}
+            uniform vec4 _MainTex_ST;
 
-			#endif
+            #ifdef VERTEX
 
-			#ifdef FRAGMENT
+            varying vec2 textureCoord;
+            void main()
+            {
+                gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+                textureCoord = TRANSFORM_TEX_ST(gl_MultiTexCoord0, _MainTex_ST);
+            }
 
-			vec4 AdjustForColorSpace(vec4 color)
-			{
-			#ifdef UNITY_COLORSPACE_GAMMA
-				return color;
-			#else
-				// Approximate version from http://chilliant.blogspot.com.au/2012/08/srgb-approximations-for-hlsl.html?m=1
-				vec3 sRGB = color.rgb;
-				return vec4(sRGB * (sRGB * (sRGB * 0.305306011 + 0.682171111) + 0.012522878), color.a);
-			#endif
-			}
+            #endif
 
-			varying vec2 textureCoord;
-			uniform samplerExternalOES _MainTex;
-			void main()
-			{
-				gl_FragColor = AdjustForColorSpace(textureExternal(_MainTex, textureCoord));
-			}
+            #ifdef FRAGMENT
 
-			#endif
+            vec4 AdjustForColorSpace(vec4 color)
+            {
+            #ifdef UNITY_COLORSPACE_GAMMA
+                return color;
+            #else
+                // Approximate version from http://chilliant.blogspot.com.au/2012/08/srgb-approximations-for-hlsl.html?m=1
+                vec3 sRGB = color.rgb;
+                return vec4(sRGB * (sRGB * (sRGB * 0.305306011 + 0.682171111) + 0.012522878), color.a);
+            #endif
+            }
 
-			ENDGLSL
-		}
+            varying vec2 textureCoord;
+            uniform samplerExternalOES _MainTex;
+            void main()
+            {
+                gl_FragColor = AdjustForColorSpace(textureExternal(_MainTex, textureCoord));
+            }
 
-		Pass
-		{
-			Name "RGBASplitExternal_To_RGBA"
-			ZTest Always Cull Off ZWrite Off Blend Off
+            #endif
 
-			GLSLPROGRAM
+            ENDGLSL
+        }
 
-			#extension GL_OES_EGL_image_external : require
-			#pragma glsl_es2
-			uniform vec4 _MainTex_ST;
+        Pass
+        {
+            Name "RGBASplitExternal_To_RGBA"
+            ZTest Always Cull Off ZWrite Off Blend Off
 
-			#ifdef VERTEX
+            GLSLPROGRAM
 
-			varying vec3 textureCoordSplit;
-			void main()
-			{
-				gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
-				textureCoordSplit.xz = vec2(0.5 * gl_MultiTexCoord0.x * _MainTex_ST.x, gl_MultiTexCoord0.y * _MainTex_ST.y) + _MainTex_ST.zw;
-				textureCoordSplit.y = textureCoordSplit.x + 0.5 * _MainTex_ST.x;
-			}
+            #extension GL_OES_EGL_image_external : require
+            #pragma glsl_es2
+            uniform vec4 _MainTex_ST;
 
-			#endif
+            #ifdef VERTEX
 
-			#ifdef FRAGMENT
+            varying vec3 textureCoordSplit;
+            void main()
+            {
+                gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+                textureCoordSplit.xz = vec2(0.5 * gl_MultiTexCoord0.x * _MainTex_ST.x, gl_MultiTexCoord0.y * _MainTex_ST.y) + _MainTex_ST.zw;
+                textureCoordSplit.y = textureCoordSplit.x + 0.5 * _MainTex_ST.x;
+            }
 
-			vec4 AdjustForColorSpace(vec4 color)
-			{
-			#ifdef UNITY_COLORSPACE_GAMMA
-				return color;
-			#else
-				// Approximate version from http://chilliant.blogspot.com.au/2012/08/srgb-approximations-for-hlsl.html?m=1
-				vec3 sRGB = color.rgb;
-				return vec4(sRGB * (sRGB * (sRGB * 0.305306011 + 0.682171111) + 0.012522878), color.a);
-			#endif
-			}
+            #endif
 
-			varying vec3 textureCoordSplit;
-			uniform samplerExternalOES _MainTex;
-			void main()
-			{
-				gl_FragColor.rgb = AdjustForColorSpace(textureExternal(_MainTex, textureCoordSplit.xz)).rgb;
-				gl_FragColor.a   = textureExternal(_MainTex, textureCoordSplit.yz).g;
-			}
+            #ifdef FRAGMENT
 
-			#endif
+            vec4 AdjustForColorSpace(vec4 color)
+            {
+            #ifdef UNITY_COLORSPACE_GAMMA
+                return color;
+            #else
+                // Approximate version from http://chilliant.blogspot.com.au/2012/08/srgb-approximations-for-hlsl.html?m=1
+                vec3 sRGB = color.rgb;
+                return vec4(sRGB * (sRGB * (sRGB * 0.305306011 + 0.682171111) + 0.012522878), color.a);
+            #endif
+            }
 
-			ENDGLSL
-		}
-	}
+            varying vec3 textureCoordSplit;
+            uniform samplerExternalOES _MainTex;
+            void main()
+            {
+                gl_FragColor.rgb = AdjustForColorSpace(textureExternal(_MainTex, textureCoordSplit.xz)).rgb;
+                gl_FragColor.a   = textureExternal(_MainTex, textureCoordSplit.yz).g;
+            }
 
-	FallBack Off
+            #endif
+
+            ENDGLSL
+        }
+    }
+
+    FallBack Off
 }

@@ -2,15 +2,15 @@
 
 Shader "Legacy Shaders/Lightmapped/Bumped Diffuse" {
 Properties {
-	_Color ("Main Color", Color) = (1,1,1,1)
-	_MainTex ("Base (RGB)", 2D) = "white" {}
-	_BumpMap ("Normalmap", 2D) = "bump" {}
-	_LightMap ("Lightmap (RGB)", 2D) = "black" {}
+    _Color ("Main Color", Color) = (1,1,1,1)
+    _MainTex ("Base (RGB)", 2D) = "white" {}
+    _BumpMap ("Normalmap", 2D) = "bump" {}
+    _LightMap ("Lightmap (RGB)", 2D) = "black" {}
 }
 
 SubShader {
-	LOD 300
-	Tags { "RenderType" = "Opaque" }
+    LOD 300
+    Tags { "RenderType" = "Opaque" }
 CGPROGRAM
 #pragma surface surf Lambert nodynlightmap
 struct Input {

@@ -38,8 +38,8 @@ half        _DetailNormalMapScale;
 sampler2D   _SpecGlossMap;
 sampler2D   _MetallicGlossMap;
 half        _Metallic;
-float       _Glossiness;
-float       _GlossMapScale;
+half        _Glossiness;
+half        _GlossMapScale;
 
 sampler2D   _OcclusionMap;
 half        _OcclusionStrength;

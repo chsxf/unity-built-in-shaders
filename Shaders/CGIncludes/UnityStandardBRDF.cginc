@@ -11,7 +11,7 @@
 // Helper to convert smoothness to roughness
 //-----------------------------------------------------------------------------
 
-float PerceptualRoughnessToRoughness(float perceptualRoughness)
+half PerceptualRoughnessToRoughness(half perceptualRoughness)
 {
     return perceptualRoughness * perceptualRoughness;
 }
@@ -28,7 +28,7 @@ half SmoothnessToRoughness(half smoothness)
     return (1 - smoothness) * (1 - smoothness);
 }
 
-float SmoothnessToPerceptualRoughness(float smoothness)
+half SmoothnessToPerceptualRoughness(half smoothness)
 {
     return (1 - smoothness);
 }
@@ -40,7 +40,7 @@ inline half Pow4 (half x)
     return x*x*x*x;
 }
 
-inline float2 Pow4 (float2 x)
+inline half2 Pow4 (half2 x)
 {
     return x*x*x*x;
 }
@@ -155,10 +155,10 @@ inline half SmithJointGGXVisibilityTerm (half NdotL, half NdotV, half roughness)
 #endif
 }
 
-inline float GGXTerm (float NdotH, float roughness)
+inline half GGXTerm (half NdotH, half roughness)
 {
-    float a2 = roughness * roughness;
-    float d = (NdotH * a2 - NdotH) * NdotH + 1.0f; // 2 mad
+    half a2 = roughness * roughness;
+    half d = (NdotH * a2 - NdotH) * NdotH + 1.0f; // 2 mad
     return UNITY_INV_PI * a2 / (d * d + 1e-7f); // This function is not intended to be running on Mobile,
                                             // therefore epsilon is smaller than what can be represented by half
 }
@@ -203,9 +203,9 @@ float GetSpecPowToMip(float fSpecPow, int nMips)
     //float mip = GetSpecPowToMip (specPower, 7);
 */
 
-inline float3 Unity_SafeNormalize(float3 inVec)
+inline half3 Unity_SafeNormalize(half3 inVec)
 {
-    float dp3 = max(0.001f, dot(inVec, inVec));
+    half dp3 = max(0.001f, dot(inVec, inVec));
     return inVec * rsqrt(dp3);
 }
 
@@ -228,11 +228,11 @@ inline float3 Unity_SafeNormalize(float3 inVec)
 // * Smith for Visiblity term
 // * Schlick approximation for Fresnel
 half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivity, half smoothness,
-    float3 normal, float3 viewDir,
+    half3 normal, half3 viewDir,
     UnityLight light, UnityIndirect gi)
 {
-    float perceptualRoughness = SmoothnessToPerceptualRoughness (smoothness);
-    float3 halfDir = Unity_SafeNormalize (float3(light.dir) + viewDir);
+    half perceptualRoughness = SmoothnessToPerceptualRoughness (smoothness);
+    half3 halfDir = Unity_SafeNormalize (light.dir + viewDir);
 
 // NdotV should not be negative for visible pixels, but it can happen due to perspective projection and normal mapping
 // In this case normal should be modified to become valid (i.e facing camera) and not cause weird artifacts.
@@ -255,7 +255,7 @@ half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 #endif
 
     half nl = saturate(dot(normal, light.dir));
-    float nh = saturate(dot(normal, halfDir));
+    half nh = saturate(dot(normal, halfDir));
 
     half lv = saturate(dot(light.dir, viewDir));
     half lh = saturate(dot(light.dir, halfDir));
@@ -267,10 +267,10 @@ half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
     // HACK: theoretically we should divide diffuseTerm by Pi and not multiply specularTerm!
     // BUT 1) that will make shader look significantly darker than Legacy ones
     // and 2) on engine side "Non-important" lights have to be divided by Pi too in cases when they are injected into ambient SH
-    float roughness = PerceptualRoughnessToRoughness(perceptualRoughness);
+    half roughness = PerceptualRoughnessToRoughness(perceptualRoughness);
 #if UNITY_BRDF_GGX
     half V = SmithJointGGXVisibilityTerm (nl, nv, roughness);
-    float D = GGXTerm (nh, roughness);
+    half D = GGXTerm (nh, roughness);
 #else
     // Legacy
     half V = SmithBeckmannVisibilityTerm (nl, nv, roughness);
@@ -317,15 +317,15 @@ half4 BRDF1_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
 // * Modified Kelemen and Szirmay-​Kalos for Visibility term
 // * Fresnel approximated with 1/LdotH
 half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivity, half smoothness,
-    float3 normal, float3 viewDir,
+    half3 normal, half3 viewDir,
     UnityLight light, UnityIndirect gi)
 {
-    float3 halfDir = Unity_SafeNormalize (float3(light.dir) + viewDir);
+    half3 halfDir = Unity_SafeNormalize (light.dir + viewDir);
 
     half nl = saturate(dot(normal, light.dir));
-    float nh = saturate(dot(normal, halfDir));
+    half nh = saturate(dot(normal, halfDir));
     half nv = saturate(dot(normal, viewDir));
-    float lh = saturate(dot(light.dir, halfDir));
+    half lh = saturate(dot(light.dir, halfDir));
 
     // Specular term
     half perceptualRoughness = SmoothnessToPerceptualRoughness (smoothness);
@@ -337,23 +337,23 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
     // See "Optimizing PBR for Mobile" from Siggraph 2015 moving mobile graphics course
     // https://community.arm.com/events/1155
     half a = roughness;
-    float a2 = a*a;
+    half a2 = a*a;
 
-    float d = nh * nh * (a2 - 1.f) + 1.00001f;
+    half d = nh * nh * (a2 - 1.h) + 1.00001h;
 #ifdef UNITY_COLORSPACE_GAMMA
     // Tighter approximation for Gamma only rendering mode!
     // DVF = sqrt(DVF);
     // DVF = (a * sqrt(.25)) / (max(sqrt(0.1), lh)*sqrt(roughness + .5) * d);
-    float specularTerm = a / (max(0.32f, lh) * (1.5f + roughness) * d);
+    half specularTerm = a / (max(0.32h, lh) * (1.5h + roughness) * d);
 #else
-    float specularTerm = a2 / (max(0.1f, lh*lh) * (roughness + 0.5f) * (d * d) * 4);
+    half specularTerm = a2 / (max(0.1h, lh*lh) * (roughness + 0.5h) * (d * d) * 4);
 #endif
 
     // on mobiles (where half actually means something) denominator have risk of overflow
     // clamp below was added specifically to "fix" that, but dx compiler (we convert bytecode to metal/gles)
     // sees that specularTerm have only non-negative terms, so it skips max(0,..) in clamp (leaving only min(100,...))
 #if defined (SHADER_API_MOBILE)
-    specularTerm = specularTerm - 1e-4f;
+    specularTerm = specularTerm - 1e-4h;
 #endif
 
 #else
@@ -370,7 +370,7 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
     half specularTerm = ((specularPower + 1) * pow (nh, specularPower)) / (8 * invV * invF + 1e-4h);
 
 #ifdef UNITY_COLORSPACE_GAMMA
-    specularTerm = sqrt(max(1e-4f, specularTerm));
+    specularTerm = sqrt(max(1e-4h, specularTerm));
 #endif
 
 #endif
@@ -431,16 +431,16 @@ half3 BRDF3_Indirect(half3 diffColor, half3 specColor, UnityIndirect indirect, h
 //
 // TODO: specular is too weak in Linear rendering mode
 half4 BRDF3_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivity, half smoothness,
-    float3 normal, float3 viewDir,
+    half3 normal, half3 viewDir,
     UnityLight light, UnityIndirect gi)
 {
-    float3 reflDir = reflect (viewDir, normal);
+    half3 reflDir = reflect (viewDir, normal);
 
     half nl = saturate(dot(normal, light.dir));
     half nv = saturate(dot(normal, viewDir));
 
     // Vectorize Pow4 to save instructions
-    half2 rlPow4AndFresnelTerm = Pow4 (float2(dot(reflDir, light.dir), 1-nv));  // use R.L instead of N.H to save couple of instructions
+    half2 rlPow4AndFresnelTerm = Pow4 (half2(dot(reflDir, light.dir), 1-nv));  // use R.L instead of N.H to save couple of instructions
     half rlPow4 = rlPow4AndFresnelTerm.x; // power exponent must match kHorizontalWarpExp in NHxRoughness() function in GeneratedTextures.cpp
     half fresnelTerm = rlPow4AndFresnelTerm.y;
 

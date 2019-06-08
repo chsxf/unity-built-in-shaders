@@ -1,66 +1,66 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
 Shader "Hidden/CubeCopy" {
-	Properties {
-		_MainTex ("Main", CUBE) = "" {}
-		_Level ("Level", Float) = 0.
-	}
-	CGINCLUDE
-	#pragma vertex vert
-	#pragma fragment frag
-			
-	#include "UnityCG.cginc"
+    Properties {
+        _MainTex ("Main", CUBE) = "" {}
+        _Level ("Level", Float) = 0.
+    }
+    CGINCLUDE
+    #pragma vertex vert
+    #pragma fragment frag
 
-	float _Level;
+    #include "UnityCG.cginc"
 
-	struct v2f {
-		float4 pos : SV_POSITION;
-		float4 uvw : TEXCOORD0;
-	};
+    float _Level;
 
-	v2f vert(appdata_base v)
-	{
-		v2f o;
-		o.pos = UnityObjectToClipPos(v.vertex);
-		o.uvw = v.texcoord;
-		return o;
-	}
+    struct v2f {
+        float4 pos : SV_POSITION;
+        float4 uvw : TEXCOORD0;
+    };
 
-	UNITY_DECLARE_TEXCUBE(_MainTex);
+    v2f vert(appdata_base v)
+    {
+        v2f o;
+        o.pos = UnityObjectToClipPos(v.vertex);
+        o.uvw = v.texcoord;
+        return o;
+    }
 
-	float4 frag(v2f  i) : SV_Target
-	{
-		return UNITY_SAMPLE_TEXCUBE_LOD(_MainTex, i.uvw.xyz, _Level);
-	}
-	ENDCG
-	SubShader {
-		Tags { "RenderType"="Opaque" }
-		LOD 200
-		Pass {
-			ZTest Always
-			Blend Off
-			AlphaTest off
-			Cull Off
-			ZWrite Off
-			Fog { Mode off }
-			CGPROGRAM
-			#pragma target 3.0
-			ENDCG
-		}
-	}
-	SubShader {
-		Tags { "RenderType"="Opaque" }
-		LOD 200
-		Pass {
-			ZTest Always
-			Blend Off
-			AlphaTest off
-			Cull Off
-			ZWrite Off
-			Fog { Mode off }
-			CGPROGRAM
-			#pragma target 2.0
-			ENDCG
-		}
-	}
+    UNITY_DECLARE_TEXCUBE(_MainTex);
+
+    float4 frag(v2f  i) : SV_Target
+    {
+        return UNITY_SAMPLE_TEXCUBE_LOD(_MainTex, i.uvw.xyz, _Level);
+    }
+    ENDCG
+    SubShader {
+        Tags { "RenderType"="Opaque" }
+        LOD 200
+        Pass {
+            ZTest Always
+            Blend Off
+            AlphaTest off
+            Cull Off
+            ZWrite Off
+            Fog { Mode off }
+            CGPROGRAM
+            #pragma target 3.0
+            ENDCG
+        }
+    }
+    SubShader {
+        Tags { "RenderType"="Opaque" }
+        LOD 200
+        Pass {
+            ZTest Always
+            Blend Off
+            AlphaTest off
+            Cull Off
+            ZWrite Off
+            Fog { Mode off }
+            CGPROGRAM
+            #pragma target 2.0
+            ENDCG
+        }
+    }
 }

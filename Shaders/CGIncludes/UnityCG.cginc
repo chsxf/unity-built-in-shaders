@@ -657,6 +657,17 @@ inline fixed3 UnpackNormalDXT5nm (fixed4 packednormal)
     return normal;
 }
 
+// Unpack normal as DXT5nm (1, y, 1, x) or BC5 (x, y, 0, 1)
+fixed3 UnpackNormalmapRGorAG(fixed4 packednormal)
+{
+    // This do the trick
+   packednormal.x *= packednormal.w;
+
+    fixed3 normal;
+    normal.xy = packednormal.xy * 2 - 1;
+    normal.z = sqrt(1 - saturate(dot(normal.xy, normal.xy)));
+    return normal;
+}
 inline fixed3 UnpackNormal(fixed4 packednormal)
 {
 #if defined(UNITY_NO_DXT5nm)
@@ -707,9 +718,14 @@ inline float4 UnityStereoTransformScreenSpaceTex(float4 uv)
 {
     return float4(UnityStereoTransformScreenSpaceTex(uv.xy), UnityStereoTransformScreenSpaceTex(uv.zw));
 }
+inline float2 UnityStereoClamp(float2 uv, float4 scaleAndOffset)
+{
+    return float2(clamp(uv.x, scaleAndOffset.z, scaleAndOffset.z + scaleAndOffset.x), uv.y);
+}
 #else
 #define TransformStereoScreenSpaceTex(uv, w) uv
 #define UnityStereoTransformScreenSpaceTex(uv) uv
+#define UnityStereoClamp(uv, scaleAndOffset) uv
 #endif
 
 // Depth render texture helpers
@@ -784,13 +800,7 @@ inline float4 ComputeGrabScreenPos (float4 pos) {
 inline float4 UnityPixelSnap (float4 pos)
 {
     float2 hpc = _ScreenParams.xy * 0.5f;
-#if  SHADER_API_PSSL
-// sdk 4.5 splits round into v_floor_f32(x+0.5) ... sdk 5.0 uses v_rndne_f32, for compatabilty we use the 4.5 version
-    float2 temp = ((pos.xy / pos.w) * hpc) + float2(0.5f,0.5f);
-    float2 pixelPos = float2(__v_floor_f32(temp.x), __v_floor_f32(temp.y));
-#else
     float2 pixelPos = round ((pos.xy / pos.w) * hpc);
-#endif
     pos.xy = pixelPos / hpc * pos.w;
     return pos;
 }
@@ -895,7 +905,7 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 
 // Declare all data needed for shadow caster pass output (any shadow directions/depths/distances as needed),
 // plus clip space position.
-#define V2F_SHADOW_CASTER V2F_SHADOW_CASTER_NOPOS float4 pos : SV_POSITION
+#define V2F_SHADOW_CASTER V2F_SHADOW_CASTER_NOPOS UNITY_POSITION(pos)
 
 // Vertex shader part, with support for normal offset shadows. Requires
 // position and normal to be present in the vertex input.
@@ -997,31 +1007,23 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 
 // ------------------------------------------------------------------
 //  LOD cross fade helpers
+// keep all the old macros
+#define UNITY_DITHER_CROSSFADE_COORDS
+#define UNITY_DITHER_CROSSFADE_COORDS_IDX(idx)
+#define UNITY_TRANSFER_DITHER_CROSSFADE(o,v)
+#define UNITY_TRANSFER_DITHER_CROSSFADE_HPOS(o,hpos)
+
 #ifdef LOD_FADE_CROSSFADE
-    #define UNITY_DITHER_CROSSFADE_COORDS                   half3 ditherScreenPos;
-    #define UNITY_DITHER_CROSSFADE_COORDS_IDX(idx)          half3 ditherScreenPos : TEXCOORD##idx;
-    #define UNITY_TRANSFER_DITHER_CROSSFADE(o,v)            o.ditherScreenPos = ComputeDitherScreenPos(UnityObjectToClipPos(v));
-    #define UNITY_TRANSFER_DITHER_CROSSFADE_HPOS(o,hpos)    o.ditherScreenPos = ComputeDitherScreenPos(hpos);
-    half3 ComputeDitherScreenPos(float4 hPos)
-    {
-        half3 screenPos = ComputeScreenPos(hPos).xyw;
-        screenPos.xy *= _ScreenParams.xy * 0.25;
-        return screenPos;
-    }
-    #define UNITY_APPLY_DITHER_CROSSFADE(i)                 ApplyDitherCrossFade(i.ditherScreenPos);
+    #define UNITY_APPLY_DITHER_CROSSFADE(vpos)  UnityApplyDitherCrossFade(vpos)
     sampler2D _DitherMaskLOD2D;
-    void ApplyDitherCrossFade(half3 ditherScreenPos)
+    void UnityApplyDitherCrossFade(float2 vpos)
     {
-        half2 projUV = ditherScreenPos.xy / ditherScreenPos.z;
-        projUV.y = frac(projUV.y) * 0.0625 /* 1/16 */ + unity_LODFade.y; // quantized lod fade by 16 levels
-        clip(tex2D(_DitherMaskLOD2D, projUV).a - 0.5);
+        vpos /= 4; // the dither mask texture is 4x4
+        vpos.y = frac(vpos.y) * 0.0625 /* 1/16 */ + unity_LODFade.y; // quantized lod fade by 16 levels
+        clip(tex2D(_DitherMaskLOD2D, vpos).a - 0.5);
     }
 #else
-    #define UNITY_DITHER_CROSSFADE_COORDS
-    #define UNITY_DITHER_CROSSFADE_COORDS_IDX(idx)
-    #define UNITY_TRANSFER_DITHER_CROSSFADE(o,v)
-    #define UNITY_TRANSFER_DITHER_CROSSFADE_HPOS(o,hpos)
-    #define UNITY_APPLY_DITHER_CROSSFADE(i)
+    #define UNITY_APPLY_DITHER_CROSSFADE(vpos)
 #endif
 
 

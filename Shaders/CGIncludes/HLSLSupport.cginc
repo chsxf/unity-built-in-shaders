@@ -22,7 +22,7 @@
     #endif
 #endif
 
-#if defined(STEREO_MULTIVIEW_ON) && !(defined(SHADER_API_SWITCH)) && (defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE))
+#if defined(STEREO_MULTIVIEW_ON) && (defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)) && !(defined(SHADER_API_SWITCH))
     #define UNITY_STEREO_MULTIVIEW_ENABLED
 #endif
 
@@ -142,6 +142,10 @@
 #define samplerCUBE_float samplerCUBE
 #define sampler3D_float sampler3D
 #define sampler3D_half sampler3D
+#define Texture2D_half Texture2D
+#define Texture2D_float Texture2D
+#define TextureCube_half TextureCube
+#define TextureCube_float TextureCube
 #define Texture3D_float Texture3D
 #define Texture3D_half Texture3D
 #endif
@@ -279,8 +283,10 @@
 // SAMPLE_DEPTH_TEXTURE_PROJ(sampler,uv): projected sample
 // SAMPLE_DEPTH_TEXTURE_LOD(sampler,uv): sample with LOD level
 
-#if defined(SHADER_API_PSP2) && !defined(SHADER_API_PSM)
-#   define SAMPLE_DEPTH_TEXTURE(sampler, uv) (tex2D<float>(sampler, uv))
+#if defined(SHADER_API_PSP2)
+    half4 SAMPLE_DEPTH_TEXTURE(sampler2D s, float4 uv) { return tex2D<float>(s, (float3)uv); }
+    half4 SAMPLE_DEPTH_TEXTURE(sampler2D s, float3 uv) { return tex2D<float>(s, uv); }
+    half4 SAMPLE_DEPTH_TEXTURE(sampler2D s, float2 uv) { return tex2D<float>(s, uv); }
 #   define SAMPLE_DEPTH_TEXTURE_PROJ(sampler, uv) (tex2DprojShadow(sampler, uv))
 #   define SAMPLE_DEPTH_TEXTURE_LOD(sampler, uv) (tex2Dlod<float>(sampler, uv))
 #   define SAMPLE_RAW_DEPTH_TEXTURE(sampler, uv) SAMPLE_DEPTH_TEXTURE(sampler, uv)
@@ -572,7 +578,16 @@
 #endif
 
 
-#if defined(SHADER_API_D3D9) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL)
+// Declare position that is also available for read in fragment shader
+#if (defined(SHADER_API_D3D9) || defined(SHADER_API_PSP2)) && defined(SHADER_STAGE_FRAGMENT) && SHADER_TARGET >= 30
+#define UNITY_POSITION(pos) float4 pos : VPOS
+#else
+// On D3D reading screen space coordinates from fragment shader requires SM3.0
+#define UNITY_POSITION(pos) float4 pos : SV_POSITION
+#endif
+
+
+#if defined(SHADER_API_D3D9) || defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL)
 #define UNITY_ATTEN_CHANNEL r
 #else
 #define UNITY_ATTEN_CHANNEL a

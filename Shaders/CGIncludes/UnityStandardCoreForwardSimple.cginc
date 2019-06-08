@@ -14,7 +14,7 @@
 
 struct VertexOutputBaseSimple
 {
-    float4 pos                          : SV_POSITION;
+    UNITY_POSITION(pos);
     float4 tex                          : TEXCOORD0;
     half4 eyeVec                        : TEXCOORD1; // w: grazingTerm
 
@@ -192,6 +192,8 @@ half3 BRDF3DirectSimple(half3 diffColor, half3 specColor, half smoothness, half 
 
 half4 fragForwardBaseSimpleInternal (VertexOutputBaseSimple i)
 {
+    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
+
     FragmentCommonData s = FragmentSetupSimple(i);
 
     UnityLight mainLight = MainLightSimple(i, s);
@@ -229,7 +231,7 @@ half4 fragForwardBaseSimple (VertexOutputBaseSimple i) : SV_Target  // backward 
 
 struct VertexOutputForwardAddSimple
 {
-    float4 pos                          : SV_POSITION;
+    UNITY_POSITION(pos);
     float4 tex                          : TEXCOORD0;
     float3 posWorld                     : TEXCOORD1;
 
@@ -342,6 +344,8 @@ half3 LightSpaceNormal(VertexOutputForwardAddSimple i, FragmentCommonData s)
 
 half4 fragForwardAddSimpleInternal (VertexOutputForwardAddSimple i)
 {
+    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
+
     FragmentCommonData s = FragmentSetupSimpleAdd(i);
 
     half3 c = BRDF3DirectSimple(s.diffColor, s.specColor, s.smoothness, dot(REFLECTVEC_FOR_SPECULAR(i, s), i.lightDir));
@@ -350,8 +354,7 @@ half4 fragForwardAddSimpleInternal (VertexOutputForwardAddSimple i)
         c *= _LightColor0.rgb;
     #endif
 
-    UNITY_LIGHT_ATTENUATION(atten, i, s.posWorld)
-    c *= atten * saturate(dot(LightSpaceNormal(i, s), i.lightDir));
+    c *= UNITY_SHADOW_ATTENUATION(i, s.posWorld) * saturate(dot(LightSpaceNormal(i, s), i.lightDir));
 
     UNITY_APPLY_FOG_COLOR(i.fogCoord, c.rgb, half4(0,0,0,0)); // fog towards black in additive pass
     return OutputForward (half4(c, 1), s.alpha);

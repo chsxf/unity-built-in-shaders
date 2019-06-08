@@ -2,11 +2,11 @@
 
 Shader "Hidden/Internal-DeferredShading" {
 Properties {
-	_LightTexture0 ("", any) = "" {}
-	_LightTextureB0 ("", 2D) = "" {}
-	_ShadowMapTexture ("", any) = "" {}
-	_SrcBlend ("", Float) = 1
-	_DstBlend ("", Float) = 1
+    _LightTexture0 ("", any) = "" {}
+    _LightTextureB0 ("", 2D) = "" {}
+    _ShadowMapTexture ("", any) = "" {}
+    _SrcBlend ("", Float) = 1
+    _DstBlend ("", Float) = 1
 }
 SubShader {
 
@@ -14,8 +14,8 @@ SubShader {
 //  LDR case - Lighting encoded into a subtractive ARGB8 buffer
 //  HDR case - Lighting additively blended into floating point buffer
 Pass {
-	ZWrite Off
-	Blend [_SrcBlend] [_DstBlend]
+    ZWrite Off
+    Blend [_SrcBlend] [_DstBlend]
 
 CGPROGRAM
 #pragma target 3.0
@@ -36,35 +36,35 @@ CGPROGRAM
 sampler2D _CameraGBufferTexture0;
 sampler2D _CameraGBufferTexture1;
 sampler2D _CameraGBufferTexture2;
-		
+
 half4 CalculateLight (unity_v2f_deferred i)
 {
-	float3 wpos;
-	float2 uv;
-	float atten, fadeDist;
-	UnityLight light;
-	UNITY_INITIALIZE_OUTPUT(UnityLight, light);
-	UnityDeferredCalculateLightParams (i, wpos, uv, light.dir, atten, fadeDist);
+    float3 wpos;
+    float2 uv;
+    float atten, fadeDist;
+    UnityLight light;
+    UNITY_INITIALIZE_OUTPUT(UnityLight, light);
+    UnityDeferredCalculateLightParams (i, wpos, uv, light.dir, atten, fadeDist);
 
-	light.color = _LightColor.rgb * atten;
+    light.color = _LightColor.rgb * atten;
 
-	// unpack Gbuffer
-	half4 gbuffer0 = tex2D (_CameraGBufferTexture0, uv);
-	half4 gbuffer1 = tex2D (_CameraGBufferTexture1, uv);
-	half4 gbuffer2 = tex2D (_CameraGBufferTexture2, uv);
-	UnityStandardData data = UnityStandardDataFromGbuffer(gbuffer0, gbuffer1, gbuffer2);
+    // unpack Gbuffer
+    half4 gbuffer0 = tex2D (_CameraGBufferTexture0, uv);
+    half4 gbuffer1 = tex2D (_CameraGBufferTexture1, uv);
+    half4 gbuffer2 = tex2D (_CameraGBufferTexture2, uv);
+    UnityStandardData data = UnityStandardDataFromGbuffer(gbuffer0, gbuffer1, gbuffer2);
 
-	float3 eyeVec = normalize(wpos-_WorldSpaceCameraPos);
-	half oneMinusReflectivity = 1 - SpecularStrength(data.specularColor.rgb);
+    float3 eyeVec = normalize(wpos-_WorldSpaceCameraPos);
+    half oneMinusReflectivity = 1 - SpecularStrength(data.specularColor.rgb);
 
-	UnityIndirect ind;
-	UNITY_INITIALIZE_OUTPUT(UnityIndirect, ind);
-	ind.diffuse = 0;
-	ind.specular = 0;
+    UnityIndirect ind;
+    UNITY_INITIALIZE_OUTPUT(UnityIndirect, ind);
+    ind.diffuse = 0;
+    ind.specular = 0;
 
     half4 res = UNITY_BRDF_PBS (data.diffuseColor, data.specularColor, oneMinusReflectivity, data.smoothness, data.normalWorld, -eyeVec, light, ind);
 
-	return res;
+    return res;
 }
 
 #ifdef UNITY_HDR_ON
@@ -74,12 +74,12 @@ fixed4
 #endif
 frag (unity_v2f_deferred i) : SV_Target
 {
-	half4 c = CalculateLight(i);
-	#ifdef UNITY_HDR_ON
-	return c;
-	#else
-	return exp2(-c);
-	#endif
+    half4 c = CalculateLight(i);
+    #ifdef UNITY_HDR_ON
+    return c;
+    #else
+    return exp2(-c);
+    #endif
 }
 
 ENDCG
@@ -89,14 +89,14 @@ ENDCG
 // Pass 2: Final decode pass.
 // Used only with HDR off, to decode the logarithmic buffer into the main RT
 Pass {
-	ZTest Always Cull Off ZWrite Off
-	Stencil {
-		ref [_StencilNonBackground]
-		readmask [_StencilNonBackground]
-		// Normally just comp would be sufficient, but there's a bug and only front face stencil state is set (case 583207)
-		compback equal
-		compfront equal
-	}
+    ZTest Always Cull Off ZWrite Off
+    Stencil {
+        ref [_StencilNonBackground]
+        readmask [_StencilNonBackground]
+        // Normally just comp would be sufficient, but there's a bug and only front face stencil state is set (case 583207)
+        compback equal
+        compfront equal
+    }
 
 CGPROGRAM
 #pragma target 3.0
@@ -108,26 +108,26 @@ CGPROGRAM
 
 sampler2D _LightBuffer;
 struct v2f {
-	float4 vertex : SV_POSITION;
-	float2 texcoord : TEXCOORD0;
+    float4 vertex : SV_POSITION;
+    float2 texcoord : TEXCOORD0;
 };
 
 v2f vert (float4 vertex : POSITION, float2 texcoord : TEXCOORD0)
 {
-	v2f o;
-	o.vertex = UnityObjectToClipPos(vertex);
-	o.texcoord = texcoord.xy;
+    v2f o;
+    o.vertex = UnityObjectToClipPos(vertex);
+    o.texcoord = texcoord.xy;
 #ifdef UNITY_SINGLE_PASS_STEREO
-	o.texcoord = TransformStereoScreenSpaceTex(o.texcoord, 1.0f);
+    o.texcoord = TransformStereoScreenSpaceTex(o.texcoord, 1.0f);
 #endif
-	return o;
+    return o;
 }
 
 fixed4 frag (v2f i) : SV_Target
 {
-	return -log2(tex2D(_LightBuffer, i.texcoord));
+    return -log2(tex2D(_LightBuffer, i.texcoord));
 }
-ENDCG 
+ENDCG
 }
 
 }

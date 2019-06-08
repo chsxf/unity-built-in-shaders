@@ -4,6 +4,8 @@
 #define UNITY_STANDARD_CORE_INCLUDED
 
 #include "UnityCG.cginc"
+#include "UnityShaderVariables.cginc"
+#include "UnityInstancing.cginc"
 #include "UnityStandardConfig.cginc"
 #include "UnityStandardInput.cginc"
 #include "UnityPBSLighting.cginc"
@@ -24,7 +26,7 @@ half3 NormalizePerVertexNormal (float3 n) // takes float to avoid overflow
     #endif
 }
 
-float3 NormalizePerPixelNormal (float3 n)
+half3 NormalizePerPixelNormal (half3 n)
 {
     #if (SHADER_TARGET < 30) || UNITY_STANDARD_SIMPLE
         return n;
@@ -111,7 +113,7 @@ half3 WorldNormal(half4 tan2world[3])
     }
 #endif
 
-float3 PerPixelWorldNormal(float4 i_tex, float4 tangentToWorld[3])
+half3 PerPixelWorldNormal(float4 i_tex, half4 tangentToWorld[3])
 {
 #ifdef _NORMALMAP
     half3 tangent = tangentToWorld[0].xyz;
@@ -130,9 +132,9 @@ float3 PerPixelWorldNormal(float4 i_tex, float4 tangentToWorld[3])
     #endif
 
     half3 normalTangent = NormalInTangentSpace(i_tex);
-    float3 normalWorld = NormalizePerPixelNormal(tangent * normalTangent.x + binormal * normalTangent.y + normal * normalTangent.z); // @TODO: see if we can squeeze this normalize on SM2.0 as well
+    half3 normalWorld = NormalizePerPixelNormal(tangent * normalTangent.x + binormal * normalTangent.y + normal * normalTangent.z); // @TODO: see if we can squeeze this normalize on SM2.0 as well
 #else
-    float3 normalWorld = normalize(tangentToWorld[2].xyz);
+    half3 normalWorld = normalize(tangentToWorld[2].xyz);
 #endif
     return normalWorld;
 }
@@ -171,10 +173,8 @@ struct FragmentCommonData
     // Note: smoothness & oneMinusReflectivity for optimization purposes, mostly for DX9 SM2.0 level.
     // Most of the math is being done on these (1-x) values, and that saves a few precious ALU slots.
     half oneMinusReflectivity, smoothness;
-    float3 normalWorld;
-    float3 eyeVec;
+    half3 normalWorld, eyeVec, posWorld;
     half alpha;
-    float3 posWorld;
 
 #if UNITY_STANDARD_SIMPLE
     half3 reflUVW;
@@ -224,7 +224,8 @@ inline FragmentCommonData MetallicSetup (float4 i_tex)
     return o;
 }
 
-inline FragmentCommonData FragmentSetup (float4 i_tex, float3 i_eyeVec, half3 i_viewDirForParallax, float4 tangentToWorld[3], float3 i_posWorld)
+// parallax transformed texcoord is used to sample occlusion
+inline FragmentCommonData FragmentSetup (inout float4 i_tex, half3 i_eyeVec, half3 i_viewDirForParallax, half4 tangentToWorld[3], half3 i_posWorld)
 {
     i_tex = Parallax(i_tex, i_viewDirForParallax);
 
@@ -336,11 +337,11 @@ inline half4 VertexGIForward(VertexInput v, float3 posWorld, half3 normalWorld)
 
 struct VertexOutputForwardBase
 {
-    float4 pos                            : SV_POSITION;
-    float4 tex                            : TEXCOORD0;
-    float3 eyeVec                         : TEXCOORD1;
-    float4 tangentToWorldAndPackedData[3] : TEXCOORD2;    // [3x3:tangentToWorld | 1x3:viewDirForParallax or worldPos]
-    half4 ambientOrLightmapUV             : TEXCOORD5;    // SH or Lightmap UV
+    UNITY_POSITION(pos);
+    float4 tex                          : TEXCOORD0;
+    half3 eyeVec                        : TEXCOORD1;
+    half4 tangentToWorldAndPackedData[3]    : TEXCOORD2;    // [3x3:tangentToWorld | 1x3:viewDirForParallax or worldPos]
+    half4 ambientOrLightmapUV           : TEXCOORD5;    // SH or Lightmap UV
     UNITY_SHADOW_COORDS(6)
     UNITY_FOG_COORDS(7)
 
@@ -408,6 +409,8 @@ VertexOutputForwardBase vertForwardBase (VertexInput v)
 
 half4 fragForwardBaseInternal (VertexOutputForwardBase i)
 {
+    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
+
     FRAGMENT_SETUP(s)
 
     UNITY_SETUP_INSTANCE_ID(i);
@@ -436,10 +439,10 @@ half4 fragForwardBase (VertexOutputForwardBase i) : SV_Target   // backward comp
 
 struct VertexOutputForwardAdd
 {
-    float4 pos                          : SV_POSITION;
+    UNITY_POSITION(pos);
     float4 tex                          : TEXCOORD0;
-    float3 eyeVec                       : TEXCOORD1;
-    float4 tangentToWorldAndLightDir[3] : TEXCOORD2;    // [3x3:tangentToWorld | 1x3:lightDir]
+    half3 eyeVec                        : TEXCOORD1;
+    half4 tangentToWorldAndLightDir[3]  : TEXCOORD2;    // [3x3:tangentToWorld | 1x3:lightDir]
     float3 posWorld                     : TEXCOORD5;
     UNITY_SHADOW_COORDS(6)
     UNITY_FOG_COORDS(7)
@@ -500,6 +503,8 @@ VertexOutputForwardAdd vertForwardAdd (VertexInput v)
 
 half4 fragForwardAddInternal (VertexOutputForwardAdd i)
 {
+    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
+
     FRAGMENT_SETUP_FWDADD(s)
 
     UNITY_LIGHT_ATTENUATION(atten, i, s.posWorld)
@@ -522,11 +527,11 @@ half4 fragForwardAdd (VertexOutputForwardAdd i) : SV_Target     // backward comp
 
 struct VertexOutputDeferred
 {
-    float4 pos                            : SV_POSITION;
-    float4 tex                            : TEXCOORD0;
-    float3 eyeVec                         : TEXCOORD1;
-    float4 tangentToWorldAndPackedData[3] : TEXCOORD2;    // [3x3:tangentToWorld | 1x3:viewDirForParallax or worldPos]
-    half4 ambientOrLightmapUV             : TEXCOORD5;    // SH or Lightmap UVs
+    UNITY_POSITION(pos);
+    float4 tex                          : TEXCOORD0;
+    half3 eyeVec                        : TEXCOORD1;
+    half4 tangentToWorldAndPackedData[3]: TEXCOORD2;    // [3x3:tangentToWorld | 1x3:viewDirForParallax or worldPos]
+    half4 ambientOrLightmapUV           : TEXCOORD5;    // SH or Lightmap UVs
 
     #if UNITY_REQUIRE_FRAG_WORLDPOS && !UNITY_PACK_WORLDPOS_WITH_TANGENT
         float3 posWorld                     : TEXCOORD6;
@@ -613,6 +618,8 @@ void fragDeferred (
         #endif
         return;
     #endif
+
+    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
 
     FRAGMENT_SETUP(s)
 

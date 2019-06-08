@@ -1,20 +1,20 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
 Shader "Hidden/BlitCopyDepth" {
-	Properties { _MainTex ("Texture", any) = "" {} }
-	SubShader { 
-		Pass {
- 			ZTest Always Cull Off ZWrite Off
+    Properties { _MainTex ("Texture", any) = "" {} }
+    SubShader {
+        Pass {
+            ZTest Always Cull Off ZWrite Off
 
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #pragma target 2.0
 
-			#include "UnityCG.cginc"
+            #include "UnityCG.cginc"
 
-			UNITY_DECLARE_DEPTH_TEXTURE(_MainTex);
-			uniform float4 _MainTex_ST;
+            UNITY_DECLARE_DEPTH_TEXTURE(_MainTex);
+            uniform float4 _MainTex_ST;
 
             struct appdata_t {
                 float4 vertex : POSITION;
@@ -46,7 +46,7 @@ Shader "Hidden/BlitCopyDepth" {
             }
             ENDCG
 
-		}
-	}
-	Fallback Off
+        }
+    }
+    Fallback Off
 }
