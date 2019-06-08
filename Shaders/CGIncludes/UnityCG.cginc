@@ -513,8 +513,8 @@ half4 UnityEncodeRGBM (half3 color, float maxRGBM)
 // handles dLDR, RGBM formats, Compressed(BC6H, BC1), and Uncompressed(RGBAHalf, RGBA32)
 inline half3 DecodeHDR (half4 data, half4 decodeInstructions)
 {
-    const bool useAlpha = decodeInstructions.w == 1;
-    half alpha = useAlpha ? data.a : 1.0;
+    // Take into account texture alpha if decodeInstructions.w is true(the alpha value affects the RGB channels)
+    half alpha = decodeInstructions.w * (data.a - 1.0) + 1.0;
 
     // If Linear mode is not supported we can skip exponent part
     #if defined(UNITY_COLORSPACE_GAMMA)

@@ -50,6 +50,7 @@ Shader "Sprites/Default"
 			};
 			
 			fixed4 _Color;
+			float _EnableExternalAlpha;
 
 			v2f vert(appdata_t IN)
 			{
@@ -75,7 +76,8 @@ Shader "Sprites/Default"
 
 #if ETC1_EXTERNAL_ALPHA
 				// get the color from an external texture (usecase: Alpha support for ETC1 on android)
-				color.a = tex2D (_AlphaTex, uv).r;
+				fixed4 alpha = tex2D (_AlphaTex, uv);
+				color.a = lerp (color.a, alpha.r, _EnableExternalAlpha);
 #endif //ETC1_EXTERNAL_ALPHA
 
 				return color;
