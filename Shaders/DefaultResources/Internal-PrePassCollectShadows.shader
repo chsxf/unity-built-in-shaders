@@ -34,8 +34,9 @@ struct v2f {
 
 	// View space ray, for perspective case
 	float3 ray : TEXCOORD1;
-	// Orthographic view space position, xy regular, z position at near plane, w position at far plane
-	float4 orthoPos : TEXCOORD2;
+	// Orthographic view space positions (need xy as well for oblique matrices)
+    float3 orthoPosNear : TEXCOORD2;
+    float3 orthoPosFar  : TEXCOORD3;
 
 	float4 pos : SV_POSITION;
 };
@@ -56,9 +57,12 @@ v2f vert (appdata v)
 	// limits.
 
 	clipPos.y *= _ProjectionParams.x;
-	float4 orthoNearPos = mul(unity_CameraInvProjection, float4(clipPos.x,clipPos.y,-1,1));
-	float4 orthoFarPos = mul(unity_CameraInvProjection, float4(clipPos.x,clipPos.y,1,1));
-	o.orthoPos = float4(orthoNearPos.x, orthoNearPos.y, -orthoNearPos.z, -orthoFarPos.z);
+	float3 orthoPosNear = mul(unity_CameraInvProjection, float4(clipPos.x,clipPos.y,-1,1)).xyz;
+	float3 orthoPosFar  = mul(unity_CameraInvProjection, float4(clipPos.x,clipPos.y, 1,1)).xyz;
+	orthoPosNear.z *= -1;
+	orthoPosFar.z *= -1;
+    o.orthoPosNear = orthoPosNear;
+	o.orthoPosFar = orthoPosFar;
 
 	return o;
 }
@@ -321,8 +325,7 @@ fixed4 frag_hard (v2f i) : SV_Target
 
 	// view position calculation for perspective & ortho cases
 	float3 vposPersp = i.ray * depth;
-	float3 vposOrtho = i.orthoPos.xyz;
-	vposOrtho.z = lerp(i.orthoPos.z, i.orthoPos.w, zdepth);
+	float3 vposOrtho = lerp(i.orthoPosNear, i.orthoPosFar, zdepth);
 	// pick the perspective or ortho position as needed
 	float3 vpos = lerp (vposPersp, vposOrtho, unity_OrthoParams.w);
 
@@ -380,8 +383,7 @@ Pass {
 
 		// view position calculation for perspective & ortho cases
 		float3 vposPersp = i.ray * depth;
-		float3 vposOrtho = i.orthoPos.xyz;
-		vposOrtho.z = lerp(i.orthoPos.z, i.orthoPos.w, zdepth);
+		float3 vposOrtho = lerp(i.orthoPosNear, i.orthoPosFar, zdepth);
 		// pick the perspective or ortho position as needed
 		float3 vpos = lerp (vposPersp, vposOrtho, unity_OrthoParams.w);
 
