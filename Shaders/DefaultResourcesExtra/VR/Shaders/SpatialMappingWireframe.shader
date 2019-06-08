@@ -37,7 +37,7 @@ Shader "VR/SpatialMapping/Wireframe"
             {
                 float4 projectionSpaceVertex : SV_POSITION;
                 float4 worldSpacePosition : TEXCOORD1;
-                UNITY_VERTEX_OUTPUT_STEREO
+                UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX
             };
 
             struct g2f
@@ -52,7 +52,7 @@ Shader "VR/SpatialMapping/Wireframe"
             {
                 v2g o;
                 UNITY_SETUP_INSTANCE_ID(v);
-                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+                UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(o);
                 o.projectionSpaceVertex = UnityObjectToClipPos(v.vertex);
                 o.worldSpacePosition = mul(unity_ObjectToWorld, v.vertex);
                 return o;
@@ -61,6 +61,7 @@ Shader "VR/SpatialMapping/Wireframe"
             [maxvertexcount(3)]
             void geom(triangle v2g i[3], inout TriangleStream<g2f> triangleStream)
             {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i[0]);
                 float2 p0 = i[0].projectionSpaceVertex.xy / i[0].projectionSpaceVertex.w;
                 float2 p1 = i[1].projectionSpaceVertex.xy / i[1].projectionSpaceVertex.w;
                 float2 p2 = i[2].projectionSpaceVertex.xy / i[2].projectionSpaceVertex.w;
@@ -79,7 +80,6 @@ Shader "VR/SpatialMapping/Wireframe"
                 float wireThickness = 800 - _WireThickness;
 
                 g2f o;
-
                 o.worldSpacePosition = i[0].worldSpacePosition;
                 o.projectionSpaceVertex = i[0].projectionSpaceVertex;
                 o.dist.xyz = float3( (area / length(edge0)), 0.0, 0.0) * o.projectionSpaceVertex.w * wireThickness;
