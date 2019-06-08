@@ -48,26 +48,22 @@ inline half3 MixLightmapWithRealtimeAttenuation (half3 lightmap, half attenuatio
 
 #if IMPROVED_BAKED_AND_REALTIME_SHADOW_MIXING
 	half shadowStrength = _LightShadowData.x;
-	half attenuationUnaffectedByShadowStrength = max(0, attenuation - shadowStrength);
 
 	// Calculate possible value in the shadow by two very distinct ways:
 	// 1) by subtracting estimated light contribution from the places occluded by realtime shadow:
 	//		a) preserves other baked lights and light bounces
 	//		b) eliminates shadows on the geometry facing away from the light
-	//		BUT in case of (ShadowStrength < 1) subtracts light in the areas that are not covered by realtime shadow
 	// 2) by attenuating lightmap - usually produces results that are:
 	// 		a) too dark in region where baked and realtime shadow overlap
 	//		b) destroys other baked lights
 	//		c) shadows are visible on the geometry facing away from the light
-	// 		BUT it handles (ShadowStrength < 1) better
 	// Then use min/max arbiter to get a solution.
-
 
 	// 1) Gives good estimate of illumination as if light would've been shadowed during the bake.
 	//    Preserves bounce and other baked lights
 	//    No shadows on the geometry facing away from the light
-	half ndotl = LambertTerm (normalWorld, _WorldSpaceLightPos0.xyz);
-	half3 estimatedLightContributionMaskedByInverseOfShadow = ndotl * (1-attenuationUnaffectedByShadowStrength) * _LightColor0.rgb;
+	half ndotl = saturate(dot(normalWorld, _WorldSpaceLightPos0.xyz));
+	half3 estimatedLightContributionMaskedByInverseOfShadow = ndotl * (1-attenuation) * _LightColor0.rgb;
 	half3 subtractedLightmap = lightmap - estimatedLightContributionMaskedByInverseOfShadow;
 
 	// 2) Keeps lightmap tint in shadow when ShadowStrength < 1.
@@ -75,8 +71,10 @@ inline half3 MixLightmapWithRealtimeAttenuation (half3 lightmap, half attenuatio
 	half3 lightmapTint = bakedColorTex.rgb;
 	half3 attenuatedLightmap = lightmapTint * attenuation;
 
-	// Arbiter. Pick original lightmap value, if it is the darkest one.
-	return max (min(lightmap, attenuatedLightmap), subtractedLightmap);
+	// Arbiter. Pick lightest shadows or the lightmap value, if it is the darkest one.
+	half3 realtimeShadow = max(attenuatedLightmap, subtractedLightmap);
+	realtimeShadow = lerp(realtimeShadow, lightmap, shadowStrength);
+	return min(lightmap, realtimeShadow);
 #else
 	// Generally do min(lightmap,shadow), with "shadow" taking overall lightmap tint into account.
 	half3 shadowLightmapColor = bakedColorTex.rgb * attenuation;
