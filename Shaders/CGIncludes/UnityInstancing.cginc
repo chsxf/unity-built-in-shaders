@@ -128,14 +128,15 @@
             unity_InstanceID = inputInstanceID + unity_BaseInstanceID;
         #endif
     }
+    void UnitySetupCompoundMatrices();
     #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
         #ifndef UNITY_INSTANCING_PROCEDURAL_FUNC
             #error "UNITY_INSTANCING_PROCEDURAL_FUNC must be defined."
         #else
-            #define DEFAULT_UNITY_SETUP_INSTANCE_ID(input)      { UnitySetupInstanceID(UNITY_GET_INSTANCE_ID(input)); UNITY_INSTANCING_PROCEDURAL_FUNC(); }
+            #define DEFAULT_UNITY_SETUP_INSTANCE_ID(input)      { UnitySetupInstanceID(UNITY_GET_INSTANCE_ID(input)); UNITY_INSTANCING_PROCEDURAL_FUNC(); UnitySetupCompoundMatrices(); }
     #endif
     #else
-        #define DEFAULT_UNITY_SETUP_INSTANCE_ID(input)          UnitySetupInstanceID(UNITY_GET_INSTANCE_ID(input));
+        #define DEFAULT_UNITY_SETUP_INSTANCE_ID(input)          { UnitySetupInstanceID(UNITY_GET_INSTANCE_ID(input)); UnitySetupCompoundMatrices(); }
     #endif
     #define UNITY_TRANSFER_INSTANCE_ID(input, output)   output.instanceID = UNITY_GET_INSTANCE_ID(input)
 #else
@@ -229,5 +230,28 @@
     #define UNITY_ACCESS_INSTANCED_PROP(name)       name
 
 #endif // UNITY_INSTANCING_ENABLED
+
+#if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED) || defined(UNITY_STEREO_INSTANCING_ENABLED)
+    // The following matrix evaluations depend on the static var unity_InstanceID & unity_StereoEyeIndex. They need to be initialized after UnitySetupInstanceID.
+    static float4x4 unity_MatrixMVP_Instanced;
+    static float4x4 unity_MatrixMV_Instanced;
+    static float4x4 unity_MatrixTMV_Instanced;
+    static float4x4 unity_MatrixITMV_Instanced;
+    void UnitySetupCompoundMatrices()
+    {
+        unity_MatrixMVP_Instanced = mul(unity_MatrixVP, unity_ObjectToWorld);
+        unity_MatrixMV_Instanced = mul(unity_MatrixV, unity_ObjectToWorld);
+        unity_MatrixTMV_Instanced = transpose(unity_MatrixMV_Instanced);
+        unity_MatrixITMV_Instanced = transpose(mul(unity_WorldToObject, unity_MatrixInvV));
+    }
+    #undef UNITY_MATRIX_MVP
+    #undef UNITY_MATRIX_MV
+    #undef UNITY_MATRIX_T_MV
+    #undef UNITY_MATRIX_IT_MV
+    #define UNITY_MATRIX_MVP    unity_MatrixMVP_Instanced
+    #define UNITY_MATRIX_MV     unity_MatrixMV_Instanced
+    #define UNITY_MATRIX_T_MV   unity_MatrixTMV_Instanced
+    #define UNITY_MATRIX_IT_MV  unity_MatrixITMV_Instanced
+#endif
 
 #endif // UNITY_INSTANCING_INCLUDED

@@ -32,11 +32,6 @@
 #define UNITY_MATRIX_VP unity_MatrixVP
 #define UNITY_MATRIX_M unity_ObjectToWorld
 
-#define UNITY_MATRIX_MVP mul(unity_MatrixVP, unity_ObjectToWorld)
-#define UNITY_MATRIX_MV mul(unity_MatrixV, unity_ObjectToWorld)
-#define UNITY_MATRIX_T_MV transpose(UNITY_MATRIX_MV)
-#define UNITY_MATRIX_IT_MV transpose(mul(unity_WorldToObject, unity_MatrixInvV))
-
 #define UNITY_LIGHTMODEL_AMBIENT (glstate_lightmodel_ambient * 2)
 
 // ----------------------------------------------------------------------------
@@ -323,6 +318,15 @@ CBUFFER_END
     CBUFFER_END
 #endif
 
+static float4x4 unity_MatrixMVP = mul(unity_MatrixVP, unity_ObjectToWorld);
+static float4x4 unity_MatrixMV = mul(unity_MatrixV, unity_ObjectToWorld);
+static float4x4 unity_MatrixTMV = transpose(unity_MatrixMV);
+static float4x4 unity_MatrixITMV = transpose(mul(unity_WorldToObject, unity_MatrixInvV));
+// make them macros so that they can be redefined in UnityInstancing.cginc
+#define UNITY_MATRIX_MVP    unity_MatrixMVP
+#define UNITY_MATRIX_MV     unity_MatrixMV
+#define UNITY_MATRIX_T_MV   unity_MatrixTMV
+#define UNITY_MATRIX_IT_MV  unity_MatrixITMV
 
 // ----------------------------------------------------------------------------
 //  Deprecated
@@ -332,6 +336,5 @@ CBUFFER_END
 #define UNITY_MATRIX_TEXTURE1 float4x4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1)
 #define UNITY_MATRIX_TEXTURE2 float4x4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1)
 #define UNITY_MATRIX_TEXTURE3 float4x4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1)
-
 
 #endif
