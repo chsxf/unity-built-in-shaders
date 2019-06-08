@@ -321,6 +321,10 @@
 	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D tex
 	#define UNITY_SAMPLE_SHADOW(tex,coord) tex2D<float>(tex, (coord).xyz)
 	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex2DprojShadow(tex, coord)
+#elif defined(SHADER_API_PS3)
+	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D tex
+	#define UNITY_SAMPLE_SHADOW(tex,coord) tex2D (tex,(coord).xyz).r
+	#define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex2Dproj (tex,coord).r
 #else
 	// Fallback / No native shadowmaps: regular texture sample and do manual depth comparison
 	#define UNITY_DECLARE_SHADOWMAP(tex) sampler2D_float tex

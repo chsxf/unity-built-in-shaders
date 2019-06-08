@@ -14,7 +14,7 @@ half4 unity_LightGammaCorrectionConsts;
 
 inline half DotClamped (half3 a, half3 b)
 {
-	#if (SHADER_TARGET < 30)
+	#if (SHADER_TARGET < 30 || defined(SHADER_API_PS3))
 		return saturate(dot(a, b));
 	#else
 		return max(0.0h, dot(a, b));

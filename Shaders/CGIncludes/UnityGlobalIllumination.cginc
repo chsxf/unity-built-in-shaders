@@ -14,7 +14,7 @@ inline half3 DecodeDirectionalSpecularLightmap (half3 color, fixed4 dirTex, half
 
 	// The length of the direction vector is the light's "directionality", i.e. 1 for all light coming from this direction,
 	// lower values for more spread out, ambient light.
-	half directionality = length(o_light.dir);
+	half directionality = max(0.001, length(o_light.dir));
 	o_light.dir /= directionality;
 
 	#ifdef DYNAMICLIGHTMAP_ON

@@ -56,7 +56,7 @@
 
 	half4 frag(v2f  i) : SV_Target
 	{
-		#if (SHADER_TARGET < 30)
+		#if (SHADER_TARGET < 30 || SHADER_API_GLES)
 			return UNITY_SAMPLE_TEXCUBE_LOD(_MainTex, i.uvw.xyz, _Level);
 		#else
 			half3 st;
