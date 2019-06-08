@@ -18,7 +18,7 @@ Shader "Hidden/TerrainEngine/BillboardTree" {
 			#pragma fragment frag
 
 			struct v2f {
-				float4 pos : POSITION;
+				float4 pos : SV_POSITION;
 				fixed4 color : COLOR0;
 				float2 uv : TEXCOORD0;
 			};
@@ -34,7 +34,7 @@ Shader "Hidden/TerrainEngine/BillboardTree" {
 			}
 
 			sampler2D _MainTex;
-			fixed4 frag(v2f input) : COLOR
+			fixed4 frag(v2f input) : SV_Target
 			{
 				fixed4 col = tex2D( _MainTex, input.uv);
 				col.rgb *= input.color.rgb;

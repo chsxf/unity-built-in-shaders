@@ -90,7 +90,7 @@ v2f_surf vert_surf (appdata_full v) {
 #ifndef LIGHTMAP_OFF
 sampler2D unity_Lightmap;
 #endif
-fixed4 frag_surf (v2f_surf IN) : COLOR {
+fixed4 frag_surf (v2f_surf IN) : SV_Target {
 	Input surfIN;
 	surfIN.uv_MainTex = IN.pack0.xy;
 	SurfaceOutput o;

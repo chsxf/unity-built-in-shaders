@@ -60,7 +60,7 @@ uniform samplerCUBE _Cube;
 uniform fixed4 _ReflectColor;
 uniform fixed4 _Color;
 
-fixed4 frag (v2f i) : COLOR
+fixed4 frag (v2f i) : SV_Target
 {
 	// Sample and expand the normal map texture	
 	fixed3 normal = UnpackNormal(tex2D(_BumpMap, i.uv2));

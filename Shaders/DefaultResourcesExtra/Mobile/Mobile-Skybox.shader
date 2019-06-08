@@ -8,7 +8,7 @@ Properties {
 	_LeftTex ("Left (+X)", 2D) = "white" {}
 	_RightTex ("Right (-X)", 2D) = "white" {}
 	_UpTex ("Up (+Y)", 2D) = "white" {}
-	_DownTex ("down (-Y)", 2D) = "white" {}
+	_DownTex ("Down (-Y)", 2D) = "white" {}
 }
 
 SubShader {

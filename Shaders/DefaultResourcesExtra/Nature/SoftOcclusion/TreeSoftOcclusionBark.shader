@@ -27,7 +27,7 @@ Shader "Nature/Tree Soft Occlusion Bark" {
 			
 			sampler2D _MainTex;
 			
-			fixed4 frag(v2f input) : COLOR
+			fixed4 frag(v2f input) : SV_Target
 			{
 				fixed4 col = input.color;
 				col.rgb *= 2.0f * tex2D( _MainTex, input.uv.xy).rgb;
@@ -68,7 +68,7 @@ Shader "Nature/Tree Soft Occlusion Bark" {
 				return o;
 			}
 			
-			float4 frag( v2f i ) : COLOR
+			float4 frag( v2f i ) : SV_Target
 			{
 				SHADOW_CASTER_FRAGMENT(i)
 			}

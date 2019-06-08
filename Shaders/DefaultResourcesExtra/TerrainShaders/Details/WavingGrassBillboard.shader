@@ -12,7 +12,7 @@ CGINCLUDE
 #pragma glsl_no_auto_normalization
 
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	fixed4 color : COLOR;
 	float4 uv : TEXCOORD0;
 };

@@ -1,10 +1,15 @@
-Shader "Sprites/Default"
+Shader "uGUI/Default"
 {
 	Properties
 	{
 		[PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
 		_Color ("Tint", Color) = (1,1,1,1)
 		[MaterialToggle] PixelSnap ("Pixel snap", Float) = 0
+		
+		_StencilComp ("Stencil Comparison", Float) = 8
+		_Stencil ("Stencil ID", Float) = 0
+		_StencilOp ("Stencil Operation", Float) = 0
+		_ColorMask ("Color Mask", Float) = 15
 	}
 
 	SubShader
@@ -17,12 +22,21 @@ Shader "Sprites/Default"
 			"PreviewType"="Plane"
 			"CanUseSpriteAtlas"="True"
 		}
+		
+		Stencil
+		{
+			Ref [_Stencil]
+			Comp [_StencilComp]
+			Pass [_StencilOp] 
+		}
 
 		Cull Off
 		Lighting Off
 		ZWrite Off
+		ZTest [unity_GUIZTestMode]
 		Fog { Mode Off }
-		Blend One OneMinusSrcAlpha
+		Blend SrcAlpha OneMinusSrcAlpha
+		ColorMask [_ColorMask]
 
 		Pass
 		{
@@ -65,9 +79,9 @@ Shader "Sprites/Default"
 
 			fixed4 frag(v2f IN) : SV_Target
 			{
-				fixed4 c = tex2D(_MainTex, IN.texcoord) * IN.color;
-				c.rgb *= c.a;
-				return c;
+				half4 color = tex2D(_MainTex, IN.texcoord) * IN.color;
+				clip (color.a - 0.01);
+				return color;
 			}
 		ENDCG
 		}

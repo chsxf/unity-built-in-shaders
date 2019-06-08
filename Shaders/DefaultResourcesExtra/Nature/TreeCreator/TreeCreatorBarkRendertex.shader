@@ -57,7 +57,7 @@ sampler2D _BumpSpecMap;
 sampler2D _TranslucencyMap;
 fixed4 _SpecColor;
 
-fixed4 frag (v2f i) : COLOR
+fixed4 frag (v2f i) : SV_Target
 {
 	fixed3 albedo = tex2D (_MainTex, i.uv).rgb * i.color;
 	half gloss = tex2D(_TranslucencyMap, i.uv).a;

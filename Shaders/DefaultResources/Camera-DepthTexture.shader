@@ -15,7 +15,7 @@ CGPROGRAM
 #pragma fragment frag
 #include "UnityCG.cginc"
 struct v2f {
-    float4 pos : POSITION;
+    float4 pos : SV_POSITION;
 	#ifdef UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE
     float2 depth : TEXCOORD0;
 	#endif
@@ -26,7 +26,7 @@ v2f vert( appdata_base v ) {
     UNITY_TRANSFER_DEPTH(o.depth);
     return o;
 }
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
     UNITY_OUTPUT_DEPTH(i.depth);
 }
 ENDCG
@@ -41,7 +41,7 @@ CGPROGRAM
 #pragma fragment frag
 #include "UnityCG.cginc"
 struct v2f {
-    float4 pos : POSITION;
+    float4 pos : SV_POSITION;
 	float2 uv : TEXCOORD0;
 	#ifdef UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE
     float2 depth : TEXCOORD1;
@@ -58,7 +58,7 @@ v2f vert( appdata_base v ) {
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
 uniform fixed4 _Color;
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	fixed4 texcol = tex2D( _MainTex, i.uv );
 	clip( texcol.a*_Color.a - _Cutoff );
     UNITY_OUTPUT_DEPTH(i.depth);
@@ -78,7 +78,7 @@ CGPROGRAM
 #include "Lighting.cginc"
 #include "TerrainEngine.cginc"
 struct v2f {
-    float4 pos : POSITION;
+    float4 pos : SV_POSITION;
 	#ifdef UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE
 	float2 depth : TEXCOORD0;
 	#endif
@@ -91,7 +91,7 @@ v2f vert( appdata_full v ) {
     UNITY_TRANSFER_DEPTH(o.depth);
     return o;
 }
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	UNITY_OUTPUT_DEPTH(i.depth);
 }
 ENDCG
@@ -109,7 +109,7 @@ CGPROGRAM
 #include "Lighting.cginc"
 #include "TerrainEngine.cginc"
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	float2 uv : TEXCOORD0;
 	#ifdef UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE
 	float2 depth : TEXCOORD1;
@@ -126,7 +126,7 @@ v2f vert( appdata_full v ) {
 }
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	half alpha = tex2D(_MainTex, i.uv).a;
 
 	clip (alpha - _Cutoff);
@@ -145,7 +145,7 @@ CGPROGRAM
 #include "UnityCG.cginc"
 #include "TerrainEngine.cginc"
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	#ifdef UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE
 	float2 depth : TEXCOORD0;
 	#endif
@@ -161,7 +161,7 @@ v2f vert( appdata v ) {
     UNITY_TRANSFER_DEPTH(o.depth);
 	return o;
 }
-fixed4 frag( v2f i ) : COLOR {
+fixed4 frag( v2f i ) : SV_Target {
     UNITY_OUTPUT_DEPTH(i.depth);
 }
 ENDCG
@@ -179,7 +179,7 @@ CGPROGRAM
 #include "TerrainEngine.cginc"
 
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	float2 uv : TEXCOORD0;
 	#ifdef UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE
 	float2 depth : TEXCOORD1;
@@ -200,7 +200,7 @@ v2f vert( appdata v ) {
 }
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
-fixed4 frag( v2f i ) : COLOR {
+fixed4 frag( v2f i ) : SV_Target {
 	half alpha = tex2D(_MainTex, i.uv).a;
 
 	clip (alpha - _Cutoff);
@@ -220,7 +220,7 @@ CGPROGRAM
 #include "UnityCG.cginc"
 #include "TerrainEngine.cginc"
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	float2 uv : TEXCOORD0;
 	#ifdef UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE
 	float2 depth : TEXCOORD1;
@@ -236,7 +236,7 @@ v2f vert (appdata_tree_billboard v) {
 	return o;
 }
 uniform sampler2D _MainTex;
-fixed4 frag( v2f i ) : COLOR {
+fixed4 frag( v2f i ) : SV_Target {
 	fixed4 texcol = tex2D( _MainTex, i.uv );
 	clip( texcol.a - 0.001 );
     UNITY_OUTPUT_DEPTH(i.depth);
@@ -257,7 +257,7 @@ CGPROGRAM
 #pragma glsl_no_auto_normalization
 
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	fixed4 color : COLOR;
 	float2 uv : TEXCOORD0;
 	#ifdef UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE
@@ -276,7 +276,7 @@ v2f vert (appdata_full v) {
 }
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
-fixed4 frag( v2f i ) : COLOR {
+fixed4 frag( v2f i ) : SV_Target {
 	fixed4 texcol = tex2D( _MainTex, i.uv );
 	fixed alpha = texcol.a * i.color.a;
 	clip( alpha - _Cutoff );
@@ -296,7 +296,7 @@ CGPROGRAM
 #include "UnityCG.cginc"
 #include "TerrainEngine.cginc"
 struct v2f {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	fixed4 color : COLOR;
 	float2 uv : TEXCOORD0;
 	#ifdef UNITY_MIGHT_NOT_HAVE_DEPTH_TEXTURE
@@ -314,7 +314,7 @@ v2f vert (appdata_full v) {
 }
 uniform sampler2D _MainTex;
 uniform fixed _Cutoff;
-fixed4 frag(v2f i) : COLOR {
+fixed4 frag(v2f i) : SV_Target {
 	fixed4 texcol = tex2D( _MainTex, i.uv );
 	fixed alpha = texcol.a * i.color.a;
 	clip( alpha - _Cutoff );

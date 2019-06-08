@@ -48,13 +48,13 @@ inline float2 GetRotatedTexCoord(float2 offsets, float4 rotation)
 
 float4 unity_ShadowBlurParams;
 #define LOOP_ITERATION(i) { 	\
-	shadowPrecission4 sample = tex2D( _MainTex, coord + radius * GetRotatedTexCoord(_BlurOffsets##i.xy, rotation) ); \
-	shadowPrecission sampleDist = sample.b + sample.a / 255.0; \
+	shadowPrecission4 theSample = tex2D( _MainTex, coord + radius * GetRotatedTexCoord(_BlurOffsets##i.xy, rotation) ); \
+	shadowPrecission sampleDist = theSample.b + theSample.a / 255.0; \
 	shadowPrecission diff = dist - sampleDist; \
 	diff = saturate( diffTolerance - abs(diff) ); \
-	mask.xy += diff * sample.xy; }
+	mask.xy += diff * theSample.xy; }
 
-fixed4 frag (v2f_img i) : COLOR
+fixed4 frag (v2f_img i) : SV_Target
 {
 	float4 coord = float4(i.uv,0,0);
 	const float randomRotationTextureSize = 16.0f;

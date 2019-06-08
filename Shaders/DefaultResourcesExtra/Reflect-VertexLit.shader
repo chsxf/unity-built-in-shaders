@@ -50,7 +50,7 @@ uniform sampler2D _MainTex;
 uniform samplerCUBE _Cube;
 uniform fixed4 _ReflectColor;
 
-fixed4 frag (v2f i) : COLOR
+fixed4 frag (v2f i) : SV_Target
 {
 	fixed4 texcol = tex2D (_MainTex, i.uv);
 	fixed4 reflcol = texCUBE( _Cube, i.I );
@@ -88,7 +88,7 @@ uniform sampler2D _MainTex : register(s0);
 uniform fixed4 _ReflectColor;
 uniform fixed4 _SpecColor;
 
-fixed4 frag (v2f i) : COLOR
+fixed4 frag (v2f i) : SV_Target
 {
 	fixed4 temp = tex2D (_MainTex, i.uv);	
 	fixed4 c;

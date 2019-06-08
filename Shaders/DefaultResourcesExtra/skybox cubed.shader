@@ -25,7 +25,7 @@ SubShader {
 		};
 
 		struct v2f {
-			float4 vertex : POSITION;
+			float4 vertex : SV_POSITION;
 			float3 texcoord : TEXCOORD0;
 		};
 
@@ -37,7 +37,7 @@ SubShader {
 			return o;
 		}
 
-		fixed4 frag (v2f i) : COLOR
+		fixed4 frag (v2f i) : SV_Target
 		{
 			fixed4 tex = texCUBE (_Tex, i.texcoord);
 			fixed4 col;

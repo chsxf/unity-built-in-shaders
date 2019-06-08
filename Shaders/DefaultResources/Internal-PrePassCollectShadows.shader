@@ -35,7 +35,7 @@ v2f vert (appdata v)
 	o.ray = v.normal;
 	return o;
 }
-sampler2D _CameraDepthTexture;
+sampler2D_float _CameraDepthTexture;
 float4 unity_LightmapFade;
 
 CBUFFER_START(UnityPerCamera2)
@@ -75,15 +75,15 @@ inline half unitySampleShadow (float4 wpos, float z)
 	half shadow = UNITY_SAMPLE_SHADOW(_ShadowMapTexture,coord);
 	shadow = lerp(_LightShadowData.r, 1.0, shadow);
 #else
-	half shadow = UNITY_SAMPLE_DEPTH(tex2D (_ShadowMapTexture, coord.xy)) < coord.z ? _LightShadowData.r : 1.0;
+	half shadow = SAMPLE_DEPTH_TEXTURE(_ShadowMapTexture, coord.xy) < coord.z ? _LightShadowData.r : 1.0;
 #endif
 	//shadow = dot(weights, float4(0,0.33,0.66,1)*0.33);
 	return shadow;
 }
 
-fixed4 frag (v2f i) : COLOR
+fixed4 frag (v2f i) : SV_Target
 {
-	float depth = UNITY_SAMPLE_DEPTH(tex2D (_CameraDepthTexture, i.uv));
+	float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv);
 	depth = Linear01Depth (depth);
 	float4 vpos = float4(i.ray * depth,1);
 	float4 wpos = mul (_CameraToWorld, vpos);	

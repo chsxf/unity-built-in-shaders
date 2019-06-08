@@ -32,7 +32,7 @@ Shader "Hidden/Nature/Tree Soft Occlusion Leaves Rendertex" {
 			sampler2D _MainTex;
 			fixed _Cutoff;
 			
-			fixed4 frag(v2f input) : COLOR
+			fixed4 frag(v2f input) : SV_Target
 			{
 				fixed4 col = tex2D( _MainTex, input.uv.xy);
 				col.rgb *= 2.0f * input.color.rgb;

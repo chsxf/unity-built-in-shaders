@@ -72,7 +72,12 @@ uniform float4 _ShadowOffsets[4];
 
 inline fixed unitySampleShadow (float4 shadowCoord)
 {
-	#if defined (SHADOWS_SOFT)
+	// DX11 feature level 9.x shader compiler (d3dcompiler_47 at least)
+	// has a bug where trying to do more than one shadowmap sample fails compilation
+	// with "inconsistent sampler usage". Until that is fixed, just never compile
+	// multi-tap shadow variant on d3d11_9x.
+
+	#if defined (SHADOWS_SOFT) && !defined (SHADER_API_D3D11_9X)
 
 	// 4-tap shadows
 
@@ -86,10 +91,10 @@ inline fixed unitySampleShadow (float4 shadowCoord)
 	shadows = _LightShadowData.rrrr + shadows * (1-_LightShadowData.rrrr);
 	#else
 	float4 shadowVals;
-	shadowVals.x = UNITY_SAMPLE_DEPTH (tex2D( _ShadowMapTexture, coord + _ShadowOffsets[0].xy ));
-	shadowVals.y = UNITY_SAMPLE_DEPTH (tex2D( _ShadowMapTexture, coord + _ShadowOffsets[1].xy ));
-	shadowVals.z = UNITY_SAMPLE_DEPTH (tex2D( _ShadowMapTexture, coord + _ShadowOffsets[2].xy ));
-	shadowVals.w = UNITY_SAMPLE_DEPTH (tex2D( _ShadowMapTexture, coord + _ShadowOffsets[3].xy ));
+	shadowVals.x = SAMPLE_DEPTH_TEXTURE ( _ShadowMapTexture, coord + _ShadowOffsets[0].xy );
+	shadowVals.y = SAMPLE_DEPTH_TEXTURE ( _ShadowMapTexture, coord + _ShadowOffsets[1].xy );
+	shadowVals.z = SAMPLE_DEPTH_TEXTURE ( _ShadowMapTexture, coord + _ShadowOffsets[2].xy );
+	shadowVals.w = SAMPLE_DEPTH_TEXTURE ( _ShadowMapTexture, coord + _ShadowOffsets[3].xy );
 	half4 shadows = (shadowVals < coord.zzzz) ? _LightShadowData.rrrr : 1.0f;
 	#endif
 
@@ -104,7 +109,7 @@ inline fixed unitySampleShadow (float4 shadowCoord)
 	half shadow = UNITY_SAMPLE_SHADOW_PROJ(_ShadowMapTexture, shadowCoord);
 	shadow = _LightShadowData.r + shadow * (1-_LightShadowData.r);
 	#else
-	half shadow = UNITY_SAMPLE_DEPTH(tex2Dproj (_ShadowMapTexture, UNITY_PROJ_COORD(shadowCoord))) < (shadowCoord.z / shadowCoord.w) ? _LightShadowData.r : 1.0;
+	half shadow = SAMPLE_DEPTH_TEXTURE_PROJ(_ShadowMapTexture, UNITY_PROJ_COORD(shadowCoord)) < (shadowCoord.z / shadowCoord.w) ? _LightShadowData.r : 1.0;
 	#endif
 
 	#endif
@@ -167,6 +172,12 @@ inline float unityCubeShadow (float3 vec)
 
 
 // ------------ Light helpers --------
+
+// If none of the keywords are defined, assume directional?
+#if !defined(POINT) && !defined(SPOT) && !defined(DIRECTIONAL) && !defined(POINT_COOKIE) && !defined(DIRECTIONAL_COOKIE)
+#define DIRECTIONAL
+#endif
+
 
 #ifdef POINT
 #define LIGHTING_COORDS(idx1,idx2) float3 _LightCoord : TEXCOORD##idx1; SHADOW_COORDS(idx2)

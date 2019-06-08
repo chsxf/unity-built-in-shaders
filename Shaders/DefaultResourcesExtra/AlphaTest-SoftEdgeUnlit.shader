@@ -39,7 +39,7 @@ SubShader {
 			};
 
 			struct v2f {
-				float4 vertex : POSITION;
+				float4 vertex : SV_POSITION;
 				float4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
 			};
@@ -58,7 +58,7 @@ SubShader {
 			}
 			
 			float4 _Color;
-			half4 frag (v2f i) : COLOR
+			half4 frag (v2f i) : SV_Target
 			{
 				half4 col = _Color * tex2D(_MainTex, i.texcoord);
 				clip(col.a - _Cutoff);
@@ -91,7 +91,7 @@ SubShader {
 			};
 
 			struct v2f {
-				float4 vertex : POSITION;
+				float4 vertex : SV_POSITION;
 				float4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
 			};
@@ -110,7 +110,7 @@ SubShader {
 			}
 			
 			float4 _Color;
-			half4 frag (v2f i) : COLOR
+			half4 frag (v2f i) : SV_Target
 			{
 				half4 col = _Color * tex2D(_MainTex, i.texcoord);
 				clip(-(col.a - _Cutoff));

@@ -6,7 +6,7 @@ Properties {
 	_LeftTex ("Left (+X)", 2D) = "white" {}
 	_RightTex ("Right (-X)", 2D) = "white" {}
 	_UpTex ("Up (+Y)", 2D) = "white" {}
-	_DownTex ("down (-Y)", 2D) = "white" {}
+	_DownTex ("Down (-Y)", 2D) = "white" {}
 }
 
 SubShader {
@@ -23,7 +23,7 @@ SubShader {
 		float2 texcoord : TEXCOORD0;
 	};
 	struct v2f {
-		float4 vertex : POSITION;
+		float4 vertex : SV_POSITION;
 		float2 texcoord : TEXCOORD0;
 	};
 	v2f vert (appdata_t v)
@@ -48,7 +48,7 @@ SubShader {
 		#pragma vertex vert
 		#pragma fragment frag
 		sampler2D _FrontTex;
-		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_FrontTex); }
+		fixed4 frag (v2f i) : SV_Target { return skybox_frag(i,_FrontTex); }
 		ENDCG 
 	}
 	Pass{
@@ -56,7 +56,7 @@ SubShader {
 		#pragma vertex vert
 		#pragma fragment frag
 		sampler2D _BackTex;
-		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_BackTex); }
+		fixed4 frag (v2f i) : SV_Target { return skybox_frag(i,_BackTex); }
 		ENDCG 
 	}
 	Pass{
@@ -64,7 +64,7 @@ SubShader {
 		#pragma vertex vert
 		#pragma fragment frag
 		sampler2D _LeftTex;
-		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_LeftTex); }
+		fixed4 frag (v2f i) : SV_Target { return skybox_frag(i,_LeftTex); }
 		ENDCG
 	}
 	Pass{
@@ -72,7 +72,7 @@ SubShader {
 		#pragma vertex vert
 		#pragma fragment frag
 		sampler2D _RightTex;
-		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_RightTex); }
+		fixed4 frag (v2f i) : SV_Target { return skybox_frag(i,_RightTex); }
 		ENDCG
 	}	
 	Pass{
@@ -80,7 +80,7 @@ SubShader {
 		#pragma vertex vert
 		#pragma fragment frag
 		sampler2D _UpTex;
-		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_UpTex); }
+		fixed4 frag (v2f i) : SV_Target { return skybox_frag(i,_UpTex); }
 		ENDCG
 	}	
 	Pass{
@@ -88,7 +88,7 @@ SubShader {
 		#pragma vertex vert
 		#pragma fragment frag
 		sampler2D _DownTex;
-		fixed4 frag (v2f i) : COLOR { return skybox_frag(i,_DownTex); }
+		fixed4 frag (v2f i) : SV_Target { return skybox_frag(i,_DownTex); }
 		ENDCG
 	}
 }

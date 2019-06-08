@@ -80,7 +80,7 @@ SubShader {
 			return o;
 		}
 
-		fixed4 FragmentLeaf (v2f_leaf IN) : COLOR
+		fixed4 FragmentLeaf (v2f_leaf IN) : SV_Target
 		{
 			fixed4 albedo = tex2D(_MainTex, IN.uv);
 			fixed alpha = albedo.a;
@@ -144,7 +144,7 @@ SubShader {
 		
 		fixed _Cutoff;
 		
-		half4 frag_surf (v2f_surf IN) : COLOR {
+		half4 frag_surf (v2f_surf IN) : SV_Target {
 			fixed alpha = tex2D(_ShadowTex, IN.hip_pack0.xy).r;
 			clip (alpha - _Cutoff);
 			SHADOW_CASTER_FRAGMENT(IN)
@@ -191,7 +191,7 @@ SubShader {
 		uniform sampler2D _MainTex;
 		uniform fixed _Cutoff;
 
-		half4 frag (v2f i) : COLOR
+		half4 frag (v2f i) : SV_Target
 		{
 			fixed4 texcol = tex2D( _MainTex, i.uv );
 			clip( texcol.a - _Cutoff );
