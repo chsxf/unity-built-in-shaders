@@ -61,6 +61,7 @@ Shader "Hidden/Internal-UIRDefault"
         // SM4.5 version
         SubShader
         {
+            Tags { "UIE_ComputeIsAvailable" = "1" }
             Pass
             {
                 CGPROGRAM
