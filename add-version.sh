@@ -27,7 +27,7 @@ REMOTE_BRANCH_COUNT=`git branch -r | grep "origin/${MAJOR_BRANCH}" | wc -l`
 if [ $LOCAL_BRANCH_COUNT -eq 1 ]; then
 	git checkout $MAJOR_BRANCH
 elif [ $REMOTE_BRANCH_COUNT -eq 1 ]; then
-	git checkout "origin/${MAJOR_BRANCH}" 
+	git checkout -b $MAJOR_BRANCH "origin/${MAJOR_BRANCH}" 
 else
 	git checkout -b $MAJOR_BRANCH
 fi
