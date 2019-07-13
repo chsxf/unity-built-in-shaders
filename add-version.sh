@@ -24,6 +24,8 @@ fi
 LOCAL_BRANCH_COUNT=`git branch --list | grep "$MAJOR_BRANCH" | wc -l`
 REMOTE_BRANCH_COUNT=`git branch -r | grep "origin/${MAJOR_BRANCH}" | wc -l`
 
+git fetch --all
+
 if [ $LOCAL_BRANCH_COUNT -eq 1 ]; then
 	git checkout $MAJOR_BRANCH
 elif [ $REMOTE_BRANCH_COUNT -eq 1 ]; then
@@ -31,6 +33,8 @@ elif [ $REMOTE_BRANCH_COUNT -eq 1 ]; then
 else
 	git checkout -b $MAJOR_BRANCH
 fi
+
+git pull
 
 VERSIONS_FILENAME="VERSIONS.md"
 echo "* Version ${VERSION}: ${URL}\n$(cat $VERSIONS_FILENAME)" > $VERSIONS_FILENAME
