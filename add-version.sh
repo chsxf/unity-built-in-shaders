@@ -26,6 +26,9 @@ REMOTE_BRANCH_COUNT=`git branch -r | grep "origin/${MAJOR_BRANCH}" | wc -l`
 
 git fetch --all
 
+git checkout master
+git pull
+
 if [ $LOCAL_BRANCH_COUNT -eq 1 ]; then
 	git checkout $MAJOR_BRANCH
 elif [ $REMOTE_BRANCH_COUNT -eq 1 ]; then
@@ -53,3 +56,5 @@ git commit -m "${COMMIT_MESSAGE}"
 git push --set-upstream origin "${MAJOR_BRANCH}"
 git tag -a "v${VERSION}" -m "${TAG_MESSAGE}"
 git push --tags
+
+git checkout master
