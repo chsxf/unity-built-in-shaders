@@ -22,7 +22,7 @@ Shader "Nature/Terrain/Standard" {
         #pragma exclude_renderers gles
         #include "UnityPBSLighting.cginc"
 
-        #pragma multi_compile __ _NORMALMAP
+        #pragma multi_compile_local __ _NORMALMAP
 
         #define TERRAIN_STANDARD_SHADER
         #define TERRAIN_INSTANCED_PERPIXEL_NORMAL

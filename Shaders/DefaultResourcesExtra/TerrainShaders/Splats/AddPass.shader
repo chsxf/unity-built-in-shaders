@@ -31,7 +31,7 @@ Shader "Hidden/TerrainEngine/Splatmap/Diffuse-AddPass" {
         SubShader { // for sm3.0+ targets
             CGPROGRAM
                 #pragma target 3.0
-                #pragma multi_compile __ _NORMALMAP
+                #pragma multi_compile_local __ _NORMALMAP
             ENDCG
         }
         SubShader { // for sm2.0 targets

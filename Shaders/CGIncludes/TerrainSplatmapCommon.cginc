@@ -3,9 +3,12 @@
 #ifndef TERRAIN_SPLATMAP_COMMON_CGINC_INCLUDED
 #define TERRAIN_SPLATMAP_COMMON_CGINC_INCLUDED
 
-#ifdef _NORMALMAP
-    // Since 2018.3 we changed from _TERRAIN_NORMAL_MAP to _NORMALMAP to save 1 keyword.
+// Since 2018.3 we changed from _TERRAIN_NORMAL_MAP to _NORMALMAP to save 1 keyword.
+// Since 2019.2 terrain keywords are changed to  local keywords so it doesn't really matter. You can use both.
+#if defined(_NORMALMAP) && !defined(_TERRAIN_NORMAL_MAP)
     #define _TERRAIN_NORMAL_MAP
+#elif !defined(_NORMALMAP) && defined(_TERRAIN_NORMAL_MAP)
+    #define _NORMALMAP
 #endif
 
 struct Input

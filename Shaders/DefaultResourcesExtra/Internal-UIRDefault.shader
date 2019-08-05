@@ -73,7 +73,21 @@ Shader "Hidden/Internal-UIRDefault"
             }
         }
 
-        // SM2 version
+        // SM3.5 version
+        SubShader
+        {
+            Pass
+            {
+                CGPROGRAM
+                #pragma target 3.5
+                #pragma vertex vert
+                #pragma fragment frag
+                #include "UnityUIE.cginc"
+                ENDCG
+            }
+        }
+
+        // SM2.0 version
         SubShader
         {
             Pass

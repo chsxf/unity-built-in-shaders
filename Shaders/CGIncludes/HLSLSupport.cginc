@@ -12,13 +12,11 @@
     // Neither of these compilers are "Cg", but we used to use Cg in the past for this; keep the macro
     // name intact in case some user-written shaders depend on it being that.
     #define UNITY_COMPILER_CG
-#elif defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || (defined(UNITY_PREFER_HLSLCC) && defined(SHADER_API_GLES))
+#elif defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_GLES)
     #define UNITY_COMPILER_HLSL
     #define UNITY_COMPILER_HLSLCC
 #elif defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE)
     #define UNITY_COMPILER_HLSL
-#elif defined(SHADER_TARGET_GLSL)
-    #define UNITY_COMPILER_HLSL2GLSL
 #else
     #define UNITY_COMPILER_CG
 #endif
@@ -27,7 +25,7 @@
     #define UNITY_STEREO_MULTIVIEW_ENABLED
 #endif
 
-#if (defined(SHADER_API_D3D11) || defined(SHADER_API_PSSL) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3)) && defined(STEREO_INSTANCING_ON)
+#if (defined(SHADER_API_D3D11) || defined(SHADER_API_PSSL) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN)) && defined(STEREO_INSTANCING_ON)
     #define UNITY_STEREO_INSTANCING_ENABLED
 #endif
 
@@ -148,7 +146,7 @@
 
 // Define "fixed" precision to be half on non-GLSL platforms,
 // and sampler*_prec to be just simple samplers.
-#if !defined(SHADER_TARGET_GLSL) && !(defined(SHADER_API_GLES) && defined(UNITY_COMPILER_HLSLCC)) && !defined(SHADER_API_PSSL) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_SWITCH)
+#if !defined(SHADER_API_GLES) && !defined(SHADER_API_PSSL) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_SWITCH)
 #define fixed half
 #define fixed2 half2
 #define fixed3 half3
@@ -176,7 +174,7 @@
 #define Texture3D_half Texture3D
 #endif
 
-#if (defined(SHADER_API_GLES) && defined(UNITY_COMPILER_HLSLCC)) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL)) || defined(SHADER_API_SWITCH)
+#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL)) || defined(SHADER_API_SWITCH)
 // with HLSLcc, use DX11.1 partial precision for translation
 // we specifically define fixed to be float16 (same as half) as all new GPUs seems to agree on float16 being minimal precision float
 #define fixed min16float
@@ -216,7 +214,7 @@
 // This allows people to use min16float and friends in their shader code if they
 // really want to (making that will make shaders not load before DX11.1, e.g. on Win7,
 // but if they target WSA/WP exclusively that's fine).
-#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !(defined(SHADER_API_GLES) && defined(UNITY_COMPILER_HLSLCC)) && !defined(SHADER_API_SWITCH)
+#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_GLES) && !defined(SHADER_API_SWITCH)
 #define min16float half
 #define min16float2 half2
 #define min16float3 half3
@@ -227,7 +225,7 @@
 #define min10float4 fixed4
 #endif
 
-#if (defined(SHADER_API_GLES) && defined(UNITY_COMPILER_HLSLCC))
+#if defined(SHADER_API_GLES)
 #define uint int
 #define uint1 int1
 #define uint2 int2
@@ -357,13 +355,6 @@
     #else
        #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xyz,(coord).w)
     #endif
-#elif defined(UNITY_COMPILER_HLSL2GLSL) && defined(SHADOWS_NATIVE)
-    // OpenGL-like hlsl2glsl platforms: most of them always have built-in PCF
-    #define UNITY_DECLARE_SHADOWMAP(tex) sampler2DShadow tex
-    #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) samplerCUBEShadow tex
-    #define UNITY_SAMPLE_SHADOW(tex,coord) shadow2D (tex,(coord).xyz)
-    #define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) shadow2Dproj (tex,coord)
-    #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) ((texCUBE(tex,(coord).xyz) < (coord).w) ? 0.0 : 1.0)
 #elif defined(SHADER_API_PSSL)
     // PS4: built-in PCF
     #define UNITY_DECLARE_SHADOWMAP(tex)        Texture2D tex; SamplerComparisonState sampler##tex
@@ -512,8 +503,8 @@
     #define UNITY_SAMPLE_TEX3D_SAMPLER(tex,samplertex,coord) tex3D (tex,coord)
     #define UNITY_SAMPLE_TEX3D_SAMPLER_LOD(tex,samplertex,coord,lod) tex3D (tex,float4(coord,lod))
 
-    // 2D array syntax for hlsl2glsl and surface shader analysis
-    #if defined(UNITY_COMPILER_HLSL2GLSL) || defined(SHADER_TARGET_SURFACE_ANALYSIS)
+    // 2D array syntax for surface shader analysis
+    #if defined(SHADER_TARGET_SURFACE_ANALYSIS)
         #define UNITY_DECLARE_TEX2DARRAY(tex) sampler2DArray tex
         #define UNITY_DECLARE_TEX2DARRAY_NOSAMPLER(tex) sampler2DArray tex
         #define UNITY_ARGS_TEX2DARRAY(tex) sampler2DArray tex
@@ -561,7 +552,7 @@
 
 
 
-#if defined(UNITY_COMPILER_HLSL) || defined (SHADER_TARGET_GLSL)
+#if defined(UNITY_COMPILER_HLSL)
 #define FOGC FOG
 #endif
 
@@ -570,9 +561,6 @@
 // Back when D3D9 existed UNITY_VFACE_AFFECTED_BY_PROJECTION macro used to be defined there too.
 #if defined(UNITY_COMPILER_CG)
 #define VFACE FACE
-#endif
-#if defined(UNITY_COMPILER_HLSL2GLSL)
-#define FACE VFACE
 #endif
 #if defined(SHADER_API_PSSL)
 #define VFACE S_FRONT_FACE
@@ -624,7 +612,6 @@
 
 // Initialize arbitrary structure with zero values.
 // Not supported on some backends (e.g. Cg-based particularly with nested structs).
-// hlsl2glsl would almost support it, except with structs that have arrays -- so treat as not supported there either :(
 #if defined(UNITY_COMPILER_HLSL) || defined(SHADER_API_PSSL) || defined(UNITY_COMPILER_HLSLCC)
 #define UNITY_INITIALIZE_OUTPUT(type,name) name = (type)0;
 #else

@@ -34,7 +34,7 @@ Shader "Nature/Terrain/Diffuse" {
         SubShader { // for sm3.0+ targets
             CGPROGRAM
                 #pragma target 3.0
-                #pragma multi_compile __ _NORMALMAP
+                #pragma multi_compile_local __ _NORMALMAP
             ENDCG
 
             UsePass "Hidden/Nature/Terrain/Utilities/PICKING"

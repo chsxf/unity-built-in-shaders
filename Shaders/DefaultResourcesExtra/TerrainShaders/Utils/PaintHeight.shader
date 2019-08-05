@@ -21,6 +21,7 @@
             float4 _BrushParams;
             #define BRUSH_STRENGTH      (_BrushParams[0])
             #define BRUSH_TARGETHEIGHT  (_BrushParams[1])
+            #define kMaxHeight          (32766.0f/65535.0f)
 
             struct appdata_t {
                 float4 vertex : POSITION;
@@ -77,7 +78,7 @@
                 float height = UnpackHeightmap(tex2D(_MainTex, heightmapUV));
                 float brushShape = oob * UnpackHeightmap(tex2D(_BrushTex, brushUV));
 
-                return PackHeightmap(clamp(height + BRUSH_STRENGTH * brushShape, 0, 0.5f));
+                return PackHeightmap(clamp(height + BRUSH_STRENGTH * brushShape, 0, kMaxHeight));
             }
             ENDCG
         }
@@ -124,7 +125,7 @@
                 {
                     targetHeight = max(height, brushHeight);
                 }
-                targetHeight = clamp(targetHeight, 0.0f, 0.5f);          // Keep in valid range (0..0.5f)
+                targetHeight = clamp(targetHeight, 0.0f, kMaxHeight);          // Keep in valid range (0..kMaxHeight)
 
                 height = lerp(height, targetHeight, BRUSH_OPACITY);
                 return PackHeightmap(height);
