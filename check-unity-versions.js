@@ -60,9 +60,12 @@ function dumpBranches() {
 	if (updateCount == 0) {
 		process.stdout.write("\nNo branch to update\n");
 	}
-	else if (applyUpdate) {
-		currentBranchIndex = -1;
-		addNextMissingBranch();
+	else {
+		process.stdout.write(`\n${updateCount} branch(es) to update\n`);
+		if (applyUpdate) {
+			currentBranchIndex = -1;
+			addNextMissingBranch();
+		}
 	}
 }
 
@@ -73,7 +76,7 @@ function addNextMissingBranch() {
 		let branchValues = branches[branch];
 		if (!branchValues.isPresent) {
 			let version = `${branch}.${branchValues.maxVersion}`;
-			process.stdout.write("\n\n");
+			process.stdout.write("\n");
 			process.stdout.write('--------------------------------------------------\n');
 			process.stdout.write(`Updating version '${version}'...\n`);
 			process.stdout.write(` -> URL: ${branchValues.url}\n`);
