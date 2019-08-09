@@ -1,5 +1,6 @@
 
 # Unity Built-in Shaders
+
 This repository contains built-in shader code for all release of Unity back to Unity 3.
 It is useful to compare changes between versions and keep up to date versions of Unity's own shaders (you do not need to download the code from Unity's website anymore!)
 
@@ -19,6 +20,19 @@ You can access shader code through:
 Master will always be synced with the latest main stream release. 
 
 Please note that LTS releases are never merged with master.
+
+# Automatic Updater
+
+Run `node check-unity-version.js` to update the repository automatically with the new versions.
+
+## Exception
+
+* `master` must be merged manually with the main-stream branch
+
+## Requirements
+
+* **Node.js version v10.x or later** (should probably work with earlier versions, but has not been tested)
+* **bash** in order to execute `add-version.sh` script
 
 # License
 

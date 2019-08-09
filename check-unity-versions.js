@@ -2,6 +2,14 @@
 var http = require('https');
 const { spawn } = require('child_process');
 
+var applyUpdate = (process.argv.length > 2 && process.argv[2] == '--update');
+if (applyUpdate) {
+	process.stdout.write("Run and apply updates...\n\n");
+}
+else {
+	process.stdout.write('Dry-run...\n\n');
+}
+
 var branches = {};
 
 var branchKeys = [];
@@ -39,16 +47,23 @@ function parseNextBranch() {
 }
 
 function dumpBranches() {
+	let updateCount = 0;
 	for (let mainBranch in branches) {
 		let msg = `${mainBranch}:\t${mainBranch}.${branches[mainBranch].maxVersion}\n`;
 		if (!branches[mainBranch].isPresent) {
+			updateCount++;
 			msg += '\t-> Branch not present\n';
 		}
 		process.stdout.write(msg);
 	}
 
-	currentBranchIndex = -1;
-	addNextMissingBranch();
+	if (updateCount == 0) {
+		process.stdout.write("\nNo branch to update\n");
+	}
+	else if (applyUpdate) {
+		currentBranchIndex = -1;
+		addNextMissingBranch();
+	}
 }
 
 function addNextMissingBranch() {
@@ -59,8 +74,10 @@ function addNextMissingBranch() {
 		if (!branchValues.isPresent) {
 			let version = `${branch}.${branchValues.maxVersion}`;
 			process.stdout.write("\n\n");
+			process.stdout.write('--------------------------------------------------\n');
 			process.stdout.write(`Updating version '${version}'...\n`);
 			process.stdout.write(` -> URL: ${branchValues.url}\n`);
+			process.stdout.write('--------------------------------------------------\n');
 
 			let options = { cwd: process.cwd() };
 			let addVersionProcess = spawn(`${__dirname}/add-version.sh`, [ branchValues.url ], options);
