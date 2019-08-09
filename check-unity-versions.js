@@ -64,6 +64,7 @@ function dumpBranches() {
 		process.stdout.write(`\n${updateCount} branch(es) to update\n`);
 		if (applyUpdate) {
 			currentBranchIndex = -1;
+			branchKeys = branchKeys.reverse();
 			addNextMissingBranch();
 		}
 	}
