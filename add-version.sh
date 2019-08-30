@@ -41,6 +41,8 @@ git pull
 
 VERSIONS_FILENAME="VERSIONS.md"
 echo "* Version ${VERSION}: ${URL}\n$(cat $VERSIONS_FILENAME)" > $VERSIONS_FILENAME
+SORTED_VERSIONS="$(sort -V -r $VERSIONS_FILENAME)"
+echo "${SORTED_VERSIONS}" > $VERSIONS_FILENAME
 
 rm -Rf Shaders
 
@@ -58,3 +60,12 @@ git tag -a "v${VERSION}" -m "${TAG_MESSAGE}"
 git push --tags
 
 git checkout master
+
+VERSIONS_FILENAME="VERSIONS.md"
+echo "* Version ${VERSION}: ${URL}\n$(cat $VERSIONS_FILENAME)" > $VERSIONS_FILENAME
+SORTED_VERSIONS="$(sort -V -r $VERSIONS_FILENAME)"
+echo "${SORTED_VERSIONS}" > $VERSIONS_FILENAME
+
+git add --all
+git commit -m "Updated ${VERSIONS_FILENAME}"
+git push
