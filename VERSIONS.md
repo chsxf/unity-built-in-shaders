@@ -1,3 +1,4 @@
+* Version 2017.4.34f1: https://download.unity3d.com/download_unity/121f18246307/builtin_shaders-2017.4.34f1.zip
 * Version 2017.4.33f1: https://download.unity3d.com/download_unity/a8557a619e24/builtin_shaders-2017.4.33f1.zip
 * Version 2017.4.32f1: https://download.unity3d.com/download_unity/4da3ed968770/builtin_shaders-2017.4.32f1.zip
 * Version 2017.4.31f1: https://download.unity3d.com/download_unity/9c8dbc3421cb/builtin_shaders-2017.4.31f1.zip
