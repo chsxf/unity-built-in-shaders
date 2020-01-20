@@ -1,3 +1,4 @@
+* Version 2019.2.18f1: https://netstorage.unity3d.com/unity/bbf64de26e34/builtin_shaders-2019.2.18f1.zip
 * Version 2019.2.17f1: https://netstorage.unity3d.com/unity/8e603399ca02/builtin_shaders-2019.2.17f1.zip
 * Version 2019.2.16f1: https://netstorage.unity3d.com/unity/b9898e2d04a4/builtin_shaders-2019.2.16f1.zip
 * Version 2019.2.15f1: https://netstorage.unity3d.com/unity/dcb72c2e9334/builtin_shaders-2019.2.15f1.zip
