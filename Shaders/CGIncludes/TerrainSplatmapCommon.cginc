@@ -41,6 +41,16 @@ UNITY_INSTANCING_BUFFER_END(Terrain)
     float _NormalScale0, _NormalScale1, _NormalScale2, _NormalScale3;
 #endif
 
+#ifdef _ALPHATEST_ON
+    sampler2D _TerrainHolesTexture;
+
+    void ClipHoles(float2 uv)
+    {
+        float hole = tex2D(_TerrainHolesTexture, uv).r;
+        clip(hole == 0.0f ? -1 : 1);
+    }
+#endif
+
 #if defined(TERRAIN_BASE_PASS) && defined(UNITY_PASS_META)
     // When we render albedo for GI baking, we actually need to take the ST
     float4 _MainTex_ST;
@@ -99,6 +109,10 @@ void SplatmapMix(Input IN, half4 defaultAlpha, out half4 splat_control, out half
 void SplatmapMix(Input IN, out half4 splat_control, out half weight, out fixed4 mixedDiffuse, inout fixed3 mixedNormal)
 #endif
 {
+    #ifdef _ALPHATEST_ON
+        ClipHoles(IN.tc.xy);
+    #endif
+
     // adjust splatUVs so the edges of the terrain tile lie on pixel centers
     float2 splatUV = (IN.tc.xy * (_Control_TexelSize.zw - 1.0f) + 0.5f) * _Control_TexelSize.xy;
     splat_control = tex2D(_Control, splatUV);
