@@ -110,19 +110,21 @@ function parsePage(_pageContent) {
 		let mainBranch = versionChunks[0] + '.' + versionChunks[1];
 		let subBranch = parseInt(versionChunks[2]);
 
+		let hasNoBranch = false;
 		if (!branches[mainBranch]) {
 			branches[mainBranch] = { maxVersion: 0 };
+			hasNoBranch = true;
 		}
 
 		let currentMaxSubBranch = branches[mainBranch].maxVersion;
-		if (currentMaxSubBranch < subBranch) {
+		if (currentMaxSubBranch < subBranch || hasNoBranch) {
 			branches[mainBranch] = { maxVersion: Math.max(currentMaxSubBranch, subBranch) };
 
 			urlRegex.lastIndex = versionRegex.lastIndex;
 			result = urlRegex.exec(_pageContent);
 			if (result !== null) {
 				branches[mainBranch].url = result[1];
-			}	
+			}
 		}
 
 		parsePage(_pageContent);
