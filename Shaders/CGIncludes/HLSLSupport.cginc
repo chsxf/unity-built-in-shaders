@@ -99,26 +99,6 @@
 #       define SV_Target3 COLOR3
 #   endif
 #endif
-#if !defined(SV_Target4)
-#   if defined(SHADER_API_PSSL)
-#       define SV_Target4 S_TARGET_OUTPUT4
-#   endif
-#endif
-#if !defined(SV_Target5)
-#   if defined(SHADER_API_PSSL)
-#       define SV_Target5 S_TARGET_OUTPUT5
-#   endif
-#endif
-#if !defined(SV_Target6)
-#   if defined(SHADER_API_PSSL)
-#       define SV_Target6 S_TARGET_OUTPUT6
-#   endif
-#endif
-#if !defined(SV_Target7)
-#   if defined(SHADER_API_PSSL)
-#       define SV_Target7 S_TARGET_OUTPUT7
-#   endif
-#endif
 #if !defined(SV_Depth)
 #   if !defined(SHADER_API_XBOXONE)
 #       define SV_Depth DEPTH
@@ -268,14 +248,7 @@
 #define SAMPLER_UNIFORM
 #endif
 
-#if defined(SHADER_API_PSSL)
-// variable modifiers
-#define nointerpolation nointerp
-#define noperspective nopersp
-
-#define CBUFFER_START(name) ConstantBuffer name {
-#define CBUFFER_END };
-#elif defined(SHADER_API_D3D11)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_PSSL)
 #define CBUFFER_START(name) cbuffer name {
 #define CBUFFER_END };
 #else
@@ -542,7 +515,7 @@
 #define texRECTproj tex2Dproj
 
 #if defined(SHADER_API_PSSL)
-#define VPOS            S_POSITION
+#define VPOS            SV_Position
 #elif defined(UNITY_COMPILER_CG)
 // Cg seems to use WPOS instead of VPOS semantic?
 #define VPOS WPOS
@@ -573,7 +546,7 @@
 #define FACE VFACE
 #endif
 #if defined(SHADER_API_PSSL)
-#define VFACE S_FRONT_FACE
+#define VFACE SV_IsFrontFace
 #endif
 
 
