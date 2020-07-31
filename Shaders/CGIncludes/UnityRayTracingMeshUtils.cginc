@@ -27,20 +27,23 @@
 // v2 = FetchVertex(triangleIndices.z);
 // Interpolate the vertices using the barycentric coordinates available as input to the closesthit or anyhit shaders.
 
-#define MAX_VERTEX_STREAM_COUNT 4
+#define kMaxVertexStreams 8
 
-uint unity_MeshIndexSize_RT;                                         // 0 when an index buffer is not used, 2 for 16-bit indices or 4 for 32-bit indices.
-uint unity_MeshVertexSize_RT/*[MAX_VERTEX_STREAM_COUNT]*/;           // The stride between 2 consecutive vertices in the vertex buffer. Only one vertex stream is supported at this moment.
-uint unity_MeshBaseVertex_RT;                                        // A value added to each index before reading a vertex from the vertex buffer.
-uint unity_MeshIndexStart_RT;                                        // The location of the first index to read from the index buffer.
-uint unity_MeshStartVertex_RT;                                       // Index of the first vertex - used when an index buffer is not used.
+struct MeshInfo
+{
+    uint vertexSize[kMaxVertexStreams];                 // The stride between 2 consecutive vertices in the vertex buffer. There is an entry for each vertex stream.
+    uint baseVertex;                                    // A value added to each index before reading a vertex from the vertex buffer.
+    uint vertexStart;
+    uint indexSize;                                     // 0 when an index buffer is not used, 2 for 16-bit indices or 4 for 32-bit indices.
+    uint indexStart;                                    // The location of the first index to read from the index buffer.
+};
 
 struct VertexAttributeInfo
 {
-    uint InputSlot;         // Not supported. Always assumed to be 0.
-    uint Format;
-    uint ByteOffset;
-    uint Dimension;
+    uint Stream;                                        // The stream index used to fetch the vertex attribute. There can be up to kMaxVertexStreams streams.
+    uint Format;                                        // One of the kVertexFormat* values from bellow.
+    uint ByteOffset;                                    // The attribute offset in bytes into the vertex structure.
+    uint Dimension;                                     // The dimension (#channels) of the vertex attribute.
 };
 
 // Valid values for the attributeType parameter in UnityRayTracingFetchVertexAttribute* functions.
@@ -60,8 +63,8 @@ struct VertexAttributeInfo
 // Supported
 #define kVertexFormatFloat          0
 #define kVertexFormatFloat16        1
-// Not supported
 #define kVertexFormatUNorm8         2
+// Not supported
 #define kVertexFormatSNorm8         3
 #define kVertexFormatUNorm16        4
 #define kVertexFormatSNorm16        5
@@ -72,18 +75,21 @@ struct VertexAttributeInfo
 #define kVertexFormatUInt32         10
 #define kVertexFormatSInt32         11
 
-StructuredBuffer<VertexAttributeInfo> unity_MeshVertexDeclaration_RT;
+StructuredBuffer<MeshInfo>              unity_MeshInfo_RT;
+StructuredBuffer<VertexAttributeInfo>   unity_MeshVertexDeclaration_RT;
 
-ByteAddressBuffer unity_MeshVertexBuffer_RT/*[MAX_VERTEX_STREAM_COUNT]*/;    // Only one vertex stream is supported at this moment.
+ByteAddressBuffer unity_MeshVertexBuffers_RT[kMaxVertexStreams];
 ByteAddressBuffer unity_MeshIndexBuffer_RT;
 
 uint3 UnityRayTracingFetchTriangleIndices(uint primitiveIndex)
 {
     uint3 indices;
 
-    if (unity_MeshIndexSize_RT == 2)
+    MeshInfo meshInfo = unity_MeshInfo_RT[0];
+
+    if (meshInfo.indexSize == 2)
     {
-        const uint offsetInBytes = (unity_MeshIndexStart_RT + primitiveIndex * 3) << 1;
+        const uint offsetInBytes = (meshInfo.indexStart + primitiveIndex * 3) << 1;
         const uint dwordAlignedOffset = offsetInBytes & ~3;
         const uint2 fourIndices = unity_MeshIndexBuffer_RT.Load2(dwordAlignedOffset);
 
@@ -100,16 +106,16 @@ uint3 UnityRayTracingFetchTriangleIndices(uint primitiveIndex)
             indices.z = (fourIndices.y >> 16) & 0xffff;
         }
 
-        indices = indices + unity_MeshBaseVertex_RT.xxx;
+        indices = indices + meshInfo.baseVertex.xxx;
     }
-    else if (unity_MeshIndexSize_RT == 4)
+    else if (meshInfo.indexSize == 4)
     {
-        const uint offsetInBytes = (unity_MeshIndexStart_RT + primitiveIndex * 3) << 2;
-        indices = unity_MeshIndexBuffer_RT.Load3(offsetInBytes) + unity_MeshBaseVertex_RT.xxx;
+        const uint offsetInBytes = (meshInfo.indexStart + primitiveIndex * 3) << 2;
+        indices = unity_MeshIndexBuffer_RT.Load3(offsetInBytes) + meshInfo.baseVertex.xxx;
     }
-    else // unity_RayTracingMeshIndexSize == 0
+    else // meshInfo.indexSize == 0
     {
-        const uint firstVertexIndex = primitiveIndex * 3 + unity_MeshStartVertex_RT;
+        const uint firstVertexIndex = primitiveIndex * 3 + meshInfo.vertexStart;
         indices = firstVertexIndex.xxx + uint3(0, 1, 2);
     }
 
@@ -121,23 +127,26 @@ uint3 UnityRayTracingFetchTriangleIndices(uint primitiveIndex)
 // attributeType is one of the kVertexAttribute* defines
 float2 UnityRayTracingFetchVertexAttribute2(uint vertexIndex, uint attributeType)
 {
-    const uint attributeByteOffset  = unity_MeshVertexDeclaration_RT[attributeType].ByteOffset;
-    const uint attributeDimension   = unity_MeshVertexDeclaration_RT[attributeType].Dimension;
+    VertexAttributeInfo vertexDecl = unity_MeshVertexDeclaration_RT[attributeType];
+
+    const uint attributeByteOffset  = vertexDecl.ByteOffset;
+    const uint attributeDimension   = vertexDecl.Dimension;
 
     if (attributeByteOffset == INVALID_VERTEX_ATTRIBUTE_OFFSET || attributeDimension < 2)
         return float2(0, 0);
 
-    const uint vertexAddress    = vertexIndex * unity_MeshVertexSize_RT;
+    const uint vertexSize       = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
+    const uint vertexAddress    = vertexIndex * vertexSize;
     const uint attributeAddress = vertexAddress + attributeByteOffset;
-    const uint attributeFormat  = unity_MeshVertexDeclaration_RT[attributeType].Format;
+    const uint attributeFormat  = vertexDecl.Format;
 
     if (attributeFormat == kVertexFormatFloat)
     {
-        return asfloat(unity_MeshVertexBuffer_RT.Load2(attributeAddress));
+        return asfloat(unity_MeshVertexBuffers_RT[vertexDecl.Stream].Load2(attributeAddress));
     }
     else if (attributeFormat == kVertexFormatFloat16)
     {
-        const uint twoHalfs = unity_MeshVertexBuffer_RT.Load(attributeAddress);
+        const uint twoHalfs = unity_MeshVertexBuffers_RT[vertexDecl.Stream].Load(attributeAddress);
         return float2(f16tof32(twoHalfs), f16tof32(twoHalfs >> 16));
     }
     else
@@ -148,24 +157,32 @@ float2 UnityRayTracingFetchVertexAttribute2(uint vertexIndex, uint attributeType
 // attributeType is one of the kVertexAttribute* defines
 float3 UnityRayTracingFetchVertexAttribute3(uint vertexIndex, uint attributeType)
 {
-    const uint attributeByteOffset  = unity_MeshVertexDeclaration_RT[attributeType].ByteOffset;
-    const uint attributeDimension   = unity_MeshVertexDeclaration_RT[attributeType].Dimension;
+    VertexAttributeInfo vertexDecl = unity_MeshVertexDeclaration_RT[attributeType];
+
+    const uint attributeByteOffset = vertexDecl.ByteOffset;
+    const uint attributeDimension = vertexDecl.Dimension;
 
     if (attributeByteOffset == INVALID_VERTEX_ATTRIBUTE_OFFSET || attributeDimension < 3)
         return float3(0, 0, 0);
 
-    const uint vertexAddress    = vertexIndex * unity_MeshVertexSize_RT;
+    const uint vertexSize       = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
+    const uint vertexAddress    = vertexIndex * vertexSize;
     const uint attributeAddress = vertexAddress + attributeByteOffset;
-    const uint attributeFormat  = unity_MeshVertexDeclaration_RT[attributeType].Format;
+    const uint attributeFormat  = vertexDecl.Format;
 
     if (attributeFormat == kVertexFormatFloat)
     {
-        return asfloat(unity_MeshVertexBuffer_RT.Load3(attributeAddress));
+        return asfloat(unity_MeshVertexBuffers_RT[vertexDecl.Stream].Load3(attributeAddress));
     }
     else if (attributeFormat == kVertexFormatFloat16)
     {
-        const uint2 fourHalfs = unity_MeshVertexBuffer_RT.Load2(attributeAddress);
+        const uint2 fourHalfs = unity_MeshVertexBuffers_RT[vertexDecl.Stream].Load2(attributeAddress);
         return float3(f16tof32(fourHalfs.x), f16tof32(fourHalfs.x >> 16), f16tof32(fourHalfs.y));
+    }
+    else if (attributeFormat == kVertexFormatUNorm8)
+    {
+        const uint value = unity_MeshVertexBuffers_RT[vertexDecl.Stream].Load(attributeAddress);
+        return float3(value & 0xff, (value & 0xff00) >> 8, (value & 0xff0000) >> 16) / 255.0f;
     }
     else
         // Vertex attribute format not supported.
@@ -175,24 +192,32 @@ float3 UnityRayTracingFetchVertexAttribute3(uint vertexIndex, uint attributeType
 // attributeType is one of the kVertexAttribute* defines
 float4 UnityRayTracingFetchVertexAttribute4(uint vertexIndex, uint attributeType)
 {
-    const uint attributeByteOffset  = unity_MeshVertexDeclaration_RT[attributeType].ByteOffset;
-    const uint attributeDimension   = unity_MeshVertexDeclaration_RT[attributeType].Dimension;
+    VertexAttributeInfo vertexDecl = unity_MeshVertexDeclaration_RT[attributeType];
+
+    const uint attributeByteOffset = vertexDecl.ByteOffset;
+    const uint attributeDimension = vertexDecl.Dimension;
 
     if (attributeByteOffset == INVALID_VERTEX_ATTRIBUTE_OFFSET || attributeDimension < 4)
         return float4(0, 0, 0, 0);
 
-    const uint vertexAddress    = vertexIndex * unity_MeshVertexSize_RT;
+    const uint vertexSize       = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
+    const uint vertexAddress    = vertexIndex * vertexSize;
     const uint attributeAddress = vertexAddress + attributeByteOffset;
-    const uint attributeFormat  = unity_MeshVertexDeclaration_RT[attributeType].Format;
+    const uint attributeFormat  = vertexDecl.Format;
 
     if (attributeFormat == kVertexFormatFloat)
     {
-        return asfloat(unity_MeshVertexBuffer_RT.Load4(attributeAddress));
+        return asfloat(unity_MeshVertexBuffers_RT[vertexDecl.Stream].Load4(attributeAddress));
     }
     else if (attributeFormat == kVertexFormatFloat16)
     {
-        const uint2 fourHalfs = unity_MeshVertexBuffer_RT.Load2(attributeAddress);
+        const uint2 fourHalfs = unity_MeshVertexBuffers_RT[vertexDecl.Stream].Load2(attributeAddress);
         return float4(f16tof32(fourHalfs.x), f16tof32(fourHalfs.x >> 16), f16tof32(fourHalfs.y), f16tof32(fourHalfs.y >> 16));
+    }
+    else if (attributeFormat == kVertexFormatUNorm8)
+    {
+        const uint value = unity_MeshVertexBuffers_RT[vertexDecl.Stream].Load(attributeAddress);
+        return float4(value & 0xff, (value & 0xff00) >> 8, (value & 0xff0000) >> 16, (value & 0xff000000) >> 24) / 255.0f;
     }
     else
         // Vertex attribute format not supported.

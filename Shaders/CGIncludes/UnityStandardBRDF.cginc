@@ -343,7 +343,7 @@ half4 BRDF2_Unity_PBS (half3 diffColor, half3 specColor, half oneMinusReflectivi
     // GGX Distribution multiplied by combined approximation of Visibility and Fresnel
     // See "Optimizing PBR for Mobile" from Siggraph 2015 moving mobile graphics course
     // https://community.arm.com/events/1155
-    half a = roughness;
+    float a = roughness;
     float a2 = a*a;
 
     float d = nh * nh * (a2 - 1.f) + 1.00001f;
