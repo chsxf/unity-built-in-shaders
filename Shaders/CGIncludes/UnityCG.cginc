@@ -452,9 +452,9 @@ struct v2f_vertex_lit {
     fixed4 spec : COLOR1;
 };
 
-inline fixed4 VertexLight( v2f_vertex_lit i, sampler2D mainTex )
+inline fixed4 VertexLight(v2f_vertex_lit i, sampler2D mainTex)
 {
-    fixed4 texcol = tex2D( mainTex, i.uv );
+    fixed4 texcol = tex2D(mainTex, i.uv);
     fixed4 c;
     c.xyz = ( texcol.xyz * i.diff.xyz + i.spec.xyz * texcol.a );
     c.w = texcol.w * i.diff.w;
@@ -576,7 +576,7 @@ inline half3 DecodeRealtimeLightmap( fixed4 color )
 #endif
 }
 
-inline half3 DecodeDirectionalLightmap (half3 color, fixed4 dirTex, half3 normalWorld)
+inline half3 DecodeDirectionalLightmap(half3 color, fixed4 dirTex, half3 normalWorld)
 {
     // In directional (non-specular) mode Enlighten bakes dominant light direction
     // in a way, that using it for half Lambert and then dividing by a "rebalancing coefficient"

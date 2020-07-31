@@ -234,6 +234,7 @@
     #define UNITY_INSTANCING_BUFFER_END(arr)        } arr##Array[UNITY_INSTANCED_ARRAY_SIZE]; UNITY_INSTANCING_CBUFFER_SCOPE_END
     #define UNITY_DEFINE_INSTANCED_PROP(type, var)  type var;
     #define UNITY_ACCESS_INSTANCED_PROP(arr, var)   arr##Array[unity_InstanceID].var
+    #define UNITY_ACCESS_MERGED_INSTANCED_PROP(arr, var)   arr[unity_InstanceID].var
 
     // Put worldToObject array to a separate CB if UNITY_ASSUME_UNIFORM_SCALING is defined. Most of the time it will not be used.
     #ifdef UNITY_ASSUME_UNIFORM_SCALING
@@ -335,8 +336,9 @@
 
     #ifndef UNITY_DONT_INSTANCE_OBJECT_MATRICES
         #define unity_ObjectToWorld     UNITY_ACCESS_INSTANCED_PROP(unity_Builtins0, unity_ObjectToWorldArray)
-        #define MERGE_UNITY_BUILTINS_INDEX(X) unity_Builtins##X
-        #define unity_WorldToObject     UNITY_ACCESS_INSTANCED_PROP(MERGE_UNITY_BUILTINS_INDEX(UNITY_WORLDTOOBJECTARRAY_CB), unity_WorldToObjectArray)
+        #define MERGE_UNITY_BUILTINS_INDEX(X) unity_Builtins##X##Array
+        #define CALL_MERGE(X) MERGE_UNITY_BUILTINS_INDEX(X)
+        #define unity_WorldToObject     UNITY_ACCESS_MERGED_INSTANCED_PROP(CALL_MERGE(UNITY_WORLDTOOBJECTARRAY_CB), unity_WorldToObjectArray)
 
         inline float4 UnityObjectToClipPosInstanced(in float3 pos)
         {

@@ -75,7 +75,7 @@ sampler2D _ShaderInfoTex;
 float4 _ShaderInfoTex_TexelSize;
 
 float4 _1PixelClipInvView; // xy in clip space, zw inverse in view space
-float4 _PixelClipRect; // In framebuffer space
+float4 _ScreenClipRect; // In clip space
 
 #if !UIE_SHADER_INFO_IN_VS
 
@@ -103,20 +103,20 @@ struct appdata_t
 
 struct v2f
 {
-    float4 vertex   : SV_POSITION;
     UIE_V2F_COLOR_T color : COLOR;
     float4 uvXY  : TEXCOORD0; // UV and ZW holds XY position in points
-    nointerpolation fixed4 flags : TEXCOORD1;
-    nointerpolation fixed3 svgFlags : TEXCOORD2;
-    nointerpolation fixed4 clipRectOpacityUVs : TEXCOORD3;
+    fixed4 flags : TEXCOORD1;
+    fixed3 svgFlags : TEXCOORD2;
+    fixed4 clipRectOpacityUVs : TEXCOORD3;
+    float2 clipPos : TEXCOORD4;
 #if UIE_SHADER_INFO_IN_VS
-    nointerpolation fixed4 clipRect : TEXCOORD4; // Clip rect presampled
+    nointerpolation fixed4 clipRect : TEXCOORD5; // Clip rect presampled
 #endif // UIE_SHADER_INFO_IN_VS
     UNITY_VERTEX_OUTPUT_STEREO
 };
 
-static const float kUIEMeshZ = 0.995f; // Keep in track with UIRUtility.k_MeshPosZ
-static const float kUIEMaskZ = -0.995f; // Keep in track with UIRUtility.k_MaskPosZ
+static const float kUIEMeshZ = 0.0f; // Keep in track with UIRUtility.k_MeshPosZ
+static const float kUIEMaskZ = 1.0f; // Keep in track with UIRUtility.k_MaskPosZ
 
 static const float kUIEVertexLastFlagValue = 10.0f; // Keep in track with UIR.VertexFlags
 
@@ -162,7 +162,7 @@ float2 uie_get_border_offset(float4 vertex, float2 embeddedDisplacement, float m
     // if we don't meet it anymore.
     float2 newFrameDisplacementAbs = max(minDisplacement.xx, frameDisplacementAbs);
     float2 newFrameDisplacementAbsBeforeRound = newFrameDisplacementAbs;
-    newFrameDisplacementAbs = round(newFrameDisplacementAbs);
+    newFrameDisplacementAbs = round(newFrameDisplacementAbs + 0.02);
     if(noShrinkX)
         newFrameDisplacementAbs.x = max(newFrameDisplacementAbs.x, newFrameDisplacementAbsBeforeRound.x);
     if(noShrinkY)
@@ -178,7 +178,12 @@ float2 uie_get_border_offset(float4 vertex, float2 embeddedDisplacement, float m
 
 float2 uie_snap_to_integer_pos(float2 clipSpaceXY)
 {
-    return ((int2)((clipSpaceXY+1)/_1PixelClipInvView.xy+0.51f)) * _1PixelClipInvView.xy-1;
+    // Convert from clip space to framebuffer space (unit = 1 pixel).
+    float2 pixelPos = (clipSpaceXY + 1) / _1PixelClipInvView.xy;
+    // Add an offset before rounding to avoid half which is very common to land onto.
+    float2 roundedPixelPos = round(pixelPos + 0.1527);
+    // Go back to clip space.
+    return roundedPixelPos * _1PixelClipInvView.xy - 1;
 }
 
 void uie_fragment_clip(v2f IN)
@@ -191,9 +196,9 @@ void uie_fragment_clip(v2f IN)
 #endif // UIE_SHADER_INFO_IN_VS
 
     float2 pointPos = IN.uvXY.zw;
-    float2 pixelPos = IN.vertex.xy;
-    float2 s = step(clipRect.xy,   pointPos) + step(pointPos, clipRect.zw) +
-               step(_PixelClipRect.xy, pixelPos)  + step(pixelPos, _PixelClipRect.zw);
+    float2 clipPos = IN.clipPos.xy;
+    float2 s = step(clipRect.xy, pointPos) + step(pointPos, clipRect.zw) +
+        step(_ScreenClipRect.xy, clipPos) + step(clipPos, _ScreenClipRect.zw);
     clip(dot(float3(s,1),float3(1,1,-7.95f)));
 }
 
@@ -359,7 +364,7 @@ float4 uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color)
     return float4(clipRectUV, opacityUV);
 }
 
-v2f uie_std_vert(appdata_t v)
+v2f uie_std_vert(appdata_t v, out float4 clipSpacePos)
 {
     v2f OUT;
     UNITY_SETUP_INSTANCE_ID(v);
@@ -390,12 +395,14 @@ v2f uie_std_vert(appdata_t v)
     v.vertex.xy += viewOffset;
 
     OUT.uvXY.zw = v.vertex.xy;
-    OUT.vertex = UnityObjectToClipPos(v.vertex);
+    clipSpacePos = UnityObjectToClipPos(v.vertex);
 
 #ifndef UIE_SDF_TEXT
     if (isText == 1)
-        OUT.vertex.xy = uie_snap_to_integer_pos(OUT.vertex.xy);
-#endif
+        clipSpacePos.xy = uie_snap_to_integer_pos(clipSpacePos.xy);
+#endif // UIE_SDF_TEXT
+
+    OUT.clipPos.xy = clipSpacePos.xy / clipSpacePos.w;
 
     OUT.uvXY.xy = TRANSFORM_TEX(v.uv, _MainTex);
     if (isAtlasTex == 1.0f)
@@ -478,7 +485,7 @@ UIE_FRAG_T uie_std_frag(v2f IN)
 
 #ifndef UIE_CUSTOM_SHADER
 
-v2f vert(appdata_t v) { return uie_std_vert(v); }
+v2f vert(appdata_t v, out float4 clipSpacePos : SV_POSITION) { return uie_std_vert(v, clipSpacePos); }
 UIE_FRAG_T frag(v2f IN) : SV_Target { return uie_std_frag(IN); }
 
 #endif // UIE_CUSTOM_SHADER
