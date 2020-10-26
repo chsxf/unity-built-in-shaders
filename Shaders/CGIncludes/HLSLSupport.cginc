@@ -154,7 +154,7 @@
 #define Texture3D_half Texture3D
 #endif
 
-#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL)) || defined(SHADER_API_SWITCH)
+#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || (defined(SHADER_API_VULKAN) && defined(SHADER_API_MOBILE)) || (defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL)) || defined(SHADER_API_SWITCH)
 // with HLSLcc, use DX11.1 partial precision for translation
 // we specifically define fixed to be float16 (same as half) as all new GPUs seems to agree on float16 being minimal precision float
 #define fixed min16float
@@ -173,7 +173,7 @@
 #define half4x4 min16float4x4
 #endif
 
-#if (!defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL))
+#if ((!defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL)) || (!defined(SHADER_API_MOBILE) && defined(SHADER_API_VULKAN)))
 #define fixed float
 #define fixed2 float2
 #define fixed3 float3
