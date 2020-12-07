@@ -318,8 +318,8 @@
 
 #if defined(SHADER_API_D3D11) || (defined(UNITY_COMPILER_HLSLCC) && defined(SHADOWS_NATIVE))
     // DX11 & hlslcc platforms: built-in PCF
-    #define UNITY_DECLARE_SHADOWMAP(tex) Texture2D tex; SamplerComparisonState sampler##tex
-    #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) TextureCube tex; SamplerComparisonState sampler##tex
+    #define UNITY_DECLARE_SHADOWMAP(tex) Texture2D_float tex; SamplerComparisonState sampler##tex
+    #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) TextureCube_float tex; SamplerComparisonState sampler##tex
     #define UNITY_SAMPLE_SHADOW(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy,(coord).z)
     #define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
     #if defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
@@ -369,9 +369,11 @@
     #define UNITY_DECLARE_TEX2D_NOSAMPLER_INT(tex) Texture2D<int4> tex
     #define UNITY_DECLARE_TEX2D_NOSAMPLER_UINT(tex) Texture2D<uint4> tex
     #define UNITY_SAMPLE_TEX2D(tex,coord) tex.Sample (sampler##tex,coord)
+    #define UNITY_SAMPLE_TEX2D_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, lod)
     #define UNITY_SAMPLE_TEX2D_SAMPLER(tex,samplertex,coord) tex.Sample (sampler##samplertex,coord)
+    #define UNITY_SAMPLE_TEX2D_SAMPLER_LOD(tex, samplertex, coord, lod) tex.SampleLevel (sampler##samplertex, coord, lod)
 
-#if defined(UNITY_COMPILER_HLSLCC) && !defined(SHADER_API_GLCORE) // GL Core doesn't have the _half mangling, the rest of them do.
+#if defined(UNITY_COMPILER_HLSLCC) && (!defined(SHADER_API_GLCORE) || defined(SHADER_API_SWITCH)) // GL Core doesn't have the _half mangling, the rest of them do. Workaround for Nintendo Switch.
     #define UNITY_DECLARE_TEX2D_HALF(tex) Texture2D_half tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX2D_FLOAT(tex) Texture2D_float tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(tex) Texture2D_half tex
