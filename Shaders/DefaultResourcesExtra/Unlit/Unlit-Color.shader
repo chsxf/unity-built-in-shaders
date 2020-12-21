@@ -46,7 +46,7 @@ SubShader {
                 return o;
             }
 
-            fixed4 frag (v2f i) : COLOR
+            fixed4 frag (v2f i) : SV_Target
             {
                 fixed4 col = _Color;
                 UNITY_APPLY_FOG(i.fogCoord, col);

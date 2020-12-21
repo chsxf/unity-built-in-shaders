@@ -6,6 +6,7 @@ Properties {
     _Mip ("Mip", Float) = 0.0 // mip level to display; negative does regular sample
     _Alpha ("Alpha", float) = 0.0 // 1 = show alpha, 0 = show color
     _Intensity ("Intensity", Float) = 1.0 // lighting probe's intensity
+    _IsNormalMap ("", Int) = 0
     _Exposure ("Exposure", Float) = 0.0 // exposure controller
 }
 
@@ -44,6 +45,7 @@ SubShader {
         float _Mip;
         half _Alpha;
         half _Intensity;
+        int _IsNormalMap;
         float _Exposure;
 
         fixed4 frag (v2f i) : COLOR0
@@ -52,6 +54,11 @@ SubShader {
             fixed4 cmip = texCUBElod(_MainTex, float4(i.uv,_Mip));
             if (_Mip >= 0.0)
                 c = cmip;
+            if (_IsNormalMap)
+            {
+                c.rgb = 0.5f + 0.5f * UnpackNormal(c);
+                c.a = 1;
+            }
             c.rgb = DecodeHDR (c, _MainTex_HDR) * _Intensity;
             c.rgb *= exp2(_Exposure);
 

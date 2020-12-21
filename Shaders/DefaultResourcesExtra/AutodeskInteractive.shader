@@ -72,12 +72,12 @@ Shader "Autodesk Interactive"
             // -------------------------------------
             #pragma shader_feature_local _NORMALMAP
             #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
-            #pragma shader_feature _EMISSION
+            #pragma shader_feature_fragment _EMISSION
             #pragma shader_feature_local _METALLICGLOSSMAP
             #pragma shader_feature_local _SPECGLOSSMAP
-            #pragma shader_feature_local _DETAIL_MULX2
-            #pragma shader_feature_local _SPECULARHIGHLIGHTS_OFF
-            #pragma shader_feature_local _GLOSSYREFLECTIONS_OFF
+            #pragma shader_feature_local_fragment _DETAIL_MULX2
+            #pragma shader_feature_local_fragment _SPECULARHIGHLIGHTS_OFF
+            #pragma shader_feature_local_fragment _GLOSSYREFLECTIONS_OFF
             #pragma shader_feature_local _PARALLAXMAP
 
             #pragma multi_compile_fwdbase
@@ -110,8 +110,8 @@ Shader "Autodesk Interactive"
             #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature_local _METALLICGLOSSMAP
             #pragma shader_feature_local _SPECGLOSSMAP
-            #pragma shader_feature_local _SPECULARHIGHLIGHTS_OFF
-            #pragma shader_feature_local _DETAIL_MULX2
+            #pragma shader_feature_local_fragment _SPECULARHIGHLIGHTS_OFF
+            #pragma shader_feature_local_fragment _DETAIL_MULX2
             #pragma shader_feature_local _PARALLAXMAP
 
             #pragma multi_compile_fwdadd_fullshadows
@@ -164,11 +164,11 @@ Shader "Autodesk Interactive"
             // -------------------------------------
             #pragma shader_feature_local _NORMALMAP
             #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
-            #pragma shader_feature _EMISSION
+            #pragma shader_feature_fragment _EMISSION
             #pragma shader_feature_local _METALLICGLOSSMAP
             #pragma shader_feature_local _SPECGLOSSMAP
-            #pragma shader_feature_local _SPECULARHIGHLIGHTS_OFF
-            #pragma shader_feature_local _DETAIL_MULX2
+            #pragma shader_feature_local_fragment _SPECULARHIGHLIGHTS_OFF
+            #pragma shader_feature_local_fragment _DETAIL_MULX2
             #pragma shader_feature_local _PARALLAXMAP
 
             #pragma multi_compile_prepassfinal
@@ -196,10 +196,10 @@ Shader "Autodesk Interactive"
             #pragma vertex vert_meta
             #pragma fragment frag_meta
 
-            #pragma shader_feature _EMISSION
+            #pragma shader_feature_fragment _EMISSION
             #pragma shader_feature_local _METALLICGLOSSMAP
             #pragma shader_feature_local _SPECGLOSSMAP
-            #pragma shader_feature_local _DETAIL_MULX2
+            #pragma shader_feature_local_fragment _DETAIL_MULX2
             #pragma shader_feature EDITOR_VISUALIZATION
 
             #include "UnityStandardMeta.cginc"
@@ -226,11 +226,11 @@ Shader "Autodesk Interactive"
             #pragma target 2.0
             #pragma shader_feature_local _NORMALMAP
             #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
-            #pragma shader_feature _EMISSION
+            #pragma shader_feature_fragment _EMISSION
             #pragma shader_feature_local _METALLICGLOSSMAP
             #pragma shader_feature_local _SPECGLOSSMAP
-            #pragma shader_feature_local _SPECULARHIGHLIGHTS_OFF
-            #pragma shader_feature_local _GLOSSYREFLECTIONS_OFF
+            #pragma shader_feature_local_fragment _SPECULARHIGHLIGHTS_OFF
+            #pragma shader_feature_local_fragment _GLOSSYREFLECTIONS_OFF
             // SM2.0: NOT SUPPORTED shader_feature_local _DETAIL_MULX2
             // SM2.0: NOT SUPPORTED shader_feature_local _PARALLAXMAP
 
@@ -262,7 +262,7 @@ Shader "Autodesk Interactive"
             #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature_local _METALLICGLOSSMAP
             #pragma shader_feature_local _SPECGLOSSMAP
-            #pragma shader_feature_local _SPECULARHIGHLIGHTS_OFF
+            #pragma shader_feature_local_fragment _SPECULARHIGHLIGHTS_OFF
             // SM2.0: NOT SUPPORTED #pragma shader_feature_local _DETAIL_MULX2
             // SM2.0: NOT SUPPORTED shader_feature_local _PARALLAXMAP
             #pragma skip_variants SHADOWS_SOFT
@@ -314,10 +314,10 @@ Shader "Autodesk Interactive"
             #pragma vertex vert_meta
             #pragma fragment frag_meta
 
-            #pragma shader_feature _EMISSION
+            #pragma shader_feature_fragment _EMISSION
             #pragma shader_feature_local _METALLICGLOSSMAP
             #pragma shader_feature_local _SPECGLOSSMAP
-            #pragma shader_feature_local _DETAIL_MULX2
+            #pragma shader_feature_local_fragment _DETAIL_MULX2
             #pragma shader_feature EDITOR_VISUALIZATION
 
             #include "UnityStandardMeta.cginc"

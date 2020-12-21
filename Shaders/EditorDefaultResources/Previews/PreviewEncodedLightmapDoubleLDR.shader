@@ -5,6 +5,7 @@ Shader "Hidden/Preview Encoded Lightmap doubleLDR"
     Properties {
         _MainTex ("Texture", Any) = "white" { }
         _Mip ("Mip", Float) = -1.0 // mip level to display; negative does regular sample
+        _ColorMask ("Color Mask", Color) = (1, 1, 1, 1)
         _Exposure ("Exposure", Float) = 0.0
     }
     Subshader
@@ -45,11 +46,12 @@ Shader "Hidden/Preview Encoded Lightmap doubleLDR"
                 sampler2D _MainTex;
                 sampler2D _GUIClipTexture;
                 uniform float _Mip;
+                uniform fixed4 _ColorMask;
                 float _Exposure;
 
                 fixed4 frag( v2f i ) : COLOR
                 {
-                    fixed4 lmc = tex2D(_MainTex, i._uv0), lmcmip = tex2Dlod(_MainTex, float4(i._uv0.x, i._uv0.y, 0, _Mip));
+                    fixed4 lmc = tex2D(_MainTex, i._uv0) * _ColorMask, lmcmip = tex2Dlod(_MainTex, float4(i._uv0.x, i._uv0.y, 0, _Mip)) * _ColorMask;
                     if (_Mip >= 0.0) lmc = lmcmip;
                     half3 lightmap = DecodeLightmapDoubleLDR(lmc, _MainTex_HDR);
                     half alpha = UNITY_SAMPLE_1CHANNEL(_GUIClipTexture, i._uv1);

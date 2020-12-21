@@ -16,6 +16,7 @@ Shader "Unlit/Preview3DVolume"
         _FilterMode("Filter Mode", Float) = 0
         _Position("Position", Float) = 0
         _Quality("Quality", Float) = 32
+        _IsNormalMap ("", Int) = 0
     }
     SubShader
     {
@@ -86,7 +87,7 @@ Shader "Unlit/Preview3DVolume"
 
             half4 fragMain(v2f i) : SV_Target
             {
-                i.samplePos += (Noisy3D(uint3(i.vertex.xy, i.vertex.w * 2579)) - float3(0.5, 0.5, 0.5)) * 2 * _Quality;
+                i.samplePos += (Noisy3D(uint3(i.vertex.xy, i.vertex.w * 2579)) - float3(0.5, 0.5, 0.5)) * _Quality;
 
                 if (any(i.samplePos < -_VoxelSize / 2))
                     discard;
@@ -95,7 +96,7 @@ Shader "Unlit/Preview3DVolume"
 
                 float3 uv = i.samplePos * _InvScale + 0.5;
 
-                float4 color;
+                float4 color = 0;
                 if (_FilterMode == 0)
                 {
                     color = _MainTex.Sample(custom_point_clamp_sampler, uv);
@@ -107,6 +108,11 @@ Shader "Unlit/Preview3DVolume"
                 else if (_FilterMode == 2)
                 {
                     color = _MainTex.Sample(custom_trilinear_clamp_sampler, uv);
+                }
+                if (_IsNormalMap)
+                {
+                    color.rgb = 0.5f + 0.5f * UnpackNormal(color);
+                    color.a = 1;
                 }
 
                 color.a *= i.alphaMul;

@@ -23,7 +23,7 @@ Shader "Hidden/TerrainEngine/Splatmap/Specular-Base" {
         #pragma surface surf BlinnPhong vertex:SplatmapVert addshadow fullforwardshadows
         #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
 
-        #pragma multi_compile_local __ _ALPHATEST_ON
+        #pragma multi_compile_local_fragment __ _ALPHATEST_ON
 
         #define TERRAIN_BASE_PASS
         #define TERRAIN_SURFACE_OUTPUT SurfaceOutput

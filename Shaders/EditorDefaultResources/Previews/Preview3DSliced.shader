@@ -12,6 +12,7 @@ Shader "Unlit/Preview3DSliced"
         _InvChannels("Inverse Channels", Vector) = (1, 1, 1, 1)
         _Ramp("Color Ramp", Float) = 0
         _FilterMode("FilterMode", Float) = 0
+        _IsNormalMap ("", Int) = 0
     }
         SubShader
         {
@@ -106,6 +107,15 @@ Shader "Unlit/Preview3DSliced"
                         color1 = _MainTex.Sample(custom_trilinear_clamp_sampler, samplePos1 + float3(0.500001, 0.500001, 0.500001));
                         color2 = _MainTex.Sample(custom_trilinear_clamp_sampler, samplePos2 + float3(0.500001, 0.500001, 0.500001));
                         color3 = _MainTex.Sample(custom_trilinear_clamp_sampler, samplePos3 + float3(0.500001, 0.500001, 0.500001));
+                    }
+                    if (_IsNormalMap)
+                    {
+                        color1.rgb = 0.5f + 0.5f * UnpackNormal(color1);
+                        color2.rgb = 0.5f + 0.5f * UnpackNormal(color2);
+                        color3.rgb = 0.5f + 0.5f * UnpackNormal(color3);
+                        color1.a = 1;
+                        color2.a = 1;
+                        color3.a = 1;
                     }
 
                     color1 = AdjustColor(color1, samplePos1 * _VoxelSize);

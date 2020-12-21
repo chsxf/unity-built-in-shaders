@@ -120,6 +120,12 @@ half3 UnpackScaleNormalRGorAG(half4 packednormal, half bumpScale)
             normal.xy *= bumpScale;
         #endif
         return normal;
+    #elif defined(UNITY_ASTC_NORMALMAP_ENCODING)
+        half3 normal;
+        normal.xy = (packednormal.wy * 2 - 1);
+        normal.z = sqrt(1.0 - saturate(dot(normal.xy, normal.xy)));
+        normal.xy *= bumpScale;
+        return normal;
     #else
         // This do the trick
         packednormal.x *= packednormal.w;

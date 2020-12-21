@@ -17,6 +17,8 @@
 #pragma kernel Main NUM_LAYERS=4 HIGHEST_LEVEL
 #pragma kernel Main NUM_LAYERS=4 WITH_REPLACEMENT HIGHEST_LEVEL
 
+#pragma exclude_renderers gles3
+
 static const uint TGSize = 32;
 
 #define MAX_EVICTED_TILES   64

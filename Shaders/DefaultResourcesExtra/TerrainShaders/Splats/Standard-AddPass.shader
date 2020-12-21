@@ -18,7 +18,7 @@ Shader "Hidden/TerrainEngine/Splatmap/Standard-AddPass" {
         #pragma target 3.0
         #include "UnityPBSLighting.cginc"
 
-        #pragma multi_compile_local __ _ALPHATEST_ON
+        #pragma multi_compile_local_fragment __ _ALPHATEST_ON
         #pragma multi_compile_local __ _NORMALMAP
 
         #define TERRAIN_SPLAT_ADDPASS
