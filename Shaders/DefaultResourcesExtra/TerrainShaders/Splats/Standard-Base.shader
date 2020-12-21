@@ -23,7 +23,7 @@ Shader "Hidden/TerrainEngine/Splatmap/Standard-Base" {
         #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
         #pragma target 3.0
 
-        #pragma multi_compile_local __ _ALPHATEST_ON
+        #pragma multi_compile_local_fragment __ _ALPHATEST_ON
 
         #define TERRAIN_BASE_PASS
         #define TERRAIN_INSTANCED_PERPIXEL_NORMAL

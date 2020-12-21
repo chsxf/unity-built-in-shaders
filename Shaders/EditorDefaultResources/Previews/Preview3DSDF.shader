@@ -12,6 +12,7 @@ Shader "Unlit/Preview3DSDF"
         _InvResolution("Inverse Resolution", Float) = 1
         _Scale("Scale", Float) = 1
         _Offset("Offset", Float) = 0
+        _IsNormalMap ("", Int) = 0
     }
 
     SubShader

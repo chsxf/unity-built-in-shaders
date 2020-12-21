@@ -12,7 +12,6 @@ Shader "Hidden/GraphView/GraphViewUIE"
     }
 
     CGINCLUDE
-
     #include "EditorUIE.cginc"
 
     float _GraphViewScale;
@@ -20,6 +19,7 @@ Shader "Hidden/GraphView/GraphViewUIE"
 
     v2f ProcessEdge(appdata_t v, inout float4 clipSpacePos)
     {
+        UNITY_SETUP_INSTANCE_ID(v);
         uie_vert_load_payload(v);
         v.vertex.xyz = mul(uie_toWorldMat, v.vertex);
         v.uv.xy = mul(uie_toWorldMat, float3(v.uv.xy,0)).xy;
@@ -36,12 +36,16 @@ Shader "Hidden/GraphView/GraphViewUIE"
 
         float2 vertex = v.vertex.xy + normal * _ZoomCorrection;
 
-        v2f o = (v2f)0;
+        v2f o;
+        UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
         clipSpacePos = UnityObjectToClipPos(float3(vertex.xy, kUIEMeshZ));
+        o.clipPos.xy = clipSpacePos.xy / clipSpacePos.w;
         o.uvXY.xy = float2(vertexHalfWidth*sideSign, halfWidth);
         o.uvXY.zw = vertex.xy;
         o.flags.x = 2.0f; // Marking as an edge
         o.flags.y = _ZoomFactor;
+        o.flags.zw = (fixed2)0;
+        o.svgFlags = (fixed3)0;
 
         o.clipRectOpacityUVs = uie_std_vert_shader_info(v, o.color);
 #if UIE_SHADER_INFO_IN_VS
@@ -67,6 +71,7 @@ Shader "Hidden/GraphView/GraphViewUIE"
             float distanceSat = saturate((IN.uvXY.y - abs(IN.uvXY.x)) * IN.flags.y + 0.5);
             return fixed4(IN.color.rgb, IN.color.a * distanceSat);
         }
+
         return uie_editor_frag(IN);
     }
     ENDCG

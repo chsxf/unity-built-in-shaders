@@ -110,7 +110,7 @@ Shader "UI/Unlit/Detail"
                 return o;
             }
 
-            fixed4 frag (v2f i) : COLOR
+            fixed4 frag (v2f i) : SV_Target
             {
                 fixed4 color = (tex2D(_MainTex, i.texcoord) + _TextureSampleAdd) * i.color;
                 fixed4 detail = tex2D(_DetailTex, i.texcoord2);

@@ -14,7 +14,20 @@ Shader "Hidden/Internal-UIRDefault"
     Category
     {
         Lighting Off
-        Blend SrcAlpha OneMinusSrcAlpha
+
+
+        //   Our textures and colors are not premultiplied, but we use this equation for alpha so that
+        //   transparency goes towards 0 as more semi - transparent layers are added(like premultiplied).
+        //   This is relevant in the case where we render into a render texture that is to be drawn on
+        //   top of another render target afterwards.
+        //   Reminder:
+        //   dst.a' = 1 - (1 - dst.a)(1 - src.a)
+        //          = 1 - (1 - dst.a - src.a + dst.a * src.a)
+        //          = 1 - 1 + dst.a + src.a - dst.a * src.a
+        //          = dst.a + src.a - dst.a * src.a
+        //          = src.a * 1 + dst.a * (1 - src.a)
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
+
 
         // Users pass depth between [Near,Far] = [-1,1]. This gets stored on the depth buffer in [Near,Far] [0,1] regardless of the underlying graphics API.
         Cull Off    // Two sided rendering is crucial for immediate clipping

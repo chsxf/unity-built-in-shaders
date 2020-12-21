@@ -15,6 +15,8 @@ sampler2D _ColorRamp;
 
 float3 _VoxelSize;
 float4 _InvScale;
+int _IsNormalMap;
+
 
 struct appdata
 {
