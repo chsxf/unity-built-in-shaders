@@ -1,3 +1,4 @@
+* Version 2019.4.17f1: https://download.unity3d.com/download_unity/667c8606c536/builtin_shaders-2019.4.17f1.zip
 * Version 2019.4.16f1: https://download.unity3d.com/download_unity/e05b6e02d63e/builtin_shaders-2019.4.16f1.zip
 * Version 2019.4.15f1: https://download.unity3d.com/download_unity/fbf367ac14e9/builtin_shaders-2019.4.15f1.zip
 * Version 2019.4.14f1: https://download.unity3d.com/download_unity/4037e52648cd/builtin_shaders-2019.4.14f1.zip
