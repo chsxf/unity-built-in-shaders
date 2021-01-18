@@ -316,8 +316,8 @@
     #define SHADOWS_NATIVE
 #endif
 
-#if defined(SHADER_API_D3D11) || (defined(UNITY_COMPILER_HLSLCC) && defined(SHADOWS_NATIVE))
-    // DX11 & hlslcc platforms: built-in PCF
+#if defined(SHADER_API_D3D11) || (defined(UNITY_COMPILER_HLSLCC) && defined(SHADOWS_NATIVE)) || defined(SHADER_API_PSSL)
+    // DX11 & hlslcc platforms and PS4: built-in PCF
     #define UNITY_DECLARE_SHADOWMAP(tex) Texture2D_float tex; SamplerComparisonState sampler##tex
     #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) TextureCube_float tex; SamplerComparisonState sampler##tex
     #define UNITY_SAMPLE_SHADOW(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy,(coord).z)
@@ -328,13 +328,6 @@
     #else
        #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xyz,(coord).w)
     #endif
-#elif defined(SHADER_API_PSSL)
-    // PS4: built-in PCF
-    #define UNITY_DECLARE_SHADOWMAP(tex)        Texture2D tex; SamplerComparisonState sampler##tex
-    #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) TextureCube tex; SamplerComparisonState sampler##tex
-    #define UNITY_SAMPLE_SHADOW(tex,coord)      tex.SampleCmpLOD0(sampler##tex,(coord).xy,(coord).z)
-    #define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex.SampleCmpLOD0(sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
-    #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) tex.SampleCmpLOD0(sampler##tex,(coord).xyz,(coord).w)
 #else
     // Fallback / No built-in shadowmap comparison sampling: regular texture sample and do manual depth comparison
     #define UNITY_DECLARE_SHADOWMAP(tex) sampler2D_float tex
