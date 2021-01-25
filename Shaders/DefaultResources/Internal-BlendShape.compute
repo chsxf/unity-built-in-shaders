@@ -16,10 +16,11 @@ uint g_FirstVert; // First vertex from blend shape buffer to use
 uint g_VertCount; // Sparse vertex count, not the full amount of vertices in mesh
 float g_Weight;
 
+SKINNING_GENERIC_VERTEX_RWBUFFER inOutMeshVertices;
+SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices;
+
 [numthreads(64, 1, 1)]
-void main(uint3 threadID : SV_DispatchThreadID,
-SKINNING_GENERIC_VERTEX_RWBUFFER inOutMeshVertices,
-SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices)
+void main(uint3 threadID : SV_DispatchThreadID)
 {
     const uint t = threadID.x;
 
