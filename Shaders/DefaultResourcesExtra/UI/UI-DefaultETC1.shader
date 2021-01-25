@@ -81,8 +81,8 @@ Shader "UI/DefaultETC1"
             fixed4 _TextureSampleAdd;
             float4 _ClipRect;
             float4 _MainTex_ST;
-            float _MaskSoftnessX;
-            float _MaskSoftnessY;
+            float _UIMaskSoftnessX;
+            float _UIMaskSoftnessY;
 
             v2f vert(appdata_t IN)
             {
@@ -90,8 +90,6 @@ Shader "UI/DefaultETC1"
                 float4 vPosition = UnityObjectToClipPos(IN.vertex);
                 OUT.worldPosition = IN.vertex;
                 OUT.vertex = vPosition;
-
-                OUT.texcoord = TRANSFORM_TEX(IN.texcoord, _MainTex);
 
                 #ifdef UNITY_HALF_TEXEL_OFFSET
                 OUT.vertex.xy += (_ScreenParams.zw-1.0) * float2(-1,1) * OUT.vertex.w;
@@ -102,8 +100,8 @@ Shader "UI/DefaultETC1"
 
                 float4 clampedRect = clamp(_ClipRect, -2e10, 2e10);
                 float2 maskUV = (IN.vertex.xy - clampedRect.xy) / (clampedRect.zw - clampedRect.xy);
-                OUT.texcoord = float4(IN.texcoord.x, IN.texcoord.y, maskUV.x, maskUV.y);
-                OUT.mask = half4(IN.vertex.xy * 2 - clampedRect.xy - clampedRect.zw, 0.25 / (0.25 * half2(_MaskSoftnessX, _MaskSoftnessY) + abs(pixelSize.xy)));
+                OUT.texcoord = TRANSFORM_TEX(IN.texcoord.xy, _MainTex);
+                OUT.mask = half4(IN.vertex.xy * 2 - clampedRect.xy - clampedRect.zw, 0.25 / (0.25 * half2(_UIMaskSoftnessX, _UIMaskSoftnessY) + abs(pixelSize.xy)));
 
                 OUT.color = IN.color * _Color;
                 return OUT;
@@ -113,7 +111,7 @@ Shader "UI/DefaultETC1"
 
             fixed4 frag(v2f IN) : SV_Target
             {
-                fixed4 color = UnityGetUIDiffuseColor(IN.texcoord, _MainTex, _AlphaTex, _TextureSampleAdd) * IN.color;
+                fixed4 color = IN.color * UnityGetUIDiffuseColor(IN.texcoord, _MainTex, _AlphaTex, _TextureSampleAdd);
 
                 #ifdef UNITY_UI_CLIP_RECT
                     half2 m = saturate((_ClipRect.zw - _ClipRect.xy - abs(IN.mask.xy)) * IN.mask.zw);

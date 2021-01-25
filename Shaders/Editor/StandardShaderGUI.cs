@@ -137,7 +137,7 @@ namespace UnityEditor
             // Do this before any GUI code has been issued to prevent layout issues in subsequent GUILayout statements (case 780071)
             if (m_FirstTimeApply)
             {
-                MaterialChanged(material, m_WorkflowMode);
+                MaterialChanged(material, m_WorkflowMode, false);
                 m_FirstTimeApply = false;
             }
 
@@ -149,10 +149,12 @@ namespace UnityEditor
             // Use default labelWidth
             EditorGUIUtility.labelWidth = 0f;
 
+            bool blendModeChanged = false;
+
             // Detect any changes to the material
             EditorGUI.BeginChangeCheck();
             {
-                BlendModePopup();
+                blendModeChanged = BlendModePopup();
 
                 // Primary properties
                 GUILayout.Label(Styles.primaryMapsText, EditorStyles.boldLabel);
@@ -183,17 +185,19 @@ namespace UnityEditor
                     m_MaterialEditor.ShaderProperty(highlights, Styles.highlightsText);
                 if (reflections != null)
                     m_MaterialEditor.ShaderProperty(reflections, Styles.reflectionsText);
+
+                EditorGUILayout.Space();
+
+                GUILayout.Label(Styles.advancedText, EditorStyles.boldLabel);
+
+                m_MaterialEditor.RenderQueueField();
             }
             if (EditorGUI.EndChangeCheck())
             {
                 foreach (var obj in blendMode.targets)
-                    MaterialChanged((Material)obj, m_WorkflowMode);
+                    MaterialChanged((Material)obj, m_WorkflowMode, blendModeChanged);
             }
 
-            EditorGUILayout.Space();
-
-            // NB renderqueue editor is not shown on purpose: we want to override it based on blend mode
-            GUILayout.Label(Styles.advancedText, EditorStyles.boldLabel);
             m_MaterialEditor.EnableInstancingField();
             m_MaterialEditor.DoubleSidedGIField();
         }
@@ -221,7 +225,7 @@ namespace UnityEditor
 
             if (oldShader == null || !oldShader.name.Contains("Legacy Shaders/"))
             {
-                SetupMaterialWithBlendMode(material, (BlendMode)material.GetFloat("_Mode"));
+                SetupMaterialWithBlendMode(material, (BlendMode)material.GetFloat("_Mode"), true);
                 return;
             }
 
@@ -239,23 +243,26 @@ namespace UnityEditor
             material.SetFloat("_Mode", (float)blendMode);
 
             DetermineWorkflow(MaterialEditor.GetMaterialProperties(new Material[] { material }));
-            MaterialChanged(material, m_WorkflowMode);
+            MaterialChanged(material, m_WorkflowMode, true);
         }
 
-        void BlendModePopup()
+        bool BlendModePopup()
         {
             EditorGUI.showMixedValue = blendMode.hasMixedValue;
             var mode = (BlendMode)blendMode.floatValue;
 
             EditorGUI.BeginChangeCheck();
             mode = (BlendMode)EditorGUILayout.Popup(Styles.renderingMode, (int)mode, Styles.blendNames);
-            if (EditorGUI.EndChangeCheck())
+            bool result = EditorGUI.EndChangeCheck();
+            if (result)
             {
                 m_MaterialEditor.RegisterPropertyChangeUndo("Rendering Mode");
                 blendMode.floatValue = (float)mode;
             }
 
             EditorGUI.showMixedValue = false;
+
+            return result;
         }
 
         void DoNormalArea()
@@ -330,8 +337,11 @@ namespace UnityEditor
                 m_MaterialEditor.ShaderProperty(smoothnessMapChannel, Styles.smoothnessMapChannelText, indentation);
         }
 
-        public static void SetupMaterialWithBlendMode(Material material, BlendMode blendMode)
+        public static void SetupMaterialWithBlendMode(Material material, BlendMode blendMode, bool overrideRenderQueue)
         {
+            int minRenderQueue = -1;
+            int maxRenderQueue = 5000;
+            int defaultRenderQueue = -1;
             switch (blendMode)
             {
                 case BlendMode.Opaque:
@@ -342,7 +352,9 @@ namespace UnityEditor
                     material.DisableKeyword("_ALPHATEST_ON");
                     material.DisableKeyword("_ALPHABLEND_ON");
                     material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-                    material.renderQueue = -1;
+                    minRenderQueue = -1;
+                    maxRenderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest - 1;
+                    defaultRenderQueue = -1;
                     break;
                 case BlendMode.Cutout:
                     material.SetOverrideTag("RenderType", "TransparentCutout");
@@ -352,7 +364,9 @@ namespace UnityEditor
                     material.EnableKeyword("_ALPHATEST_ON");
                     material.DisableKeyword("_ALPHABLEND_ON");
                     material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-                    material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
+                    minRenderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
+                    maxRenderQueue = (int)UnityEngine.Rendering.RenderQueue.GeometryLast;
+                    defaultRenderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
                     break;
                 case BlendMode.Fade:
                     material.SetOverrideTag("RenderType", "Transparent");
@@ -362,7 +376,9 @@ namespace UnityEditor
                     material.DisableKeyword("_ALPHATEST_ON");
                     material.EnableKeyword("_ALPHABLEND_ON");
                     material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-                    material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                    minRenderQueue = (int)UnityEngine.Rendering.RenderQueue.GeometryLast + 1;
+                    maxRenderQueue = (int)UnityEngine.Rendering.RenderQueue.Overlay - 1;
+                    defaultRenderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
                     break;
                 case BlendMode.Transparent:
                     material.SetOverrideTag("RenderType", "Transparent");
@@ -372,8 +388,17 @@ namespace UnityEditor
                     material.DisableKeyword("_ALPHATEST_ON");
                     material.DisableKeyword("_ALPHABLEND_ON");
                     material.EnableKeyword("_ALPHAPREMULTIPLY_ON");
-                    material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                    minRenderQueue = (int)UnityEngine.Rendering.RenderQueue.GeometryLast + 1;
+                    maxRenderQueue = (int)UnityEngine.Rendering.RenderQueue.Overlay - 1;
+                    defaultRenderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
                     break;
+            }
+
+            if (overrideRenderQueue || material.renderQueue < minRenderQueue || material.renderQueue > maxRenderQueue)
+            {
+                if (!overrideRenderQueue)
+                    Debug.LogFormat(LogType.Log, LogOption.NoStacktrace, null, "Render queue value outside of the allowed range ({0} - {1}) for selected Blend mode, resetting render queue to default", minRenderQueue, maxRenderQueue);
+                material.renderQueue = defaultRenderQueue;
             }
         }
 
@@ -411,9 +436,9 @@ namespace UnityEditor
             }
         }
 
-        static void MaterialChanged(Material material, WorkflowMode workflowMode)
+        static void MaterialChanged(Material material, WorkflowMode workflowMode, bool overrideRenderQueue)
         {
-            SetupMaterialWithBlendMode(material, (BlendMode)material.GetFloat("_Mode"));
+            SetupMaterialWithBlendMode(material, (BlendMode)material.GetFloat("_Mode"), overrideRenderQueue);
 
             SetMaterialKeywords(material, workflowMode);
         }

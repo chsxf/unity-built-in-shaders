@@ -41,12 +41,13 @@
 
 uint g_VertCount;
 
+SKINNING_GENERIC_VERTEX_BUFFER inVertices;
+SKINNING_GENERIC_SKIN_BUFFER inSkin;
+SKINNING_GENERIC_VERTEX_RWBUFFER outVertices;
+SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices;
+
 [numthreads(64, 1, 1)]
-void main(uint3 threadID : SV_DispatchThreadID,
-    SKINNING_GENERIC_VERTEX_BUFFER inVertices,
-    SKINNING_GENERIC_SKIN_BUFFER inSkin,
-    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices,
-    SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices)
+void main(uint3 threadID : SV_DispatchThreadID)
 {
     const uint t = threadID.x;
 
