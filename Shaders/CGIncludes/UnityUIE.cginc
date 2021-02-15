@@ -202,7 +202,7 @@ void uie_fragment_clip(v2f IN)
     clip(dot(float3(s,1),float3(1,1,-7.95f)));
 }
 
-float2 uie_decode_shader_info_texel_pos(float2 pageXY, float id)
+float2 uie_decode_shader_info_texel_pos(float2 pageXY, float id, float yStride)
 {
     const float kShaderInfoPageWidth = 32;
     const float kShaderInfoPageHeight = 8;
@@ -213,16 +213,14 @@ float2 uie_decode_shader_info_texel_pos(float2 pageXY, float id)
 
     return float2(
         pageXY.x * kShaderInfoPageWidth + idX,
-        pageXY.y * kShaderInfoPageHeight + idY);
+        pageXY.y * kShaderInfoPageHeight + idY * yStride);
 }
 
 void uie_vert_load_payload(appdata_t v)
 {
 #if UIE_SHADER_INFO_IN_VS
 
-    float2 xformTexel = uie_decode_shader_info_texel_pos(v.xformClipPages.xy, v.idsFlags.x);
-    xformTexel.y *= 3.0f; // Because each transform entry is 3 texels high
-
+    float2 xformTexel = uie_decode_shader_info_texel_pos(v.xformClipPages.xy, v.idsFlags.x, 3.0f);
     float2 row0UV = (xformTexel + float2(0, 0) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
     float2 row1UV = (xformTexel + float2(0, 1) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
     float2 row2UV = (xformTexel + float2(0, 2) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
@@ -355,9 +353,9 @@ float4 uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color)
     color = UIE_V2F_COLOR_T(GammaToLinearSpace(v.color.rgb), v.color.a);
 #endif // UIE_COLORSPACE_GAMMA
 
-    const float2 opacityUV = (uie_decode_shader_info_texel_pos(v.opacityPageSVGSettingIndex.xy, v.idsFlags.z) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    const float2 opacityUV = (uie_decode_shader_info_texel_pos(v.opacityPageSVGSettingIndex.xy, v.idsFlags.z, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
 #if UIE_SHADER_INFO_IN_VS
-    const float2 clipRectUV = (uie_decode_shader_info_texel_pos(v.xformClipPages.zw, v.idsFlags.y) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    const float2 clipRectUV = (uie_decode_shader_info_texel_pos(v.xformClipPages.zw, v.idsFlags.y, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
     color.a *= tex2Dlod(_ShaderInfoTex, float4(opacityUV, 0, 0)).a;
 #else // !UIE_SHADER_INFO_IN_VS
     const float2 clipRectUV = float2(v.idsFlags.y * 255.0f, 0.0f);
