@@ -60,7 +60,7 @@ Shader "Hidden/Internal-UIRDefault"
         // SM3.5 version
         SubShader
         {
-            Tags { "UIE_VertexTexturingIsAvailable" = "1" }
+            Tags { "UIE_VertexTexturingIsAvailable" = "1" "UIE_ShaderModelIs35" = "1" }
             Pass
             {
                 CGPROGRAM
@@ -68,7 +68,6 @@ Shader "Hidden/Internal-UIRDefault"
                 #pragma vertex vert
                 #pragma fragment frag
                 #pragma require samplelod
-                #define UIE_SDF_TEXT
                 #include "UnityUIE.cginc"
                 ENDCG
             }
@@ -83,7 +82,6 @@ Shader "Hidden/Internal-UIRDefault"
                 #pragma target 2.0
                 #pragma vertex vert
                 #pragma fragment frag
-                #define UIE_SDF_TEXT
                 #include "UnityUIE.cginc"
                 ENDCG
             }

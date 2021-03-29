@@ -48,7 +48,11 @@ Shader "Hidden/TerrainEngine/Splatmap/Standard-Base" {
             #endif
 
             #if defined(UNITY_INSTANCING_ENABLED) && !defined(SHADER_API_D3D11_9X) && defined(TERRAIN_INSTANCED_PERPIXEL_NORMAL)
-                o.Normal = normalize(tex2D(_TerrainNormalmapTexture, IN.tc.zw).xyz * 2 - 1).xzy;
+                #if defined(TERRAIN_USE_SEPARATE_VERTEX_SAMPLER)
+                    o.Normal = normalize(_TerrainNormalmapTexture.Sample(sampler__TerrainNormalmapTexture, IN.tc.zw).xyz * 2 - 1).xzy;
+                #else
+                    o.Normal = normalize(tex2D(_TerrainNormalmapTexture, IN.tc.zw).xyz * 2 - 1).xzy;
+                #endif
             #endif
         }
 

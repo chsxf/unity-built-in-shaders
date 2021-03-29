@@ -93,7 +93,7 @@ v2f vert( appdata_base v ) {
     return o;
 }
 
-fixed4 frag(v2f i) : COLOR
+fixed4 frag(v2f i) : SV_Target
 {
     fixed4 col = UNITY_SAMPLE_TEX2D(_MainTex, i.uv);
     half4 mip = UNITY_SAMPLE_TEX2D(_SceneViewMipcolorsTexture, i.mipuv);
@@ -110,7 +110,7 @@ struct v2fGrass {
     float2 mipuv : TEXCOORD1;
 };
 
-fixed4 fragGrass(v2fGrass i) : COLOR
+fixed4 fragGrass(v2fGrass i) : SV_Target
 {
     fixed4 col = UNITY_SAMPLE_TEX2D(_MainTex, i.uv);
     half4 mip = UNITY_SAMPLE_TEX2D(_SceneViewMipcolorsTexture, i.mipuv);
@@ -177,7 +177,7 @@ UNITY_DECLARE_TEX2D(_Splat1);
 UNITY_DECLARE_TEX2D(_Splat2);
 UNITY_DECLARE_TEX2D(_Splat3);
 UNITY_DECLARE_TEX2D(_BaseMap);
-fixed4 fragWTerrain(v2fterr i) : COLOR
+fixed4 fragWTerrain(v2fterr i) : SV_Target
 {
     // sample regular texture
     fixed4 colnormal = UNITY_SAMPLE_TEX2D(_MainTex, i.uvnormal);

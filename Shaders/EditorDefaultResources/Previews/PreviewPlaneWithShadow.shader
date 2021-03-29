@@ -54,7 +54,7 @@ SubShader {
         sampler2D _ShadowTexture;
         fixed4 _Alphas;
 
-        fixed4 frag (v2f i) : COLOR0
+        fixed4 frag (v2f i) : SV_Target0
         {
             // Texture, apply lighting and premultiply with alpha
             fixed4 col = tex2D(_MainTex, i.uv);

@@ -55,7 +55,7 @@ Shader "Hidden/SceneView/GridGap" {
                 return o;
             }
 
-            float4 frag(fragmentInput i) : COLOR {
+            float4 frag(fragmentInput i) : SV_Target {
 
                 float3 ndc = float3(i.position.x / _ScreenParams.x, i.position.y / _ScreenParams.y, i.position.z);
                 float3 clipPos;

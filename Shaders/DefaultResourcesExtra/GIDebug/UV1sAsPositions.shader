@@ -45,7 +45,7 @@ SubShader {
                 return o;
             }
 
-            fixed4 frag (v2f i) : COLOR
+            fixed4 frag (v2f i) : SV_Target
             {
                 return _Color;
             }

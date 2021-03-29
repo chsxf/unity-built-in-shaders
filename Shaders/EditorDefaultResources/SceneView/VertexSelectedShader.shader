@@ -38,7 +38,7 @@ CGPROGRAM
                 o.color.a = v.color.a * _Color.a;
                 return o;
             }
-            fixed4 frag(v2f i) : COLOR
+            fixed4 frag(v2f i) : SV_Target
             {
                 return half4(i.color);
             }

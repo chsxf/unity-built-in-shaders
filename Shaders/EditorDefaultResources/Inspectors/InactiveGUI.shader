@@ -53,7 +53,7 @@ Shader "Hidden/Internal-GUITextureClipInactive"
                 return o;
             }
 
-            fixed4 frag (v2f i) : COLOR
+            fixed4 frag (v2f i) : SV_Target
             {
                 fixed4 col = tex2D(_MainTex, i.texcoord);
                 col.rgb = dot(col.rgb, fixed3(0.22, 0.707, 0.071));

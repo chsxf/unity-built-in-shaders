@@ -22,7 +22,7 @@ Shader "Hidden/Handles Shaded" {
             #pragma fragment frag
             #pragma target 2.0
             #include "HandlesRenderShader.cginc"
-            fixed4 frag (v2f i) : COLOR { return i.color; }
+            fixed4 frag (v2f i) : SV_Target { return i.color; }
             ENDCG
             }
         }

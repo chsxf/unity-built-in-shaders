@@ -71,6 +71,8 @@ Shader "Particles/Standard Surface"
             Cull Off
 
             CGPROGRAM
+            //vertInstancingSetup writes to global, not allowed with DXC
+            #pragma never_use_dxc
             #pragma target 3.0
 
             #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON _ALPHAMODULATE_ON
@@ -98,6 +100,8 @@ Shader "Particles/Standard Surface"
             Cull Off
 
             CGPROGRAM
+            //vertInstancingSetup writes to global, not allowed with DXC
+            #pragma never_use_dxc
             #pragma target 3.0
 
             #pragma shader_feature_local_fragment _ALPHATEST_ON
@@ -123,6 +127,8 @@ Shader "Particles/Standard Surface"
             Cull Off
 
             CGPROGRAM
+            //vertInstancingSetup writes to global, not allowed with DXC
+            #pragma never_use_dxc
             #pragma target 3.0
 
             #pragma shader_feature_local_fragment _ALPHATEST_ON
@@ -138,6 +144,8 @@ Shader "Particles/Standard Surface"
         }
 
         CGPROGRAM
+        //vertInstancingSetup writes to global, not allowed with DXC
+        #pragma never_use_dxc
         #pragma surface surf Standard nolightmap nometa noforwardadd keepalpha vertex:vert
         #pragma multi_compile __ SOFTPARTICLES_ON
         #pragma multi_compile __ SHADOWS_SHADOWMASK

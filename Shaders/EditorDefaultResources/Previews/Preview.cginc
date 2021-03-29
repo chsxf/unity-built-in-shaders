@@ -23,6 +23,7 @@ uniform bool _ManualTex2SRGB;
 uniform bool _ManualTex2Linear;
 
 uniform fixed4 _ColorMask;
+float _Exposure;
 
 struct v2f {
     float4 vertex : SV_POSITION;
@@ -53,6 +54,8 @@ fixed4 frag(v2f i) : SV_Target
 #endif
 
     if (_Mip >= 0.0) c = cmip;
+    c.rgb *= exp2(_Exposure);
+
     if (_ManualTex2SRGB) c.rgb = LinearToGammaSpace(c.rgb);
 
 #ifdef PREVIEW_TRANSPARANT

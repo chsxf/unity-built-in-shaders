@@ -26,7 +26,7 @@ v2f_img vert (appdata_img v)
     return o;
 }
 
-fixed4 frag (v2f_img i) : COLOR
+fixed4 frag (v2f_img i) : SV_Target
 {
     float4 original = tex2D(_MainTex, i.uv);
     float grayscale = Luminance(original.rgb) * 0.6;

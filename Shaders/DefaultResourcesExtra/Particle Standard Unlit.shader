@@ -72,6 +72,8 @@ Shader "Particles/Standard Unlit"
                 Cull Off
 
                 CGPROGRAM
+                //vertInstancingSetup writes to global, not allowed with DXC
+                #pragma never_use_dxc
                 #pragma target 2.5
 
                 #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON _ALPHAMODULATE_ON
@@ -99,6 +101,8 @@ Shader "Particles/Standard Unlit"
                 Cull Off
 
                 CGPROGRAM
+                //vertInstancingSetup writes to global, not allowed with DXC
+                #pragma never_use_dxc
                 #pragma target 2.5
 
                 #pragma shader_feature_local_fragment _ALPHATEST_ON
@@ -124,6 +128,8 @@ Shader "Particles/Standard Unlit"
                 Cull Off
 
                 CGPROGRAM
+                //vertInstancingSetup writes to global, not allowed with DXC
+                #pragma never_use_dxc
                 #pragma target 2.5
 
                 #pragma shader_feature_local_fragment _ALPHATEST_ON
@@ -143,6 +149,8 @@ Shader "Particles/Standard Unlit"
                 Tags { "LightMode"="ForwardBase" }
 
                 CGPROGRAM
+                //vertInstancingSetup writes to global, not allowed with DXC
+                #pragma never_use_dxc
                 #pragma multi_compile __ SOFTPARTICLES_ON
                 #pragma multi_compile_fog
                 #pragma target 2.5

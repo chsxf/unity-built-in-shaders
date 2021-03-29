@@ -48,7 +48,7 @@ SubShader {
         int _IsNormalMap;
         float _Exposure;
 
-        fixed4 frag (v2f i) : COLOR0
+        fixed4 frag (v2f i) : SV_Target0
         {
             fixed4 c = texCUBE(_MainTex, i.uv);
             fixed4 cmip = texCUBElod(_MainTex, float4(i.uv,_Mip));

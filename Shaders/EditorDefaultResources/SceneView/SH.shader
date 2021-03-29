@@ -90,7 +90,7 @@ ENDCG
     Pass {
 
         CGPROGRAM
-        half4 frag (v2f i) : COLOR
+        half4 frag (v2f i) : SV_Target
         {
             return half4 (i.color, 1);
         }
@@ -102,7 +102,7 @@ ENDCG
         ZTest Always
         CGPROGRAM
 #pragma target 2.0
-        half4 frag (v2f i) : COLOR
+        half4 frag (v2f i) : SV_Target
         {
             return half4 (i.color, 1);
         }

@@ -42,7 +42,12 @@ Shader "Hidden/Nature/Terrain/Utilities"
             Name "Selection"
             Tags { "LightMode" = "SceneSelectionPass" }
 
+            Blend One Zero
+            ZTest LEqual
             Cull Off
+            ZWrite Off
+            // push towards camera a bit, so that coord mismatch due to dynamic batching is not affecting us
+            Offset -0.02, 0
 
             CGPROGRAM
                 #pragma vertex vert

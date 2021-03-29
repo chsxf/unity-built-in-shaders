@@ -41,7 +41,7 @@ Shader "Hidden/GIDebug/TextureUV" {
                 return o;
             }
 
-            float4 frag_surf (v2f_surf IN) : COLOR
+            float4 frag_surf (v2f_surf IN) : SV_Target
             {
                 float4 mainTexSampled = tex2D (_MainTex, IN.uv.xy);
                 float3 result;

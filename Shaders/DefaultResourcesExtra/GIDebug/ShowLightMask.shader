@@ -57,7 +57,7 @@ Shader "Hidden/GIDebug/ShowLightMask" {
                 return tex2D(_LightTexture, dot(lightCoord, lightCoord).xx).r;
             }
 
-            float4 frag_surf (v2f_surf IN) : COLOR
+            float4 frag_surf (v2f_surf IN) : SV_Target
             {
                 float4 mainTexSampled = tex2D(_MainTex, IN.uv.xy);
 
