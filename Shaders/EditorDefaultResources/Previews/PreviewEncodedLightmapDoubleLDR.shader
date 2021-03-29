@@ -49,7 +49,7 @@ Shader "Hidden/Preview Encoded Lightmap doubleLDR"
                 uniform fixed4 _ColorMask;
                 float _Exposure;
 
-                fixed4 frag( v2f i ) : COLOR
+                fixed4 frag( v2f i ) : SV_Target
                 {
                     fixed4 lmc = tex2D(_MainTex, i._uv0) * _ColorMask, lmcmip = tex2Dlod(_MainTex, float4(i._uv0.x, i._uv0.y, 0, _Mip)) * _ColorMask;
                     if (_Mip >= 0.0) lmc = lmcmip;

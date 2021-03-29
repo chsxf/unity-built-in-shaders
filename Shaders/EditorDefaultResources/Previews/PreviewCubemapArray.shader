@@ -49,7 +49,7 @@ SubShader {
 
         half4 _MainTex_HDR;
         UNITY_DECLARE_TEXCUBEARRAY(_MainTex);
-        fixed4 frag (v2f i) : COLOR0
+        fixed4 frag (v2f i) : SV_Target0
         {
             fixed4 c = UNITY_SAMPLE_TEXCUBEARRAY(_MainTex, float4(i.uv, _SliceIndex));
             fixed4 cmip = UNITY_SAMPLE_TEXCUBEARRAY_LOD(_MainTex, float4(i.uv, _SliceIndex), _Mip);

@@ -96,7 +96,6 @@ Shader "Hidden/Handles Circular Arc"
     }
     SubShader
     {
-        Tags { "ForceSupported" = "True" }
         Blend SrcAlpha OneMinusSrcAlpha
         Cull Back
         ZWrite Off
@@ -128,7 +127,6 @@ Shader "Hidden/Handles Circular Arc"
 
             v2f vert (uint vid : SV_VertexID)
             {
-                v2f o;
                 // "thin" arcs are rendered as a line strip, vertex ID
                 // in that case is just vertex along the arc length.
                 float indexAlongArc = vid;
@@ -169,7 +167,6 @@ Shader "Hidden/Handles Circular Arc"
 
             v2f vert (uint vid : SV_VertexID)
             {
-                v2f o;
                 // "thick" lines are rendered as a section of a cylinder,
                 // with an index buffer. vertex ID goes in "sides" circles
                 // along the arc length.
@@ -200,4 +197,5 @@ Shader "Hidden/Handles Circular Arc"
             ENDCG
         }
     }
+    Fallback Off
 }

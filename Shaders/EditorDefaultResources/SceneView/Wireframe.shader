@@ -11,7 +11,7 @@ Shader "Hidden/SceneViewWireframe" {
             fixed4 unity_SceneViewWireColor;
         CBUFFER_END
 
-        fixed4 frag () : COLOR
+        fixed4 frag () : SV_Target
         {
             return unity_SceneViewWireColor;
         }

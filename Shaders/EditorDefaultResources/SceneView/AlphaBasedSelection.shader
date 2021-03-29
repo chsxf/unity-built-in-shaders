@@ -55,7 +55,7 @@ Shader "Hidden/AlphaBasedSelection"
                 return OUT;
             }
 
-            fixed4 frag(v2f IN) : COLOR
+            fixed4 frag(v2f IN) : SV_Target
             {
                 fixed4 col = tex2D( _MainTex, IN.texcoord);
                 clip(col.a - _SelectionAlphaCutoff);
@@ -113,7 +113,7 @@ Shader "Hidden/AlphaBasedSelection"
                 return OUT;
             }
 
-            fixed4 frag(v2f IN) : COLOR
+            fixed4 frag(v2f IN) : SV_Target
             {
                 fixed4 col = tex2D( _MainTex, IN.texcoord);
                 clip(col.a - _Cutoff);

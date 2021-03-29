@@ -35,7 +35,7 @@ SubShader {
             return o;
         }
 
-        float4 frag (fragmentInput i) : COLOR {
+        float4 frag (fragmentInput i) : SV_Target {
             float r = saturate (i.texcoord0.x / -i.screenPos.z - 0.1);
             return float4 (i.color.r, i.color.g, i.color.b, r * i.color.a);
         }

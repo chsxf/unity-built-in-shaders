@@ -28,7 +28,8 @@ fixed4 uie_editor_frag(v2f IN)
     // Convert the color and use the converted result if we need to.
     fixed4 gammaColor = fixed4(LinearToGammaSpace(stdColor.rgb), stdColor.a);
     // In linear, Atlas and Custom textures fetches will return linear colors that must be converted to sRGB.
-    fixed convertToGamma = _EditorColorSpace * (abs(IN.flags.y) /* isAtlasTex */ + IN.flags.z /* isCustomTex */);
+    fixed isTextured = IN.typeTexSettings.x == 3 ? 1 : 0;
+    fixed convertToGamma = _EditorColorSpace * isTextured;
     fixed4 result = lerp(stdColor, gammaColor, convertToGamma);
 
     // Apply the tint.

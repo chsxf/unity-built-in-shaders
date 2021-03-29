@@ -41,7 +41,7 @@ Shader "Hidden/Show Lightmap Resolution" {
                 return o;
             }
 
-            float4 frag (v2f i) : COLOR
+            float4 frag (v2f i) : SV_Target
             {
                 return tex2D (_Checkerboard, i.uv.xy);
             }
@@ -84,7 +84,7 @@ Shader "Hidden/Show Lightmap Resolution" {
                 return o;
             }
 
-            float4 frag (v2f i) : COLOR
+            float4 frag (v2f i) : SV_Target
             {
                 return tex2D (_Checkerboard, i.uv.xy);
             }
@@ -127,7 +127,7 @@ Shader "Hidden/Show Lightmap Resolution" {
                 return o;
             }
 
-            float4 frag (v2f i) : COLOR
+            float4 frag (v2f i) : SV_Target
             {
                 return tex2D (_Checkerboard, i.uv.xy);
             }

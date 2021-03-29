@@ -3,19 +3,19 @@
 #ifndef UNITY_UIE_INCLUDED
 #define UNITY_UIE_INCLUDED
 
-#ifndef UIE_SIMPLE_ATLAS
-    #if SHADER_TARGET < 35
-        #define UIE_SIMPLE_ATLAS 1
-    #else
-        #define UIE_SIMPLE_ATLAS 0
-    #endif // SHADER_TARGET < 35
-#endif // UIE_SIMPLE_ATLAS
-
 #if SHADER_TARGET >= 30
     #define UIE_SHADER_INFO_IN_VS 1
 #else
     #define UIE_SHADER_INFO_IN_VS 0
 #endif // SHADER_TARGET >= 30
+
+#if SHADER_TARGET < 35
+    #define UIE_TEXTURE_SLOT_COUNT 4
+    #define UIE_FLAT_OPTIM
+#else
+    #define UIE_TEXTURE_SLOT_COUNT 8
+    #define UIE_FLAT_OPTIM nointerpolation
+#endif // SHADER_TARGET >= 35
 
 #ifndef UIE_COLORSPACE_GAMMA
     #ifdef UNITY_COLORSPACE_GAMMA
@@ -49,32 +49,45 @@
 
 #include "UnityCG.cginc"
 
-#if UIE_SIMPLE_ATLAS
-sampler2D _MainTex;
-#else
-Texture2D _MainTex;
-#endif
-float4 _MainTex_ST;
-float4 _MainTex_TexelSize;
-
-SamplerState uie_point_clamp_sampler;
-SamplerState uie_linear_clamp_sampler;
-
 sampler2D _FontTex;
-float4 _FontTex_ST;
-
-sampler2D _CustomTex;
-float4 _CustomTex_ST;
-float4 _CustomTex_TexelSize;
+float4 _FontTex_TexelSize;
+float _FontTexSDFScale;
 
 sampler2D _GradientSettingsTex;
-float4 _GradientSettingsTex_ST;
 float4 _GradientSettingsTex_TexelSize;
 
 sampler2D _ShaderInfoTex;
 float4 _ShaderInfoTex_TexelSize;
 
-float4 _1PixelClipInvView; // xy in clip space, zw inverse in view space
+float4 _TextureInfo[UIE_TEXTURE_SLOT_COUNT]; // X id YZ texelSize
+
+sampler2D _Texture0;
+float4 _Texture0_ST;
+
+sampler2D _Texture1;
+float4 _Texture1_ST;
+
+sampler2D _Texture2;
+float4 _Texture2_ST;
+
+sampler2D _Texture3;
+float4 _Texture3_ST;
+
+#if UIE_TEXTURE_SLOT_COUNT == 8
+sampler2D _Texture4;
+float4 _Texture4_ST;
+
+sampler2D _Texture5;
+float4 _Texture5_ST;
+
+sampler2D _Texture6;
+float4 _Texture6_ST;
+
+sampler2D _Texture7;
+float4 _Texture7_ST;
+#endif
+
+float4 _PixelClipInvView; // xy in clip space, zw inverse in view space
 float4 _ScreenClipRect; // In clip space
 
 #if !UIE_SHADER_INFO_IN_VS
@@ -95,8 +108,10 @@ struct appdata_t
     float4 color    : COLOR;
     float2 uv       : TEXCOORD0;
     float4 xformClipPages : TEXCOORD1; // Top-left of xform and clip pages: XY,XY
-    float4 idsFlags : TEXCOORD2; //XYZ (xform,clip,opacity) (W flags)
-    float4 opacityPageSVGSettingIndex : TEXCOORD3; //XY (ZW SVG setting index)
+    float4 ids      : TEXCOORD2; //XYZW (xform,clip,opacity,textcore)
+    float4 flags    : TEXCOORD3; //X (flags) Y (textcore-dilate) ZW (unused)
+    float4 opacityPageSettingIndex : TEXCOORD4; //XY: Opacity page index, ZW: SVG/TexCore setting index
+    float  textureId : TEXCOORD5; // X (textureId)
 
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
@@ -105,10 +120,10 @@ struct v2f
 {
     UIE_V2F_COLOR_T color : COLOR;
     float4 uvXY  : TEXCOORD0; // UV and ZW holds XY position in points
-    fixed4 flags : TEXCOORD1;
-    fixed3 svgFlags : TEXCOORD2;
-    fixed4 clipRectOpacityUVs : TEXCOORD3;
-    float2 clipPos : TEXCOORD4;
+    UIE_FLAT_OPTIM half3 typeTexSettings : TEXCOORD1; // X: Render Type Y: Tex Index Z: SVG Gradient Index
+    fixed4 clipRectOpacityUVs : TEXCOORD2;
+    fixed2 textCoreUVs : TEXCOORD3;
+    float4 clipPos : TEXCOORD4; // W holds textcore dilate flag
 #if UIE_SHADER_INFO_IN_VS
     nointerpolation fixed4 clipRect : TEXCOORD5; // Clip rect presampled
 #endif // UIE_SHADER_INFO_IN_VS
@@ -118,7 +133,87 @@ struct v2f
 static const float kUIEMeshZ = 0.0f; // Keep in track with UIRUtility.k_MeshPosZ
 static const float kUIEMaskZ = 1.0f; // Keep in track with UIRUtility.k_MaskPosZ
 
-static const float kUIEVertexLastFlagValue = 10.0f; // Keep in track with UIR.VertexFlags
+// returns: Integer between 0 and UIE_TEXTURE_SLOT_COUNT - 1
+half FindTextureSlot(float textureId)
+{
+#if UIE_TEXTURE_SLOT_COUNT > 4
+    for(int i = 0 ; i < UIE_TEXTURE_SLOT_COUNT - 1 ; ++i)
+        if (_TextureInfo[i].x == textureId)
+            return i;
+    return UIE_TEXTURE_SLOT_COUNT - 1;
+#else
+    // Unrolling because of GLES2 issues with loops.
+    // Replaced '==' because they're messed up on some old GPUs.
+    half slotIndex = 0;
+    slotIndex += (1.0 - abs(sign(_TextureInfo[1].x - textureId))) * 1;
+    slotIndex += (1.0 - abs(sign(_TextureInfo[2].x - textureId))) * 2;
+    slotIndex += (1.0 - abs(sign(_TextureInfo[3].x - textureId))) * 3;
+    return slotIndex;
+#endif
+}
+
+// index: integer between [0..UIE_TEXTURE_SLOT_COUNT[
+float4 SampleTextureSlot(half index, float2 uv)
+{
+    float4 result;
+
+#if UIE_TEXTURE_SLOT_COUNT > 4
+    if (index < 4)
+    {
+#endif
+        if (index < 2)
+        {
+            if (index < 1)
+            {
+                result = tex2D(_Texture0, uv);
+            }
+            else
+            {
+                result = tex2D(_Texture1, uv);
+            }
+        }
+        else // index >= 2
+        {
+            if (index < 3)
+            {
+                result = tex2D(_Texture2, uv);
+            }
+            else
+            {
+                result = tex2D(_Texture3, uv);
+            }
+        }
+#if UIE_TEXTURE_SLOT_COUNT > 4
+    }
+    else // index >= 4
+    {
+        if (index < 6)
+        {
+            if (index < 5)
+            {
+                result = tex2D(_Texture4, uv);
+            }
+            else
+            {
+                result = tex2D(_Texture5, uv);
+            }
+        }
+        else // index >= 6
+        {
+            if (index < 7)
+            {
+                result = tex2D(_Texture6, uv);
+            }
+            else
+            {
+                result = tex2D(_Texture7, uv);
+            }
+        }
+    }
+#endif
+
+    return result;
+}
 
 // Notes on UIElements Spaces (Local, Bone, Group, World and Clip)
 //
@@ -156,7 +251,7 @@ float2 uie_get_border_offset(float4 vertex, float2 embeddedDisplacement, float m
 {
     // Compute the absolute displacement in framebuffer space (unit = 1 pixel).
     float2 viewDisplacement = mul(uie_toWorldMat, float4(embeddedDisplacement, 0, 0)).xy;
-    float2 frameDisplacementAbs = abs(viewDisplacement * _1PixelClipInvView.zw);
+    float2 frameDisplacementAbs = abs(viewDisplacement * _PixelClipInvView.zw);
 
     // We need to meet the minimum displacement requirement before rounding so that we can simply add 1 after rounding
     // if we don't meet it anymore.
@@ -179,11 +274,11 @@ float2 uie_get_border_offset(float4 vertex, float2 embeddedDisplacement, float m
 float2 uie_snap_to_integer_pos(float2 clipSpaceXY)
 {
     // Convert from clip space to framebuffer space (unit = 1 pixel).
-    float2 pixelPos = (clipSpaceXY + 1) / _1PixelClipInvView.xy;
+    float2 pixelPos = (clipSpaceXY + 1) / _PixelClipInvView.xy;
     // Add an offset before rounding to avoid half which is very common to land onto.
     float2 roundedPixelPos = round(pixelPos + 0.1527);
     // Go back to clip space.
-    return roundedPixelPos * _1PixelClipInvView.xy - 1;
+    return roundedPixelPos * _PixelClipInvView.xy - 1;
 }
 
 void uie_fragment_clip(v2f IN)
@@ -220,7 +315,7 @@ void uie_vert_load_payload(appdata_t v)
 {
 #if UIE_SHADER_INFO_IN_VS
 
-    float2 xformTexel = uie_decode_shader_info_texel_pos(v.xformClipPages.xy, v.idsFlags.x, 3.0f);
+    float2 xformTexel = uie_decode_shader_info_texel_pos(v.xformClipPages.xy, v.ids.x, 3.0f);
     float2 row0UV = (xformTexel + float2(0, 0) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
     float2 row1UV = (xformTexel + float2(0, 1) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
     float2 row2UV = (xformTexel + float2(0, 2) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
@@ -233,7 +328,7 @@ void uie_vert_load_payload(appdata_t v)
 
 #else // !UIE_SHADER_INFO_IN_VS
 
-    int xformConstantIndex = (int)(v.idsFlags.x * 255.0f * 3.0f);
+    int xformConstantIndex = (int)(v.ids.x * 255.0f * 3.0f);
     uie_toWorldMat = float4x4(
         _Transforms[xformConstantIndex + 0],
         _Transforms[xformConstantIndex + 1],
@@ -331,17 +426,65 @@ float TestForValue(float value, inout float flags)
 #endif
 }
 
-float sdf(float distanceSample)
+// 1 layer : Face only
+// sd           : Signed distance / sdfScale + 0.5
+// sdfSizeRCP   : 1 / texture width
+// sdfScale     : Signed Distance Field Scale
+// isoPerimeter : Dilate / Contract the shape
+float sd_to_coverage(float sd, float2 uv, float sdfSizeRCP, float sdfScale, float isoPerimeter)
 {
-    float sharpness = 0;
-    float outlineSoftness = 0;
-    float faceDilation = 0;
+    float ta = ddx(uv.x) * ddy(uv.y) - ddy(uv.x) * ddx(uv.y);   // Texel area (parallelogram)
+    float ssr = rsqrt(abs(ta)) * sdfSizeRCP;                    // Texture to Screen Space Ratio
+    sd = (sd - 0.5) * sdfScale + isoPerimeter;                  // Signed Distance to edge (in texture space)
+    return saturate(0.5 + 2.0 * sd * ssr);                      // Screen pixel coverage : center + (1 / sampling radius) * signed distance
+}
 
-    float smoothing = fwidth(distanceSample) * (1 - sharpness) + outlineSoftness;
-    float contour = 0.5 - faceDilation * 0.5;
-    float2 edgeRange = float2(contour - smoothing, contour + smoothing);
+// 3 Layers : Face, Outline, Underlay
+// sd           : Signed distance / sdfScale + 0.5
+// sdfSizeRCP   : 1 / texture width
+// sdfScale     : Signed Distance Field Scale
+// isoPerimeter : Dilate / Contract the shape
+// softness     : softness of each outer edges
+float3 sd_to_coverage(float3 sd, float2 uv, float sdfSizeRCP, float sdfScale, float3 isoPerimeter, float3 softness)
+{
+    float ta = ddx(uv.x) * ddy(uv.y) - ddy(uv.x) * ddx(uv.y);         // Texel area (parallelogram)
+    float ssr = rsqrt(abs(ta)) * sdfSizeRCP;                          // Texture to Screen Space Ratio
+    sd = (sd - 0.5) * sdfScale + isoPerimeter;                        // Signed Distance to edge (in texture space)
+    return saturate(0.5 + 2.0 * sd * ssr / (1.0 + softness * ssr));   // Screen pixel coverage : center + (1 / sampling radius) * signed distance
+}
 
-    return smoothstep (edgeRange.x, edgeRange.y, distanceSample);
+UIE_FRAG_T uie_textcore(float textAlpha, float2 uv, float2 textCoreUV, float4 faceColor, float extraDilate)
+{
+    float2 row0UV = (textCoreUV + float2(0, 0) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    float2 row1UV = (textCoreUV + float2(0, 1) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    float2 row2UV = (textCoreUV + float2(0, 2) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+
+    float4 outlineColor  = tex2Dlod(_ShaderInfoTex, float4(row0UV, 0, 0));
+    float4 underlayColor = tex2Dlod(_ShaderInfoTex, float4(row1UV, 0, 0));
+    float4 settings      = tex2Dlod(_ShaderInfoTex, float4(row2UV, 0, 0));
+
+     settings *= _FontTexSDFScale;
+    float2 underlayOffset = settings.xy;
+    float underlaySoftness = settings.z;
+    float outlineDilate = settings.w * 0.25f;
+    float3 dilate = float3(-outlineDilate, outlineDilate, 0);
+    float3 softness = float3(0, 0, underlaySoftness);
+
+    // Distance to Alpha
+    float alpha1 = textAlpha;
+    float alpha2 = tex2D(_FontTex, uv + underlayOffset * _FontTex_TexelSize.x).a;
+    float3 alpha = sd_to_coverage(float3(alpha1, alpha1, alpha2), uv, _FontTex_TexelSize.x, _FontTexSDFScale, dilate + extraDilate, softness);
+
+    // Blending of the 3 ARGB layers
+    underlayColor.a *= alpha.z;
+    faceColor.rgb *= faceColor.a;
+    outlineColor.rgb *= outlineColor.a;
+    underlayColor.rgb *= underlayColor.a;
+
+    UIE_FRAG_T color = lerp(lerp(underlayColor, outlineColor, alpha.y), faceColor, alpha.x);
+    color.rgb /= (color.a > 0.0f ? color.a : 1.0f);
+
+    return color;
 }
 
 float4 uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color)
@@ -353,12 +496,12 @@ float4 uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color)
     color = UIE_V2F_COLOR_T(GammaToLinearSpace(v.color.rgb), v.color.a);
 #endif // UIE_COLORSPACE_GAMMA
 
-    const float2 opacityUV = (uie_decode_shader_info_texel_pos(v.opacityPageSVGSettingIndex.xy, v.idsFlags.z, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    const float2 opacityUV = (uie_decode_shader_info_texel_pos(v.opacityPageSettingIndex.xy, v.ids.z, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
 #if UIE_SHADER_INFO_IN_VS
-    const float2 clipRectUV = (uie_decode_shader_info_texel_pos(v.xformClipPages.zw, v.idsFlags.y, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    const float2 clipRectUV = (uie_decode_shader_info_texel_pos(v.xformClipPages.zw, v.ids.y, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
     color.a *= tex2Dlod(_ShaderInfoTex, float4(opacityUV, 0, 0)).a;
 #else // !UIE_SHADER_INFO_IN_VS
-    const float2 clipRectUV = float2(v.idsFlags.y * 255.0f, 0.0f);
+    const float2 clipRectUV = float2(v.ids.y * 255.0f, 0.0f);
 #endif // UIE_SHADER_INFO_IN_VS
 
     return float4(clipRectUV, opacityUV);
@@ -371,19 +514,16 @@ v2f uie_std_vert(appdata_t v, out float4 clipSpacePos)
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
 
     uie_vert_load_payload(v);
-    float flags = v.idsFlags.w*255.0f;
+    float flags = round(v.flags.x*255.0f); // Must round for MacGL VM
     // Keep the descending order for GLES2
-    const float isCustomSVGGradients = TestForValue(9.0, flags);
-    const float isSVGGradients = TestForValue(8.0, flags);
-    const float isEdgeNoShrinkY = TestForValue(7.0, flags);
-    const float isEdgeNoShrinkX = TestForValue(6.0, flags);
-    const float isEdge = TestForValue(5.0, flags);
-    const float isCustomTex = TestForValue(4.0, flags);
-    const float isAtlasTexBilinear = TestForValue(3.0, flags);
-    const float isAtlasTexPoint = TestForValue(2.0, flags);
-    const float isText = TestForValue(1.0, flags);
-    const float isAtlasTex = isAtlasTexBilinear + isAtlasTexPoint;
-    const float isSolid = 1 - saturate(isText + isAtlasTex + isCustomTex + isSVGGradients + isCustomSVGGradients);
+    const float isEdgeNoShrinkY  = TestForValue(7.0, flags);
+    const float isEdgeNoShrinkX  = TestForValue(6.0, flags);
+    const float isEdge           = TestForValue(5.0, flags);
+    const float isSvgGradients   = TestForValue(4.0, flags);
+    const float isDynamic        = TestForValue(3.0, flags);
+    const float isTextured       = TestForValue(2.0, flags);
+    const float isText           = TestForValue(1.0, flags);
+    const float isSolid = 1 - saturate(isText + isTextured + isDynamic + isSvgGradients);
 
     float2 viewOffset = float2(0, 0);
     if (isEdge == 1 || isEdgeNoShrinkX == 1 || isEdgeNoShrinkY == 1)
@@ -397,26 +537,24 @@ v2f uie_std_vert(appdata_t v, out float4 clipSpacePos)
     OUT.uvXY.zw = v.vertex.xy;
     clipSpacePos = UnityObjectToClipPos(v.vertex);
 
-#ifndef UIE_SDF_TEXT
-    if (isText == 1)
+    if (isText == 1 && _FontTexSDFScale == 0)
         clipSpacePos.xy = uie_snap_to_integer_pos(clipSpacePos.xy);
-#endif // UIE_SDF_TEXT
 
     OUT.clipPos.xy = clipSpacePos.xy / clipSpacePos.w;
+    OUT.clipPos.zw = float2(0, v.flags.y);
 
-    OUT.uvXY.xy = TRANSFORM_TEX(v.uv, _MainTex);
-    if (isAtlasTex == 1.0f)
-        OUT.uvXY.xy *= _MainTex_TexelSize.xy;
+    // 1 => solid, 2 => text, 3 => textured, 4 => svg
+    half renderType = isSolid * 1 + isText * 2 + (isDynamic + isTextured) * 3 + isSvgGradients * 4;
+    half textureSlot = FindTextureSlot(v.textureId);
+    float settingIndex = v.opacityPageSettingIndex.z*(255.0f*255.0f) + v.opacityPageSettingIndex.w*255.0f;
+    OUT.typeTexSettings = half3(renderType, textureSlot, settingIndex);
 
-#if UIE_SIMPLE_ATLAS
-    OUT.flags = fixed4(isText, isAtlasTex, isCustomTex, isSolid);
-#else
-    OUT.flags = fixed4(isText, isAtlasTexBilinear - isAtlasTexPoint, isCustomTex, isSolid);
-#endif
-    float svgSettingsIndex = v.opacityPageSVGSettingIndex.z*(255.0f*255.0f) + v.opacityPageSVGSettingIndex.w*255.0f;
-    OUT.svgFlags = fixed3(isSVGGradients, isCustomSVGGradients, svgSettingsIndex);
+    OUT.uvXY.xy = v.uv;
+    if (isDynamic == 1.0f)
+        OUT.uvXY.xy *= _TextureInfo[textureSlot].yz;
 
     OUT.clipRectOpacityUVs = uie_std_vert_shader_info(v, OUT.color);
+    OUT.textCoreUVs = uie_decode_shader_info_texel_pos(v.opacityPageSettingIndex.zw, v.ids.w, 3.0f);
 
 #if UIE_SHADER_INFO_IN_VS
     OUT.clipRect = tex2Dlod(_ShaderInfoTex, float4(OUT.clipRectOpacityUVs.xy, 0, 0));
@@ -429,19 +567,12 @@ UIE_FRAG_T uie_std_frag(v2f IN)
 {
     uie_fragment_clip(IN);
 
-    // Extract the flags.
-    fixed isText               = IN.flags.x;
-#if UIE_SIMPLE_ATLAS
-    fixed isAtlasTex           = IN.flags.y;
-#else
-    fixed isAtlasTexPoint      = saturate(-IN.flags.y);
-    fixed isAtlasTexBilinear   = saturate(IN.flags.y);
-#endif
-    fixed isCustomTex          = IN.flags.z;
-    fixed isSolid              = IN.flags.w;
-    fixed isSVGGradients       = IN.svgFlags.x;
-    fixed isCustomSVGGradients = IN.svgFlags.y;
-    float settingIndex         = IN.svgFlags.z;
+    // Extract the render type
+    bool isSolid        = IN.typeTexSettings.x == 1;
+    bool isText         = IN.typeTexSettings.x == 2;
+    bool isTextured     = IN.typeTexSettings.x == 3;
+    bool isSvgGradients = IN.typeTexSettings.x == 4;
+    float settingIndex = IN.typeTexSettings.z;
 
     float2 uv = IN.uvXY.xy;
 
@@ -450,36 +581,28 @@ UIE_FRAG_T uie_std_frag(v2f IN)
 #endif // !UIE_SHADER_INFO_IN_VS
 
     UIE_FRAG_T texColor = (UIE_FRAG_T)isSolid;
-#if UIE_SIMPLE_ATLAS
-    texColor += tex2D(_MainTex, uv) * isAtlasTex;
-#else
-    texColor += _MainTex.Sample(uie_point_clamp_sampler, uv) * isAtlasTexPoint;
-    texColor += _MainTex.Sample(uie_linear_clamp_sampler, uv) * isAtlasTexBilinear;
-#endif
-#ifdef UIE_SDF_TEXT
-    texColor += UIE_FRAG_T(1, 1, 1, sdf(tex2D(_FontTex, uv).a)) * isText;
-#else
-    texColor += UIE_FRAG_T(1, 1, 1, tex2D(_FontTex, uv).a) * isText;
-#endif
-    texColor += tex2D(_CustomTex, uv) * isCustomTex;
+    if (isTextured)
+        texColor = SampleTextureSlot(IN.typeTexSettings.y, uv);
 
-    if (isSVGGradients == 1.0f || isCustomSVGGradients == 1.0f)
+    float textAlpha = tex2D(_FontTex, uv).a;
+    if (isText)
     {
-        float2 texelSize = isCustomSVGGradients == 1.0f ? _CustomTex_TexelSize.xy : _MainTex_TexelSize.xy;
+        if (_FontTexSDFScale > 0.0f)
+            texColor = uie_textcore(textAlpha, uv, IN.textCoreUVs.xy, IN.color, IN.clipPos.w);
+        else
+            texColor = UIE_FRAG_T(1, 1, 1, tex2D(_FontTex, uv).a);
+    }
+    else if (isSvgGradients)
+    {
+        float2 texelSize = _TextureInfo[IN.typeTexSettings.y].yz;
         GradientLocation grad = uie_sample_gradient_location(settingIndex, uv, _GradientSettingsTex, _GradientSettingsTex_TexelSize.xy);
         grad.location *= texelSize.xyxy;
         grad.uv *= grad.location.zw;
         grad.uv += grad.location.xy;
-
-#if UIE_SIMPLE_ATLAS
-        texColor += tex2D(_MainTex, grad.uv) * isSVGGradients;
-#else
-        texColor += _MainTex.Sample(uie_linear_clamp_sampler, grad.uv) * isSVGGradients;
-#endif
-        texColor += tex2D(_CustomTex, grad.uv) * isCustomSVGGradients;
+        texColor = SampleTextureSlot(IN.typeTexSettings.y, grad.uv);
     }
 
-    UIE_FRAG_T color = texColor * IN.color;
+    UIE_FRAG_T color = (isText && _FontTexSDFScale > 0.0f) ? texColor : texColor * IN.color;
     return color;
 }
 
