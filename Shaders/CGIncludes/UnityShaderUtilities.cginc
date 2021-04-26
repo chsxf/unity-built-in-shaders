@@ -25,7 +25,7 @@ float3 ODSOffset(float3 worldPos, float ipd)
     float directionMinusIPD = max(EPSILON, direction.w*direction.w - ipd*ipd);
     float a = ipd * ipd / direction.w;
     float b = ipd / direction.w * sqrt(directionMinusIPD);
-    float3 offset = -a*direction + b*tangent;
+    float3 offset = -a * direction.xyz + b * tangent;
     return offset;
 }
 
