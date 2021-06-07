@@ -36,7 +36,7 @@ sampler2D _ODSWorldTexture;
 struct appdata {
     float4 vertex : POSITION;
     float2 texcoord : TEXCOORD0;
-#ifdef UNITY_STEREO_INSTANCING_ENABLED
+#if defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)
     float3 ray0 : TEXCOORD1;
     float3 ray1 : TEXCOORD2;
 #else
@@ -79,7 +79,7 @@ v2f vert (appdata v)
     o.uv.zw = ComputeNonStereoScreenPos(clipPos);
 
     // Perspective case
-#ifdef UNITY_STEREO_INSTANCING_ENABLED
+#if defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)
     o.ray = unity_StereoEyeIndex == 0 ? v.ray0 : v.ray1;
 #else
     o.ray = v.ray;
