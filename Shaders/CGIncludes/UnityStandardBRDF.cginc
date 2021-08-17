@@ -152,7 +152,7 @@ inline float SmithJointGGXVisibilityTerm (float NdotL, float NdotV, float roughn
     float lambdaL = NdotV * (NdotL * (1 - a) + a);
 
 #if defined(SHADER_API_SWITCH)
-    return 0.5f / (lambdaV + lambdaL + 1e-4f); // work-around against hlslcc rounding error
+    return 0.5f / (lambdaV + lambdaL + UNITY_HALF_MIN);
 #else
     return 0.5f / (lambdaV + lambdaL + 1e-5f);
 #endif
