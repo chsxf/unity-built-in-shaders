@@ -12,7 +12,7 @@
 
 // If none of the keywords are defined, assume directional?
 #if !defined(POINT) && !defined(SPOT) && !defined(DIRECTIONAL) && !defined(POINT_COOKIE) && !defined(DIRECTIONAL_COOKIE)
-    #define DIRECTIONAL
+    #define DIRECTIONAL 1
 #endif
 
 // ---- Screen space direction light shadows helpers (any version)
