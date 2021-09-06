@@ -126,6 +126,7 @@ UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 float4 _SoftParticleFadeParams;
 float4 _CameraFadeParams;
 half _Cutoff;
+int _DstBlend;
 
 #define SOFT_PARTICLE_NEAR_FADE _SoftParticleFadeParams.x
 #define SOFT_PARTICLE_INV_FADE_DISTANCE _SoftParticleFadeParams.y
@@ -392,7 +393,21 @@ half4 fragParticleUnlit (VertexOutput IN) : SV_Target
     clip (albedo.a - _Cutoff + 0.0001);
     #endif
 
-    UNITY_APPLY_FOG_COLOR(IN.fogCoord, result, fixed4(0,0,0,0));
+    #if defined(_ALPHAMODULATE_ON)
+    UNITY_APPLY_FOG_COLOR(IN.fogCoord, result, fixed4(1, 1, 1, 0));         // modulate - fog to white color
+    #elif !defined(_ALPHATEST_ON) && defined(_ALPHABLEND_ON) && !defined(_ALPHAPREMULTIPLY_ON)
+    if (_DstBlend == 1)
+    {
+        UNITY_APPLY_FOG_COLOR(IN.fogCoord, result, fixed4(0, 0, 0, 0));     // additive - fog to black color
+    }
+    else
+    {
+        UNITY_APPLY_FOG(IN.fogCoord, result);                               // fade - normal fog
+    }
+    #else
+    UNITY_APPLY_FOG(IN.fogCoord, result);                                   // opaque - normal fog
+    #endif
+
     return result;
 }
 

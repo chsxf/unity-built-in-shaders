@@ -12,6 +12,8 @@
 #define UNITY_HALF_PI       1.57079632679f
 #define UNITY_INV_HALF_PI   0.636619772367f
 
+#define UNITY_HALF_MIN      6.103515625e-5  // 2^-14, the same value for 10, 11 and 16-bit: https://www.khronos.org/opengl/wiki/Small_Float_Formats
+
 // Should SH (light probe / ambient) calculations be performed?
 // - When both static and dynamic lightmaps are available, no SH evaluation is performed
 // - When static and dynamic lightmaps are not available, SH evaluation is always performed
