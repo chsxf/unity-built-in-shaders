@@ -89,6 +89,30 @@ CBUFFER_END
 
 #endif // !UIE_SHADER_INFO_IN_VS
 
+// This piecewise approximation has a precision better than 0.5 / 255 in gamma space over the [0..255] range
+// i.e. abs(l2g_exact(g2l_approx(value)) - value) < 0.5 / 255
+// It is much more precise than GammaToLinearSpace but remains relatively cheap
+half3 uie_gamma_to_linear(half3 value)
+{
+    half3 low = 0.0849710 * value - 0.000163029;
+    half3 high = value * (value * (value * 0.265885 + 0.736584) - 0.00980184) + 0.00319697;
+
+    // We should be 0.5 away from any actual gamma value stored in an 8 bit channel
+    const half3 split = (half3)0.0725490; // Equals 18.5 / 255
+    return (value < split) ? low : high;
+}
+
+// This piecewise approximation has a very precision veryclose to that of LinearToGammaSpaceExact but explicitly
+// avoids branching
+half3 uie_linear_to_gamma(half3 value)
+{
+    half3 low = 12.92F * value;
+    half3 high =  1.055F * pow(value, 0.4166667F) - 0.055F;
+
+    const half3 split = (half3)0.0031308;
+    return (value < split) ? low : high;
+}
+
 struct appdata_t
 {
     float4 vertex   : POSITION;
@@ -350,7 +374,7 @@ float4 uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color)
     color = v.color;
 #else // !UIE_COLORSPACE_GAMMA
     // Keep this in the VS to ensure that interpolation is performed in the right color space
-    color = UIE_V2F_COLOR_T(GammaToLinearSpace(v.color.rgb), v.color.a);
+    color = UIE_V2F_COLOR_T(uie_gamma_to_linear(v.color.rgb), v.color.a);
 #endif // UIE_COLORSPACE_GAMMA
 
     const float2 opacityUV = (uie_decode_shader_info_texel_pos(v.opacityPageSVGSettingIndex.xy, v.idsFlags.z, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
