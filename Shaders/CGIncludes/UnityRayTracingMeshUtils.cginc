@@ -77,8 +77,11 @@ struct VertexAttributeInfo
 
 StructuredBuffer<MeshInfo>              unity_MeshInfo_RT;
 StructuredBuffer<VertexAttributeInfo>   unity_MeshVertexDeclaration_RT;
-
+#if defined(SHADER_API_PS5)
+Buffer<ByteAddressBuffer> unity_MeshVertexBuffers_RT;
+#else
 ByteAddressBuffer unity_MeshVertexBuffers_RT[kMaxVertexStreams];
+#endif
 ByteAddressBuffer unity_MeshIndexBuffer_RT;
 
 static float4 unity_VertexChannelMask_RT[5] =
