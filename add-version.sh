@@ -24,8 +24,6 @@ fi
 LOCAL_BRANCH_COUNT=`git branch --list | grep "$MAJOR_BRANCH" | wc -l`
 REMOTE_BRANCH_COUNT=`git branch -r | grep "origin/${MAJOR_BRANCH}" | wc -l`
 
-git fetch --all
-
 git checkout master
 git pull
 
