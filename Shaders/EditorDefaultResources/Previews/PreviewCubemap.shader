@@ -8,6 +8,7 @@ Properties {
     _Intensity ("Intensity", Float) = 1.0 // lighting probe's intensity
     _IsNormalMap ("", Int) = 0
     _Exposure ("Exposure", Float) = 0.0 // exposure controller
+    _ColorspaceIsGamma ("", Int) = 0
 }
 
 SubShader {
@@ -47,6 +48,7 @@ SubShader {
         half _Intensity;
         int _IsNormalMap;
         float _Exposure;
+        int _ColorspaceIsGamma;
 
         fixed4 frag (v2f i) : SV_Target0
         {
@@ -59,7 +61,7 @@ SubShader {
                 c.rgb = 0.5f + 0.5f * UnpackNormal(c);
                 c.a = 1;
             }
-            c.rgb = DecodeHDR (c, _MainTex_HDR) * _Intensity;
+            c.rgb = DecodeHDR (c, _MainTex_HDR, _ColorspaceIsGamma) * _Intensity;
             c.rgb *= exp2(_Exposure);
 
             c = lerp (c, c.aaaa, _Alpha);

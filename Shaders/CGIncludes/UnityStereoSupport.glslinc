@@ -16,9 +16,6 @@
         vec3 unity_StereoWorldSpaceCameraPos[2];
         vec4 unity_StereoScaleOffset[2];
     };
-    layout(std140) uniform UnityStereoEyeIndices {
-        vec4 unity_StereoEyeIndices[2];
-    };
 #endif
 
 #ifdef VERTEX
@@ -33,7 +30,7 @@
         int eyeIndex = unity_StereoEyeIndex;
 
         #if defined(STEREO_MULTIVIEW_ON)
-            eyeIndex = int(unity_StereoEyeIndices[gl_ViewID_OVR].x);
+            eyeIndex = int(gl_ViewID_OVR);
         #elif defined(STEREO_INSTANCING_ON)
             eyeIndex = int(gl_InstanceID & 1);
             gl_Layer = eyeIndex;

@@ -46,6 +46,7 @@ struct StackInfo
 #endif
 
 StructuredBuffer<GraniteTilesetConstantBuffer> _VTTilesetBuffer;
+SamplerState _vt_cacheSampler_trilinear_clamp_aniso4;
 
 #define DECLARE_STACK_CB(stackName) \
     float4x4 stackName##_spaceparams[2];\
@@ -110,7 +111,7 @@ GraniteTilesetConstantBuffer graniteParamBlock = GetConstantBuffer_##stackName()
 #define jj(a, b) jj2(a, b)
 
 #define DECLARE_STACK_LAYER(stackName, layerSamplerName, layerIndex) \
-UNITY_DECLARE_TEX2DARRAY(stackName##_c##layerIndex);\
+UNITY_DECLARE_TEX2DARRAY_NOSAMPLER(stackName##_c##layerIndex);\
 \
 float4 SampleVT_##layerSamplerName(StackInfo info)\
 {\
@@ -126,7 +127,7 @@ float4 SampleVT_##layerSamplerName(StackInfo info)\
 \
     GraniteCacheTexture cache;\
     cache.TextureArray = stackName##_c##layerIndex;\
-    cache.Sampler = sampler##stackName##_c##layerIndex;\
+    cache.Sampler = _vt_cacheSampler_trilinear_clamp_aniso4;\
 \
     float4 output;\
     Granite_Sample_HQ(grCB, info.lookupData, cache, layerIndex, output);\
@@ -150,7 +151,7 @@ float4 SampleVTLod_##layerSamplerName(StackInfo info)\
 \
     GraniteCacheTexture cache;\
     cache.TextureArray = stackName##_c##layerIndex;\
-    cache.Sampler = sampler##stackName##_c##layerIndex;\
+    cache.Sampler = _vt_cacheSampler_trilinear_clamp_aniso4;\
 \
     float4 output;\
     Granite_Sample(grCB, info.lookupDataLod, cache, layerIndex, output);\

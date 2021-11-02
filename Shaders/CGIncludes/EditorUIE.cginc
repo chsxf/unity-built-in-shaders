@@ -21,6 +21,18 @@ fixed4 uie_editor_frag(v2f IN)
     // gamma-to-linear conversion of the tint performed by the vertex shader.
     fixed4 tint = IN.color;
 
+#if UIE_SHADER_INFO_IN_VS
+    bool dynamicTintInFS = false;
+#else
+    bool dynamicTintInFS = true;
+#endif
+    bool isText = IN.typeTexSettings.x == 2;
+    bool isDynamicColor = IN.typeTexSettings.w >= 2.0;
+    if (isDynamicColor && (isText || dynamicTintInFS))
+        // If the dynamic color isn't read from VS, force the tint to white since
+        // the tint will be read in FS.
+        tint = fixed4(1,1,1,1);
+
     // Override the color with opaque white so that it doesn't tint the output of uie_std_frag.
     IN.color = (fixed4)1;
     half4 stdColor = uie_std_frag(IN);

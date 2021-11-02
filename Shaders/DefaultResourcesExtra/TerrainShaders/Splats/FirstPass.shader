@@ -29,6 +29,7 @@ Shader "Nature/Terrain/Diffuse" {
         Tags {
             "Queue" = "Geometry-99"
             "RenderType" = "Opaque"
+            "TerrainCompatible" = "True"
         }
         // TODO: Seems like "#pragma target 3.0 _NORMALMAP" can't fallback correctly on less capable devices?
         // Use two sub-shaders to simulate different features for different targets and still fallback correctly.

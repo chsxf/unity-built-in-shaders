@@ -19,6 +19,8 @@ Shader "Hidden/VideoDecode"
         float4 _MainTex_TexelSize;
         float4 _MainTex_ST;
 
+        float4x4 _MatrixColorConversion;
+
         inline fixed4 AdjustForColorSpace(fixed4 color)
         {
 #if defined(UNITY_COLORSPACE_GAMMA) || !defined(ADJUST_TO_LINEARSPACE)
@@ -71,17 +73,14 @@ Shader "Hidden/VideoDecode"
 
         fixed4 fragmentNV12RGBOne(v2f i) : SV_Target
         {
-            fixed y = tex2D(_MainTex, i.texcoord).a;
-            fixed2 uv = tex2D(_SecondTex, i.texcoord).rg;
-            fixed u = uv.x;
-            fixed v = uv.y;
-            fixed y1 = 1.15625 * y;
-            return AdjustForColorSpace(fixed4(
-                y1 + 1.59375 * v - 0.87254,
-                y1 - 0.390625 * u - 0.8125 * v + 0.53137,
-                y1 + 1.984375 * u - 1.06862,
-                1.0f
-            ));
+            float3 yCbCr = float3( tex2D(_MainTex, i.texcoord).a - 0.0625,
+                                   tex2D(_SecondTex, i.texcoord).r - 0.5,
+                                   tex2D(_SecondTex, i.texcoord).g - 0.5 );
+            fixed4 result = fixed4( dot(float3(_MatrixColorConversion[0][0], _MatrixColorConversion[0][1], _MatrixColorConversion[0][2]), yCbCr),
+                                    dot(float3(_MatrixColorConversion[1][0], _MatrixColorConversion[1][1], _MatrixColorConversion[1][2]), yCbCr),
+                                    dot(float3(_MatrixColorConversion[2][0], _MatrixColorConversion[2][1], _MatrixColorConversion[2][2]), yCbCr),
+                                    1.0f );
+            return AdjustForColorSpace(result);
         }
 
         fixed4 fragmentNV12RGBA(v2f i) : SV_Target

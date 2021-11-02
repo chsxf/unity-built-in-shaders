@@ -3,7 +3,7 @@
 Shader "Hidden/Handles Icon" {
 Properties {
     _MainTex ("Base", 2D) = "white" {}
-    [Enum(Always,0, Never,1, Less,2, Equal,3, LEqual,4, Greater,5, NotEqual,6, GEqual,7, Always,8)] _HandleZTest ("_HandleZTest", Int) = 8
+    [Enum(UnityEngine.Rendering.CompareFunction)] _HandleZTest ("_HandleZTest", Int) = 8
 }
 SubShader {
     Tags { "ForceSupported" = "True" "Queue" = "Transparent" }

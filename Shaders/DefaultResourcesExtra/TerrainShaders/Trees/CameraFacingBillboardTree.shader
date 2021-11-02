@@ -116,8 +116,11 @@ Shader "Hidden/TerrainEngine/CameraFacingBillboardTree" {
                     light += CalcTreeLighting(input.viewDir, _TerrainTreeLightColors[2].rgb, _TerrainTreeLightDirections[2], albedo, normal, backContribScale);
                     col.rgb = light;
 #endif
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE)
+                    //use alpha-to-coverage with dithering only on desktop and not for Quest/mobile (too slow) (case 1308585)
                     float coverage = ComputeAlphaCoverage(input.screenPos, input.uv.z);
                     col.a *= coverage;
+#endif
                     clip(col.a - _TreeBillboardCameraFront.w);
                     UNITY_APPLY_FOG(input.fogCoord, col);
                     return col;

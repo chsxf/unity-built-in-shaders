@@ -132,24 +132,27 @@ struct appdata_t
     float4 color    : COLOR;
     float2 uv       : TEXCOORD0;
     float4 xformClipPages : TEXCOORD1; // Top-left of xform and clip pages: XY,XY
-    float4 ids      : TEXCOORD2; //XYZW (xform,clip,opacity,textcore)
-    float4 flags    : TEXCOORD3; //X (flags) Y (textcore-dilate) ZW (unused)
-    float4 opacityPageSettingIndex : TEXCOORD4; //XY: Opacity page index, ZW: SVG/TexCore setting index
-    float  textureId : TEXCOORD5; // X (textureId)
+    float4 ids      : TEXCOORD2; //XYZW (xform,clip,opacity,color/textcore)
+    float4 flags    : TEXCOORD3; //X (flags) Y (textcore-dilate) Z (is-arc) W (is-dynamic-colored)
+    float4 opacityColorPages : TEXCOORD4; //XY: Opacity page, ZW: color page, or SVG/TexCore setting index
+    float4 circle   : TEXCOORD5; // XY (outer) ZW (inner)
+    float  textureId : TEXCOORD6; // X (textureId)
 
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 struct v2f
 {
+    float4 pos : SV_POSITION;
     UIE_V2F_COLOR_T color : COLOR;
     float4 uvXY  : TEXCOORD0; // UV and ZW holds XY position in points
-    UIE_FLAT_OPTIM half3 typeTexSettings : TEXCOORD1; // X: Render Type Y: Tex Index Z: SVG Gradient Index
-    fixed4 clipRectOpacityUVs : TEXCOORD2;
-    fixed2 textCoreUVs : TEXCOORD3;
+    UIE_FLAT_OPTIM half4 typeTexSettings : TEXCOORD1; // X: Render Type Y: Tex Index Z: SVG Gradient Index W: Is Arc
+    UIE_FLAT_OPTIM fixed4 clipRectOpacityUVs : TEXCOORD2;
+    UIE_FLAT_OPTIM float2 colorUVs : TEXCOORD3; // Color/TextCore UVs
     float4 clipPos : TEXCOORD4; // W holds textcore dilate flag
+    half4 circle : TEXCOORD5;
 #if UIE_SHADER_INFO_IN_VS
-    nointerpolation fixed4 clipRect : TEXCOORD5; // Clip rect presampled
+    UIE_FLAT_OPTIM float4 clipRect : TEXCOORD6; // Clip rect presampled
 #endif // UIE_SHADER_INFO_IN_VS
     UNITY_VERTEX_OUTPUT_STEREO
 };
@@ -266,34 +269,6 @@ float4 SampleTextureSlot(half index, float2 uv)
 // will be identities.
 
 static float4x4 uie_toWorldMat;
-
-// Returns the view-space offset that must be applied to the vertex to satisfy a minimum displacement constraint.
-// vertex               Coordinates of the vertex, in vertex-space.
-// embeddedDisplacement Displacement vector that is embedded in vertex, in vertex-space.
-// minDisplacement      Minimum length of the displacement that must be observed, in pixels.
-float2 uie_get_border_offset(float4 vertex, float2 embeddedDisplacement, float minDisplacement, bool noShrinkX, bool noShrinkY)
-{
-    // Compute the absolute displacement in framebuffer space (unit = 1 pixel).
-    float2 viewDisplacement = mul(uie_toWorldMat, float4(embeddedDisplacement, 0, 0)).xy;
-    float2 frameDisplacementAbs = abs(viewDisplacement * _PixelClipInvView.zw);
-
-    // We need to meet the minimum displacement requirement before rounding so that we can simply add 1 after rounding
-    // if we don't meet it anymore.
-    float2 newFrameDisplacementAbs = max(minDisplacement.xx, frameDisplacementAbs);
-    float2 newFrameDisplacementAbsBeforeRound = newFrameDisplacementAbs;
-    newFrameDisplacementAbs = round(newFrameDisplacementAbs + 0.02);
-    if(noShrinkX)
-        newFrameDisplacementAbs.x = max(newFrameDisplacementAbs.x, newFrameDisplacementAbsBeforeRound.x);
-    if(noShrinkY)
-        newFrameDisplacementAbs.y = max(newFrameDisplacementAbs.y, newFrameDisplacementAbsBeforeRound.y);
-    newFrameDisplacementAbs += step(newFrameDisplacementAbs, minDisplacement - 0.001);
-
-    // Convert the resulting displacement into an offset.
-    float2 changeRatio = newFrameDisplacementAbs / (frameDisplacementAbs + 0.000001);
-    changeRatio = clamp(changeRatio, 0.01, 100);
-    float2 viewOffset = (changeRatio - 1) * viewDisplacement;
-    return viewOffset;
-}
 
 float2 uie_snap_to_integer_pos(float2 clipSpaceXY)
 {
@@ -457,37 +432,45 @@ float TestForValue(float value, inout float flags)
 // isoPerimeter : Dilate / Contract the shape
 float sd_to_coverage(float sd, float2 uv, float sdfSizeRCP, float sdfScale, float isoPerimeter)
 {
-    float ta = ddx(uv.x) * ddy(uv.y) - ddy(uv.x) * ddx(uv.y);   // Texel area (parallelogram)
-    float ssr = rsqrt(abs(ta)) * sdfSizeRCP;                    // Texture to Screen Space Ratio
+    float ta = ddx(uv.x) * ddy(uv.y) - ddy(uv.x) * ddx(uv.y);   // Texel area covered by this pixel (parallelogram area)
+    float ssr = rsqrt(abs(ta)) * sdfSizeRCP;                    // Texture to Screen Space Ratio (unit is Texel/Pixel)
     sd = (sd - 0.5) * sdfScale + isoPerimeter;                  // Signed Distance to edge (in texture space)
     return saturate(0.5 + 2.0 * sd * ssr);                      // Screen pixel coverage : center + (1 / sampling radius) * signed distance
 }
 
 // 3 Layers : Face, Outline, Underlay
 // sd           : Signed distance / sdfScale + 0.5
-// sdfSizeRCP   : 1 / texture width
+// sdfSize      : texture height
 // sdfScale     : Signed Distance Field Scale
 // isoPerimeter : Dilate / Contract the shape
 // softness     : softness of each outer edges
-float3 sd_to_coverage(float3 sd, float2 uv, float sdfSizeRCP, float sdfScale, float3 isoPerimeter, float3 softness)
+float3 sd_to_coverage(float3 sd, float2 uv, float sdfSize, float sdfScale, float3 isoPerimeter, float3 softness)
 {
-    float ta = ddx(uv.x) * ddy(uv.y) - ddy(uv.x) * ddx(uv.y);         // Texel area (parallelogram)
-    float ssr = rsqrt(abs(ta)) * sdfSizeRCP;                          // Texture to Screen Space Ratio
+    // Case 1349202: The underline stretches its middle quad, making parallelogram area evaluation invalid and resulting
+    //               in visual artifacts. For that reason, we can only rely on uv.y for the length ratio leading in some
+    //               error when a rotation/skew/non-uniform scaling takes place.
+    float ps = abs(ddx(uv.y)) + abs(ddy(uv.y));                       // Size of a pixel in texel space (approximation)
+    float stsr = sdfSize * ps;                                        // Screen to Texture Space Ratio (unit is Pixel/Texel)
     sd = (sd - 0.5) * sdfScale + isoPerimeter;                        // Signed Distance to edge (in texture space)
-    return saturate(0.5 + 2.0 * sd * ssr / (1.0 + softness * ssr));   // Screen pixel coverage : center + (1 / sampling radius) * signed distance
+    return saturate(0.5 + 2.0 * sd / (stsr + softness));              // Screen pixel coverage : center + (1 / sampling radius) * signed distance
 }
 
-UIE_FRAG_T uie_textcore(float textAlpha, float2 uv, float2 textCoreUV, float4 faceColor, float extraDilate)
+UIE_FRAG_T uie_textcore(float textAlpha, float2 uv, float2 textCoreUV, float4 vertexColor, bool isDynamicColor, float extraDilate)
 {
     float2 row0UV = (textCoreUV + float2(0, 0) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
     float2 row1UV = (textCoreUV + float2(0, 1) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
     float2 row2UV = (textCoreUV + float2(0, 2) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    float2 row3UV = (textCoreUV + float2(0, 3) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
 
-    float4 outlineColor  = tex2Dlod(_ShaderInfoTex, float4(row0UV, 0, 0));
-    float4 underlayColor = tex2Dlod(_ShaderInfoTex, float4(row1UV, 0, 0));
-    float4 settings      = tex2Dlod(_ShaderInfoTex, float4(row2UV, 0, 0));
+    float4 outlineColor  = tex2Dlod(_ShaderInfoTex, float4(row1UV, 0, 0));
+    float4 underlayColor = tex2Dlod(_ShaderInfoTex, float4(row2UV, 0, 0));
+    float4 settings      = tex2Dlod(_ShaderInfoTex, float4(row3UV, 0, 0));
 
-     settings *= _FontTexSDFScale;
+    float4 faceColor = vertexColor;
+    if (isDynamicColor)
+        faceColor = tex2Dlod(_ShaderInfoTex, float4(row0UV, 0, 0));
+
+    settings *= _FontTexSDFScale;
     float2 underlayOffset = settings.xy;
     float underlaySoftness = settings.z;
     float outlineDilate = settings.w * 0.25f;
@@ -497,7 +480,7 @@ UIE_FRAG_T uie_textcore(float textAlpha, float2 uv, float2 textCoreUV, float4 fa
     // Distance to Alpha
     float alpha1 = textAlpha;
     float alpha2 = tex2D(_FontTex, uv + underlayOffset * _FontTex_TexelSize.x).a;
-    float3 alpha = sd_to_coverage(float3(alpha1, alpha1, alpha2), uv, _FontTex_TexelSize.x, _FontTexSDFScale, dilate + extraDilate, softness);
+    float3 alpha = sd_to_coverage(float3(alpha1, alpha1, alpha2), uv, _FontTex_TexelSize.w, _FontTexSDFScale, dilate + extraDilate, softness);
 
     // Blending of the 3 ARGB layers
     underlayColor.a *= alpha.z;
@@ -511,7 +494,7 @@ UIE_FRAG_T uie_textcore(float textAlpha, float2 uv, float2 textCoreUV, float4 fa
     return color;
 }
 
-float4 uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color)
+void uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color, out float2 clipRectUV, out float2 opacityUV, out float2 colorUV)
 {
 #if UIE_COLORSPACE_GAMMA
     color = v.color;
@@ -520,18 +503,30 @@ float4 uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color)
     color = UIE_V2F_COLOR_T(uie_gamma_to_linear(v.color.rgb), v.color.a);
 #endif // UIE_COLORSPACE_GAMMA
 
-    const float2 opacityUV = (uie_decode_shader_info_texel_pos(v.opacityPageSettingIndex.xy, v.ids.z, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    opacityUV = (uie_decode_shader_info_texel_pos(v.opacityColorPages.xy, v.ids.z, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    colorUV = (uie_decode_shader_info_texel_pos(v.opacityColorPages.zw, v.ids.w, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
 #if UIE_SHADER_INFO_IN_VS
-    const float2 clipRectUV = (uie_decode_shader_info_texel_pos(v.xformClipPages.zw, v.ids.y, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    if (v.flags.w > 0.0f)
+        // Color is stored in shader info
+        color = tex2Dlod(_ShaderInfoTex, float4(colorUV, 0, 0));
+    clipRectUV = (uie_decode_shader_info_texel_pos(v.xformClipPages.zw, v.ids.y, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
     color.a *= tex2Dlod(_ShaderInfoTex, float4(opacityUV, 0, 0)).a;
 #else // !UIE_SHADER_INFO_IN_VS
-    const float2 clipRectUV = float2(v.ids.y * 255.0f, 0.0f);
+    clipRectUV = float2(v.ids.y * 255.0f, 0.0f);
 #endif // UIE_SHADER_INFO_IN_VS
-
-    return float4(clipRectUV, opacityUV);
 }
 
-v2f uie_std_vert(appdata_t v, out float4 clipSpacePos)
+float pixelDist(float2 uv)
+{
+    float dist = length(uv) - 1.0f; // Bring from [0,...] to [-1,...] range
+    return dist / fwidth(dist);
+
+    // Probably more accurate, but requires an additional length():
+    // float2 ddist = float2(ddx(dist), ddy(dist));
+    // return dist / length(ddist);
+}
+
+v2f uie_std_vert(appdata_t v)
 {
     v2f OUT;
     UNITY_SETUP_INSTANCE_ID(v);
@@ -540,49 +535,45 @@ v2f uie_std_vert(appdata_t v, out float4 clipSpacePos)
     uie_vert_load_payload(v);
     float flags = round(v.flags.x*255.0f); // Must round for MacGL VM
     // Keep the descending order for GLES2
-    const float isEdgeNoShrinkY  = TestForValue(7.0, flags);
-    const float isEdgeNoShrinkX  = TestForValue(6.0, flags);
-    const float isEdge           = TestForValue(5.0, flags);
     const float isSvgGradients   = TestForValue(4.0, flags);
     const float isDynamic        = TestForValue(3.0, flags);
     const float isTextured       = TestForValue(2.0, flags);
     const float isText           = TestForValue(1.0, flags);
     const float isSolid = 1 - saturate(isText + isTextured + isDynamic + isSvgGradients);
 
-    float2 viewOffset = float2(0, 0);
-    if (isEdge == 1 || isEdgeNoShrinkX == 1 || isEdgeNoShrinkY == 1)
-    {
-        viewOffset = uie_get_border_offset(v.vertex, v.uv, 1, isEdgeNoShrinkX == 1, isEdgeNoShrinkY == 1);
-    }
-
     v.vertex.xyz = mul(uie_toWorldMat, v.vertex);
-    v.vertex.xy += viewOffset;
 
     OUT.uvXY.zw = v.vertex.xy;
-    clipSpacePos = UnityObjectToClipPos(v.vertex);
+    OUT.pos = UnityObjectToClipPos(v.vertex);
 
     if (isText == 1 && _FontTexSDFScale == 0)
-        clipSpacePos.xy = uie_snap_to_integer_pos(clipSpacePos.xy);
+        OUT.pos.xy = uie_snap_to_integer_pos(OUT.pos.xy);
 
-    OUT.clipPos.xy = clipSpacePos.xy / clipSpacePos.w;
+    OUT.clipPos.xy = OUT.pos.xy / OUT.pos.w;
     OUT.clipPos.zw = float2(0, v.flags.y);
 
     // 1 => solid, 2 => text, 3 => textured, 4 => svg
     half renderType = isSolid * 1 + isText * 2 + (isDynamic + isTextured) * 3 + isSvgGradients * 4;
     half textureSlot = FindTextureSlot(v.textureId);
-    float settingIndex = v.opacityPageSettingIndex.z*(255.0f*255.0f) + v.opacityPageSettingIndex.w*255.0f;
-    OUT.typeTexSettings = half3(renderType, textureSlot, settingIndex);
+    float settingIndex = v.opacityColorPages.z*(255.0f*255.0f) + v.opacityColorPages.w*255.0f;
+    half isArc = v.flags.z > 0.0f ? 1.0f : 0.0f;
+    half wFlags = isArc;
+    if (v.flags.w > 0.0f)
+        wFlags += 2.0f; // Poor man's bitset
+    OUT.typeTexSettings = half4(renderType, textureSlot, settingIndex, wFlags);
 
     OUT.uvXY.xy = v.uv;
     if (isDynamic == 1.0f)
         OUT.uvXY.xy *= _TextureInfo[textureSlot].yz;
 
-    OUT.clipRectOpacityUVs = uie_std_vert_shader_info(v, OUT.color);
-    OUT.textCoreUVs = uie_decode_shader_info_texel_pos(v.opacityPageSettingIndex.zw, v.ids.w, 3.0f);
+    uie_std_vert_shader_info(v, OUT.color, OUT.clipRectOpacityUVs.xy, OUT.clipRectOpacityUVs.zw, OUT.colorUVs.xy);
+    OUT.colorUVs.xy = isText ? uie_decode_shader_info_texel_pos(v.opacityColorPages.zw, v.ids.w, 4.0f) : OUT.colorUVs.xy;
 
 #if UIE_SHADER_INFO_IN_VS
     OUT.clipRect = tex2Dlod(_ShaderInfoTex, float4(OUT.clipRectOpacityUVs.xy, 0, 0));
 #endif // UIE_SHADER_INFO_IN_VS
+
+    OUT.circle = v.circle;
 
     return OUT;
 }
@@ -596,23 +587,32 @@ UIE_FRAG_T uie_std_frag(v2f IN)
     bool isText         = IN.typeTexSettings.x == 2;
     bool isTextured     = IN.typeTexSettings.x == 3;
     bool isSvgGradients = IN.typeTexSettings.x == 4;
-    float settingIndex = IN.typeTexSettings.z;
+    float settingIndex  = IN.typeTexSettings.z;
+
+    // Decode bitset
+    bool isDynamicColor = IN.typeTexSettings.w >= 2.0;
+    if (isDynamicColor)
+        IN.typeTexSettings.w -= 2.0f;
+    float isArc = IN.typeTexSettings.w;
 
     float2 uv = IN.uvXY.xy;
 
 #if !UIE_SHADER_INFO_IN_VS
     IN.color.a *= tex2D(_ShaderInfoTex, IN.clipRectOpacityUVs.zw).a;
+    if (isDynamicColor && !isText)
+        IN.color = tex2D(_ShaderInfoTex, IN.colorUVs.xy);
 #endif // !UIE_SHADER_INFO_IN_VS
 
     UIE_FRAG_T texColor = (UIE_FRAG_T)isSolid;
     if (isTextured)
-        texColor = SampleTextureSlot(IN.typeTexSettings.y, uv);
-
-    float textAlpha = tex2D(_FontTex, uv).a;
-    if (isText)
     {
+        texColor = SampleTextureSlot(IN.typeTexSettings.y, uv);
+    }
+    else if (isText)
+    {
+        float textAlpha = tex2D(_FontTex, uv).a;
         if (_FontTexSDFScale > 0.0f)
-            texColor = uie_textcore(textAlpha, uv, IN.textCoreUVs.xy, IN.color, IN.clipPos.w);
+            texColor = uie_textcore(textAlpha, uv, IN.colorUVs.xy, IN.color, isDynamicColor, IN.clipPos.w);
         else
             texColor = UIE_FRAG_T(1, 1, 1, tex2D(_FontTex, uv).a);
     }
@@ -627,12 +627,32 @@ UIE_FRAG_T uie_std_frag(v2f IN)
     }
 
     UIE_FRAG_T color = (isText && _FontTexSDFScale > 0.0f) ? texColor : texColor * IN.color;
+
+    if (isArc)
+    {
+        // Don't evaluate circles defined as kUnusedArc
+        if (IN.circle.x > -9999.0f)
+        {
+            float outer = pixelDist(IN.circle.xy);
+            color.a *= saturate(0.5f-outer);
+        }
+        if (IN.circle.z > -9999.0f)
+        {
+            float inner = pixelDist(IN.circle.zw);
+            color.a *= 1.0f - saturate(0.5f-inner);
+        }
+
+        // Clip fragments when alpha is close to 0 (< 1/256 here).
+        // This will write proper masks values in the stencil buffer.
+        clip(color.a - 0.003f);
+    }
+
     return color;
 }
 
 #ifndef UIE_CUSTOM_SHADER
 
-v2f vert(appdata_t v, out float4 clipSpacePos : SV_POSITION) { return uie_std_vert(v, clipSpacePos); }
+v2f vert(appdata_t v) { return uie_std_vert(v); }
 UIE_FRAG_T frag(v2f IN) : SV_Target { return uie_std_frag(IN); }
 
 #endif // UIE_CUSTOM_SHADER

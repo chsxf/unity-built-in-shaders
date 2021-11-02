@@ -1,13 +1,14 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
-Shader "Hidden/TerrainEngine/HeightBlitCopy" {
+// Duplicate of Internal-BlitCopy, with ZTest and ZWrite On to support extended edge sampling in PaintContext
+Shader "Hidden/TerrainEngine/TerrainBlitCopyZWrite" {
     Properties
     {
         _MainTex ("Texture", any) = "" {}
+        _Color("Multiplicative color", Color) = (1.0, 1.0, 1.0, 1.0)
     }
     SubShader {
         Pass {
-            // ZTest and ZWrite On to support extended edge sampling in PaintContext
             ZTest LEqual Cull Off ZWrite On
 
             CGPROGRAM
@@ -17,8 +18,7 @@ Shader "Hidden/TerrainEngine/HeightBlitCopy" {
 
             UNITY_DECLARE_SCREENSPACE_TEXTURE(_MainTex);
             uniform float4 _MainTex_ST;
-            uniform float _Height_Offset;
-            uniform float _Height_Scale;
+            uniform float4 _Color;
 
             struct appdata_t {
                 float4 vertex : POSITION;
@@ -45,9 +45,7 @@ Shader "Hidden/TerrainEngine/HeightBlitCopy" {
             float4 frag (v2f i) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
-                float height = UnpackHeightmap(UNITY_SAMPLE_SCREENSPACE_TEXTURE(_MainTex, i.texcoord));
-                height = height * _Height_Scale + _Height_Offset;
-                return PackHeightmap(height);
+                return UNITY_SAMPLE_SCREENSPACE_TEXTURE(_MainTex, i.texcoord) * _Color;
             }
             ENDCG
 
