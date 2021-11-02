@@ -338,14 +338,33 @@
         #define MERGE_UNITY_BUILTINS_INDEX(X) unity_Builtins##X
         #define unity_WorldToObject     UNITY_ACCESS_INSTANCED_PROP(MERGE_UNITY_BUILTINS_INDEX(UNITY_WORLDTOOBJECTARRAY_CB), unity_WorldToObjectArray)
 
+        inline float4 UnityObjectToClipPosODSInstanced(float3 inPos)
+        {
+            float4 clipPos;
+            float3 posWorld = mul(unity_ObjectToWorld, float4(inPos, 1.0)).xyz;
+            #if defined(STEREO_CUBEMAP_RENDER_ON)
+            float3 offset = ODSOffset(posWorld, unity_HalfStereoSeparation.x);
+            clipPos = mul(UNITY_MATRIX_VP, float4(posWorld + offset, 1.0));
+            #else
+            clipPos = mul(UNITY_MATRIX_VP, float4(posWorld, 1.0));
+            #endif
+            return clipPos;
+        }
+
         inline float4 UnityObjectToClipPosInstanced(in float3 pos)
         {
+            #if defined(STEREO_CUBEMAP_RENDER_ON)
+            return UnityObjectToClipPosODSInstanced(pos);
+            #else
+            // More efficient than computing M*VP matrix product
             return mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(pos, 1.0)));
+            #endif
         }
         inline float4 UnityObjectToClipPosInstanced(float4 pos)
         {
             return UnityObjectToClipPosInstanced(pos.xyz);
         }
+        #define UnityObjectToClipPosODS UnityObjectToClipPosODSInstanced
         #define UnityObjectToClipPos UnityObjectToClipPosInstanced
     #endif
 
