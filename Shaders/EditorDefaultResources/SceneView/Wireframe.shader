@@ -39,6 +39,15 @@ Shader "Hidden/SceneViewWireframe" {
             #pragma target 3.0
             ENDCG
         }
+
+        Pass {
+            // SM6.0
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma use_dxc d3d11
+            ENDCG
+        }
     }
 
     SubShader {

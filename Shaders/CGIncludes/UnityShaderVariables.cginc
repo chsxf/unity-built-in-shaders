@@ -188,12 +188,6 @@ GLOBAL_CBUFFER_START(UnityStereoGlobals)
 GLOBAL_CBUFFER_END
 #endif
 
-#if defined(USING_STEREO_MATRICES) && defined(UNITY_STEREO_MULTIVIEW_ENABLED)
-GLOBAL_CBUFFER_START(UnityStereoEyeIndices)
-    float4 unity_StereoEyeIndices[2];
-GLOBAL_CBUFFER_END
-#endif
-
 #if defined(UNITY_STEREO_MULTIVIEW_ENABLED) && defined(SHADER_STAGE_VERTEX)
     #define unity_StereoEyeIndex UNITY_VIEWID
     UNITY_DECLARE_MULTIVIEW(2);

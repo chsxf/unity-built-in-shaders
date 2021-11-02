@@ -59,6 +59,23 @@ struct VertexAttributeInfo
 #define kVertexAttributeTexCoord5   9
 #define kVertexAttributeTexCoord6   10
 #define kVertexAttributeTexCoord7   11
+#define kVertexAttributeCount       12
+
+static float4 unity_DefaultVertexAttributes[kVertexAttributeCount] =
+{
+    float4(0, 0, 0, 0),     // kVertexAttributePosition - always present in ray tracing.
+    float4(0, 0, 1, 0),     // kVertexAttributeNormal
+    float4(1, 0, 0, 1),     // kVertexAttributeTangent
+    float4(1, 1, 1, 1),     // kVertexAttributeColor
+    float4(0, 0, 0, 0),     // kVertexAttributeTexCoord0
+    float4(0, 0, 0, 0),     // kVertexAttributeTexCoord1
+    float4(0, 0, 0, 0),     // kVertexAttributeTexCoord2
+    float4(0, 0, 0, 0),     // kVertexAttributeTexCoord3
+    float4(0, 0, 0, 0),     // kVertexAttributeTexCoord4
+    float4(0, 0, 0, 0),     // kVertexAttributeTexCoord5
+    float4(0, 0, 0, 0),     // kVertexAttributeTexCoord6
+    float4(0, 0, 0, 0),     // kVertexAttributeTexCoord7
+};
 
 // Supported
 #define kVertexFormatFloat          0
@@ -146,23 +163,29 @@ uint3 UnityRayTracingFetchTriangleIndices(uint primitiveIndex)
     return indices;
 }
 
-#define INVALID_VERTEX_ATTRIBUTE_OFFSET 0xFFFFFFFF
+// Checks if the vertex attribute attributeType is present in one of the unity_MeshVertexBuffers_RT vertex streams.
+bool UnityRayTracingHasVertexAttribute(uint attributeType)
+{
+    VertexAttributeInfo vertexDecl = unity_MeshVertexDeclaration_RT[attributeType];
+
+    return vertexDecl.Dimension != 0;
+}
 
 // attributeType is one of the kVertexAttribute* defines
 float2 UnityRayTracingFetchVertexAttribute2(uint vertexIndex, uint attributeType)
 {
     VertexAttributeInfo vertexDecl = unity_MeshVertexDeclaration_RT[attributeType];
 
+    const uint attributeDimension = vertexDecl.Dimension;
+
+    if (!UnityRayTracingHasVertexAttribute(attributeType) || attributeDimension > 4)
+        return unity_DefaultVertexAttributes[attributeType].xy;
+
     const uint attributeByteOffset  = vertexDecl.ByteOffset;
-    const uint attributeDimension   = vertexDecl.Dimension;
-
-    if (attributeByteOffset == INVALID_VERTEX_ATTRIBUTE_OFFSET || attributeDimension > 4)
-        return float2(0, 0);
-
-    const uint vertexSize       = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
-    const uint vertexAddress    = vertexIndex * vertexSize;
-    const uint attributeAddress = vertexAddress + attributeByteOffset;
-    const uint attributeFormat  = vertexDecl.Format;
+    const uint vertexSize           = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
+    const uint vertexAddress        = vertexIndex * vertexSize;
+    const uint attributeAddress     = vertexAddress + attributeByteOffset;
+    const uint attributeFormat      = vertexDecl.Format;
 
     float2 value = float2(0, 0);
 
@@ -200,16 +223,16 @@ float3 UnityRayTracingFetchVertexAttribute3(uint vertexIndex, uint attributeType
 {
     VertexAttributeInfo vertexDecl = unity_MeshVertexDeclaration_RT[attributeType];
 
-    const uint attributeByteOffset = vertexDecl.ByteOffset;
     const uint attributeDimension = vertexDecl.Dimension;
 
-    if (attributeByteOffset == INVALID_VERTEX_ATTRIBUTE_OFFSET || attributeDimension > 4)
-        return float3(0, 0, 0);
+    if (!UnityRayTracingHasVertexAttribute(attributeType) || attributeDimension > 4)
+        return unity_DefaultVertexAttributes[attributeType].xyz;
 
-    const uint vertexSize       = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
-    const uint vertexAddress    = vertexIndex * vertexSize;
-    const uint attributeAddress = vertexAddress + attributeByteOffset;
-    const uint attributeFormat  = vertexDecl.Format;
+    const uint attributeByteOffset  = vertexDecl.ByteOffset;
+    const uint vertexSize           = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
+    const uint vertexAddress        = vertexIndex * vertexSize;
+    const uint attributeAddress     = vertexAddress + attributeByteOffset;
+    const uint attributeFormat      = vertexDecl.Format;
 
     float3 value = float3(0, 0, 0);
 
@@ -254,16 +277,16 @@ float4 UnityRayTracingFetchVertexAttribute4(uint vertexIndex, uint attributeType
 {
     VertexAttributeInfo vertexDecl = unity_MeshVertexDeclaration_RT[attributeType];
 
-    const uint attributeByteOffset = vertexDecl.ByteOffset;
     const uint attributeDimension = vertexDecl.Dimension;
 
-    if (attributeByteOffset == INVALID_VERTEX_ATTRIBUTE_OFFSET || attributeDimension > 4)
-        return float4(0, 0, 0, 0);
+    if (!UnityRayTracingHasVertexAttribute(attributeType) || attributeDimension > 4)
+        return unity_DefaultVertexAttributes[attributeType];
 
-    const uint vertexSize       = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
-    const uint vertexAddress    = vertexIndex * vertexSize;
-    const uint attributeAddress = vertexAddress + attributeByteOffset;
-    const uint attributeFormat  = vertexDecl.Format;
+    const uint attributeByteOffset  = vertexDecl.ByteOffset;
+    const uint vertexSize           = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
+    const uint vertexAddress        = vertexIndex * vertexSize;
+    const uint attributeAddress     = vertexAddress + attributeByteOffset;
+    const uint attributeFormat      = vertexDecl.Format;
 
     float4 value = float4(0, 0, 0, 0);
 

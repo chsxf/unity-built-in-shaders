@@ -12,6 +12,7 @@ Shader "Nature/Terrain/Standard" {
         Tags {
             "Queue" = "Geometry-100"
             "RenderType" = "Opaque"
+            "TerrainCompatible" = "True"
         }
 
         CGPROGRAM

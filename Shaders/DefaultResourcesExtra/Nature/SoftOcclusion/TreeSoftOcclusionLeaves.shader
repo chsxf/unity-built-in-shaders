@@ -95,6 +95,34 @@ Shader "Nature/Tree Soft Occlusion Leaves" {
             }
             ENDCG
         }
+
+        Pass
+        {
+            Name "META"
+            Tags { "LightMode" = "Meta" }
+
+            Cull Off
+
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag_meta
+
+            #pragma shader_feature_fragment _EMISSION
+            #pragma shader_feature_local _METALLICGLOSSMAP
+            #pragma shader_feature_local _SPECGLOSSMAP
+            #pragma shader_feature_local_fragment _DETAIL_MULX2
+            #pragma shader_feature EDITOR_VISUALIZATION
+
+            #include "UnityStandardMeta.cginc"
+            #include "TerrainEngine.cginc"
+
+            v2f_meta vert(VertexInput v)
+            {
+                TerrainAnimateTree(v.vertex, 0);
+                return vert_meta(v);
+            }
+            ENDCG
+        }
     }
 
     // This subshader is never actually used, but is only kept so

@@ -120,6 +120,7 @@ SubShader {
         #pragma fragment frag
         #pragma target 2.0
         #pragma multi_compile_shadowcaster
+        #pragma multi_compile_instancing // allow instanced shadow pass for most of the shaders
         #include "UnityCG.cginc"
 
         struct v2f {

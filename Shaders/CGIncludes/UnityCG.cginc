@@ -503,22 +503,33 @@ half4 UnityEncodeRGBM (half3 color, float maxRGBM)
 
 // Decodes HDR textures
 // handles dLDR, RGBM formats
-inline half3 DecodeHDR (half4 data, half4 decodeInstructions)
+inline half3 DecodeHDR(half4 data, half4 decodeInstructions, int colorspaceIsGamma)
 {
     // Take into account texture alpha if decodeInstructions.w is true(the alpha value affects the RGB channels)
     half alpha = decodeInstructions.w * (data.a - 1.0) + 1.0;
 
     // If Linear mode is not supported we can skip exponent part
-    #if defined(UNITY_COLORSPACE_GAMMA)
+    if(colorspaceIsGamma)
         return (decodeInstructions.x * alpha) * data.rgb;
+
+#   if defined(UNITY_USE_NATIVE_HDR)
+    return decodeInstructions.x * data.rgb; // Multiplier for future HDRI relative to absolute conversion.
+#   else
+    return (decodeInstructions.x * pow(alpha, decodeInstructions.y)) * data.rgb;
+#   endif
+}
+
+// Decodes HDR textures
+// handles dLDR, RGBM formats
+inline half3 DecodeHDR (half4 data, half4 decodeInstructions)
+{
+    #if defined(UNITY_COLORSPACE_GAMMA)
+    return DecodeHDR(data, decodeInstructions, 1);
     #else
-    #   if defined(UNITY_USE_NATIVE_HDR)
-            return decodeInstructions.x * data.rgb; // Multiplier for future HDRI relative to absolute conversion.
-    #   else
-            return (decodeInstructions.x * pow(alpha, decodeInstructions.y)) * data.rgb;
-    #   endif
+    return DecodeHDR(data, decodeInstructions, 0);
     #endif
 }
+
 
 // Decodes HDR textures
 // handles dLDR, RGBM formats
@@ -804,6 +815,15 @@ v2f_img vert_img( appdata_img v )
 
 inline float4 ComputeNonStereoScreenPos(float4 pos) {
     float4 o = pos * 0.5f;
+#ifdef UNITY_PRETRANSFORM_TO_DISPLAY_ORIENTATION
+    switch (UNITY_DISPLAY_ORIENTATION_PRETRANSFORM)
+    {
+    default: break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_90: o.xy = float2(-o.y, o.x); break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_180: o.xy = -o.xy; break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_270: o.xy = float2(o.y, -o.x); break;
+    }
+#endif
     o.xy = float2(o.x, o.y*_ProjectionParams.x) + o.w;
     o.zw = pos.zw;
     return o;
@@ -824,6 +844,15 @@ inline float4 ComputeGrabScreenPos (float4 pos) {
     float scale = 1.0;
     #endif
     float4 o = pos * 0.5f;
+#ifdef UNITY_PRETRANSFORM_TO_DISPLAY_ORIENTATION
+    switch (UNITY_DISPLAY_ORIENTATION_PRETRANSFORM)
+    {
+    default: break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_90: o.xy = float2(-o.y, o.x); break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_180: o.xy = -o.xy; break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_270: o.xy = float2(o.y, -o.x); break;
+    }
+#endif
     o.xy = float2(o.x, o.y*scale) + o.w;
 #ifdef UNITY_SINGLE_PASS_STEREO
     o.xy = TransformStereoScreenSpaceTex(o.xy, pos.w);
