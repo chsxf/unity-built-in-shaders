@@ -804,6 +804,15 @@ v2f_img vert_img( appdata_img v )
 
 inline float4 ComputeNonStereoScreenPos(float4 pos) {
     float4 o = pos * 0.5f;
+#ifdef UNITY_PRETRANSFORM_TO_DISPLAY_ORIENTATION
+    switch (UNITY_DISPLAY_ORIENTATION_PRETRANSFORM)
+    {
+    default: break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_90: o.xy = float2(-o.y, o.x); break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_180: o.xy = -o.xy; break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_270: o.xy = float2(o.y, -o.x); break;
+    }
+#endif
     o.xy = float2(o.x, o.y*_ProjectionParams.x) + o.w;
     o.zw = pos.zw;
     return o;
@@ -824,6 +833,15 @@ inline float4 ComputeGrabScreenPos (float4 pos) {
     float scale = 1.0;
     #endif
     float4 o = pos * 0.5f;
+#ifdef UNITY_PRETRANSFORM_TO_DISPLAY_ORIENTATION
+    switch (UNITY_DISPLAY_ORIENTATION_PRETRANSFORM)
+    {
+    default: break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_90: o.xy = float2(-o.y, o.x); break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_180: o.xy = -o.xy; break;
+    case UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_270: o.xy = float2(o.y, -o.x); break;
+    }
+#endif
     o.xy = float2(o.x, o.y*scale) + o.w;
 #ifdef UNITY_SINGLE_PASS_STEREO
     o.xy = TransformStereoScreenSpaceTex(o.xy, pos.w);
