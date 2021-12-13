@@ -14,11 +14,14 @@ Shader "Hidden/Mesh-MultiPreview"
         // 3 - tangents as color
         // 4 - checkerboard UVs
         _Mode ("Draw mode", Int) = 1
+
+        [HideInInspector] _Cull("__cull", Float) = 2.0
     }
     SubShader
     {
         Tags { "RenderType"="Opaque" }
         LOD 100
+        Cull [_Cull]
 
         Pass
         {
