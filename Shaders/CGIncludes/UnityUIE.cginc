@@ -146,7 +146,7 @@ struct v2f
     float4 pos : SV_POSITION;
     UIE_V2F_COLOR_T color : COLOR;
     float4 uvXY  : TEXCOORD0; // UV and ZW holds XY position in points
-    UIE_FLAT_OPTIM half4 typeTexSettings : TEXCOORD1; // X: Render Type Y: Tex Index Z: SVG Gradient Index W: Is Arc
+    UIE_FLAT_OPTIM half4 typeTexSettings : TEXCOORD1; // X: Render Type Y: Tex Index Z: SVG Gradient Index/Text Opacity W: Is Arc
     UIE_FLAT_OPTIM fixed4 clipRectOpacityUVs : TEXCOORD2;
     UIE_FLAT_OPTIM float2 colorUVs : TEXCOORD3; // Color/TextCore UVs
     float4 clipPos : TEXCOORD4; // W holds textcore dilate flag
@@ -455,7 +455,7 @@ float3 sd_to_coverage(float3 sd, float2 uv, float sdfSize, float sdfScale, float
     return saturate(0.5 + 2.0 * sd / (stsr + softness));              // Screen pixel coverage : center + (1 / sampling radius) * signed distance
 }
 
-UIE_FRAG_T uie_textcore(float textAlpha, float2 uv, float2 textCoreUV, float4 vertexColor, bool isDynamicColor, float extraDilate)
+UIE_FRAG_T uie_textcore(float textAlpha, float2 uv, float2 textCoreUV, float4 vertexColor, half opacity, bool isDynamicColor, float extraDilate)
 {
     float2 row0UV = (textCoreUV + float2(0, 0) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
     float2 row1UV = (textCoreUV + float2(0, 1) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
@@ -468,7 +468,13 @@ UIE_FRAG_T uie_textcore(float textAlpha, float2 uv, float2 textCoreUV, float4 ve
 
     float4 faceColor = vertexColor;
     if (isDynamicColor)
+    {
         faceColor = tex2Dlod(_ShaderInfoTex, float4(row0UV, 0, 0));
+        faceColor.a *= opacity;
+    }
+
+    outlineColor.a *= opacity;
+    underlayColor.a *= opacity;
 
     settings *= _FontTexSDFScale;
     float2 underlayOffset = settings.xy;
@@ -494,7 +500,7 @@ UIE_FRAG_T uie_textcore(float textAlpha, float2 uv, float2 textCoreUV, float4 ve
     return color;
 }
 
-void uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color, out float2 clipRectUV, out float2 opacityUV, out float2 colorUV)
+void uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color, out float2 clipRectUV, out float2 opacityUV, out float opacity, out float2 colorUV)
 {
 #if UIE_COLORSPACE_GAMMA
     color = v.color;
@@ -510,9 +516,11 @@ void uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color, out float2
         // Color is stored in shader info
         color = tex2Dlod(_ShaderInfoTex, float4(colorUV, 0, 0));
     clipRectUV = (uie_decode_shader_info_texel_pos(v.xformClipPages.zw, v.ids.y, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
-    color.a *= tex2Dlod(_ShaderInfoTex, float4(opacityUV, 0, 0)).a;
+    opacity = tex2Dlod(_ShaderInfoTex, float4(opacityUV, 0, 0)).a;
+    color.a *= opacity;
 #else // !UIE_SHADER_INFO_IN_VS
     clipRectUV = float2(v.ids.y * 255.0f, 0.0f);
+    opacity = 1;
 #endif // UIE_SHADER_INFO_IN_VS
 }
 
@@ -555,18 +563,21 @@ v2f uie_std_vert(appdata_t v)
     // 1 => solid, 2 => text, 3 => textured, 4 => svg
     half renderType = isSolid * 1 + isText * 2 + (isDynamic + isTextured) * 3 + isSvgGradients * 4;
     half textureSlot = FindTextureSlot(v.textureId);
-    float settingIndex = v.opacityColorPages.z*(255.0f*255.0f) + v.opacityColorPages.w*255.0f;
+    float svgSettingIndex = v.opacityColorPages.z*(255.0f*255.0f) + v.opacityColorPages.w*255.0f;
     half isArc = v.flags.z > 0.0f ? 1.0f : 0.0f;
     half wFlags = isArc;
     if (v.flags.w > 0.0f)
         wFlags += 2.0f; // Poor man's bitset
-    OUT.typeTexSettings = half4(renderType, textureSlot, settingIndex, wFlags);
+    OUT.typeTexSettings = half4(renderType, textureSlot, svgSettingIndex, wFlags);
 
     OUT.uvXY.xy = v.uv;
     if (isDynamic == 1.0f)
         OUT.uvXY.xy *= _TextureInfo[textureSlot].yz;
 
-    uie_std_vert_shader_info(v, OUT.color, OUT.clipRectOpacityUVs.xy, OUT.clipRectOpacityUVs.zw, OUT.colorUVs.xy);
+    half opacity;
+    uie_std_vert_shader_info(v, OUT.color, OUT.clipRectOpacityUVs.xy, OUT.clipRectOpacityUVs.zw, opacity, OUT.colorUVs.xy);
+    if (isText == 1) // Case 1379601: Text needs to have the separate opacity as well
+        OUT.typeTexSettings.z = opacity;
     OUT.colorUVs.xy = isText ? uie_decode_shader_info_texel_pos(v.opacityColorPages.zw, v.ids.w, 4.0f) : OUT.colorUVs.xy;
 
 #if UIE_SHADER_INFO_IN_VS
@@ -587,7 +598,6 @@ UIE_FRAG_T uie_std_frag(v2f IN)
     bool isText         = IN.typeTexSettings.x == 2;
     bool isTextured     = IN.typeTexSettings.x == 3;
     bool isSvgGradients = IN.typeTexSettings.x == 4;
-    float settingIndex  = IN.typeTexSettings.z;
 
     // Decode bitset
     bool isDynamicColor = IN.typeTexSettings.w >= 2.0;
@@ -597,8 +607,16 @@ UIE_FRAG_T uie_std_frag(v2f IN)
 
     float2 uv = IN.uvXY.xy;
 
-#if !UIE_SHADER_INFO_IN_VS
-    IN.color.a *= tex2D(_ShaderInfoTex, IN.clipRectOpacityUVs.zw).a;
+    half textOpacity;
+#if UIE_SHADER_INFO_IN_VS
+    textOpacity = IN.typeTexSettings.z;
+#else
+    {
+        // Using curly braces to avoid exposing opacity, which is only available in this #else or for text
+        half opacity = tex2D(_ShaderInfoTex, IN.clipRectOpacityUVs.zw).a;
+        IN.color.a *= opacity;
+        textOpacity = opacity;
+    }
     if (isDynamicColor && !isText)
         IN.color = tex2D(_ShaderInfoTex, IN.colorUVs.xy);
 #endif // !UIE_SHADER_INFO_IN_VS
@@ -612,12 +630,13 @@ UIE_FRAG_T uie_std_frag(v2f IN)
     {
         float textAlpha = tex2D(_FontTex, uv).a;
         if (_FontTexSDFScale > 0.0f)
-            texColor = uie_textcore(textAlpha, uv, IN.colorUVs.xy, IN.color, isDynamicColor, IN.clipPos.w);
+            texColor = uie_textcore(textAlpha, uv, IN.colorUVs.xy, IN.color, textOpacity, isDynamicColor, IN.clipPos.w);
         else
             texColor = UIE_FRAG_T(1, 1, 1, tex2D(_FontTex, uv).a);
     }
     else if (isSvgGradients)
     {
+        float settingIndex  = IN.typeTexSettings.z;
         float2 texelSize = _TextureInfo[IN.typeTexSettings.y].yz;
         GradientLocation grad = uie_sample_gradient_location(settingIndex, uv, _GradientSettingsTex, _GradientSettingsTex_TexelSize.xy);
         grad.location *= texelSize.xyxy;
