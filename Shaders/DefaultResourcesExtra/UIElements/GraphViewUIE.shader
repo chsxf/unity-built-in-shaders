@@ -51,7 +51,8 @@ Shader "Hidden/GraphView/GraphViewUIE"
         o.colorUVs = float2(0,0);
         o.circle = half4(0, 0, 0, 0);
 
-        uie_std_vert_shader_info(v, o.color, o.clipRectOpacityUVs.xy, o.clipRectOpacityUVs.zw, o.colorUVs.xy);
+        float unused;
+        uie_std_vert_shader_info(v, o.color, o.clipRectOpacityUVs.xy, o.clipRectOpacityUVs.zw, unused, o.colorUVs.xy);
 
 #if UIE_SHADER_INFO_IN_VS
         o.clipRect = tex2Dlod(_ShaderInfoTex, float4(o.clipRectOpacityUVs.xy, 0, 0));
