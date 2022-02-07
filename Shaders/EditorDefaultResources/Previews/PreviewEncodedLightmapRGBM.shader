@@ -57,6 +57,7 @@ Shader "Hidden/Preview Encoded Lightmap RGBM"
                 uniform float _Mip;
                 uniform fixed4 _ColorMask;
                 float _Exposure;
+                uniform bool _ManualTex2SRGB;
 
                 fixed4 frag( v2f i ) : COLOR
                 {
@@ -70,6 +71,8 @@ Shader "Hidden/Preview Encoded Lightmap RGBM"
                     col.rgb *= exp2(_Exposure);
                     col.a   *= alpha;
                     clip (col.a - 0.001);
+
+                    if (_ManualTex2SRGB) col.rgb = LinearToGammaSpace(col.rgb);
                     return col;
                 }
             ENDCG
