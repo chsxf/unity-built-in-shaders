@@ -223,7 +223,7 @@ inline float3 ObjSpaceLightDir( in float4 v )
     #endif
 }
 
-// Computes world space view direction, from object space position
+// Computes world space view direction from object position in world space
 inline float3 UnityWorldSpaceViewDir( in float3 worldPos )
 {
     return _WorldSpaceCameraPos.xyz - worldPos;
