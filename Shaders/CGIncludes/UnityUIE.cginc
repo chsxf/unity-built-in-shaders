@@ -87,8 +87,7 @@ sampler2D _Texture7;
 float4 _Texture7_ST;
 #endif
 
-float4 _PixelClipInvView; // xy in clip space, zw inverse in view space
-float4 _ScreenClipRect; // In clip space
+float4 _ClipSpaceParams; // xy half width/height, zw inverse
 
 #if !UIE_SHADER_INFO_IN_VS
 
@@ -145,15 +144,13 @@ struct v2f
 {
     float4 pos : SV_POSITION;
     UIE_V2F_COLOR_T color : COLOR;
-    float4 uvXY  : TEXCOORD0; // UV and ZW holds XY position in points
-    UIE_FLAT_OPTIM half4 typeTexSettings : TEXCOORD1; // X: Render Type Y: Tex Index Z: SVG Gradient Index/Text Opacity W: Is Arc
+    float4 uvClip  : TEXCOORD0; // UV and ZW contains the relative coords within the clipping rect (or the group-space position for GLES2)
+    UIE_FLAT_OPTIM half4 typeTexSettings : TEXCOORD1; // X: Render Type Y: Tex Index Z: SVG Gradient Index/Text Opacity W: Is Arc (non text) + Dynamic Color
+#if !UIE_SHADER_INFO_IN_VS
     UIE_FLAT_OPTIM fixed4 clipRectOpacityUVs : TEXCOORD2;
+#endif
     UIE_FLAT_OPTIM float2 colorUVs : TEXCOORD3; // Color/TextCore UVs
-    float4 clipPos : TEXCOORD4; // W holds textcore dilate flag
-    half4 circle : TEXCOORD5;
-#if UIE_SHADER_INFO_IN_VS
-    UIE_FLAT_OPTIM float4 clipRect : TEXCOORD6; // Clip rect presampled
-#endif // UIE_SHADER_INFO_IN_VS
+    half4 circle : TEXCOORD4; // XY (outer) ZW (inner) | X (Text Extra Dilate)
     UNITY_VERTEX_OUTPUT_STEREO
 };
 
@@ -185,12 +182,12 @@ float4 SampleTextureSlot(half index, float2 uv)
     float4 result;
 
 #if UIE_TEXTURE_SLOT_COUNT > 4
-    if (index < 4)
+    [branch] if (index < 4)
     {
 #endif
-        if (index < 2)
+        [branch] if (index < 2)
         {
-            if (index < 1)
+            [branch] if (index < 1)
             {
                 result = tex2D(_Texture0, uv);
             }
@@ -201,7 +198,7 @@ float4 SampleTextureSlot(half index, float2 uv)
         }
         else // index >= 2
         {
-            if (index < 3)
+            [branch] if (index < 3)
             {
                 result = tex2D(_Texture2, uv);
             }
@@ -214,9 +211,9 @@ float4 SampleTextureSlot(half index, float2 uv)
     }
     else // index >= 4
     {
-        if (index < 6)
+        [branch] if (index < 6)
         {
-            if (index < 5)
+            [branch] if (index < 5)
             {
                 result = tex2D(_Texture4, uv);
             }
@@ -227,7 +224,7 @@ float4 SampleTextureSlot(half index, float2 uv)
         }
         else // index >= 6
         {
-            if (index < 7)
+            [branch] if (index < 7)
             {
                 result = tex2D(_Texture6, uv);
             }
@@ -240,6 +237,11 @@ float4 SampleTextureSlot(half index, float2 uv)
 #endif
 
     return result;
+}
+
+float4 SampleShaderInfo(half2 uv)
+{
+    return tex2Dlod(_ShaderInfoTex, float4(uv, 0, 0));
 }
 
 // Notes on UIElements Spaces (Local, Bone, Group, World and Clip)
@@ -273,27 +275,51 @@ static float4x4 uie_toWorldMat;
 float2 uie_snap_to_integer_pos(float2 clipSpaceXY)
 {
     // Convert from clip space to framebuffer space (unit = 1 pixel).
-    float2 pixelPos = (clipSpaceXY + 1) / _PixelClipInvView.xy;
+    float2 pixelPos = (clipSpaceXY + 1) * _ClipSpaceParams.xy;
     // Add an offset before rounding to avoid half which is very common to land onto.
     float2 roundedPixelPos = round(pixelPos + 0.1527);
     // Go back to clip space.
-    return roundedPixelPos * _PixelClipInvView.xy - 1;
+    return roundedPixelPos * _ClipSpaceParams.zw - 1;
 }
 
-void uie_fragment_clip(v2f IN)
+// Let min and max, the bottom-left and top-right corners of the clipping rect. We want to remap our position so that we
+// get -1 at min and 1 at max. The rasterizer can linearly interpolate the value and the fragment shader will interpret
+// |value| > 1 as being outside the clipping rect, meaning the fragment should be discarded.
+//
+// min      avg      max  pos
+//  |--------|--------|----|
+// -1        0        1
+//
+// avg = (min + max) / 2
+// pos'= (pos - avg) / (max - avg)
+//     = pos * [1 / (max - avg)] + [- avg / (max - avg)]
+//     = pos * a + b
+// a   = 1 / (max - avg)
+//     = 1 / [max - (min + max) / 2]
+//     = 2 / (max - min)
+// b   = - avg / (max - avg)
+//     = -[(min + max) / 2] / [max - ((min + max) / 2)]
+//     = -[min + max] / [2 * max - (min + max)]
+//     = (min + max) / (min - max)
+//
+// a    : see above
+// b    : see above
+// pos  : position, in group space
+float2 ComputeRelativeClipRectCoords(float2 a, float2 b, float2 pos)
 {
-    float4 clipRect;
-#if UIE_SHADER_INFO_IN_VS
-    clipRect = IN.clipRect; // Presampled in the vertex shader, and sent down to the fragment shader ready
-#else // !UIE_SHADER_INFO_IN_VS
-    clipRect = _ClipRects[IN.clipRectOpacityUVs.x];
-#endif // UIE_SHADER_INFO_IN_VS
+    return pos * a + b;
+}
 
-    float2 pointPos = IN.uvXY.zw;
-    float2 clipPos = IN.clipPos.xy;
-    float2 s = step(clipRect.xy, pointPos) + step(pointPos, clipRect.zw) +
-        step(_ScreenClipRect.xy, clipPos) + step(clipPos, _ScreenClipRect.zw);
-    clip(dot(float3(s,1),float3(1,1,-7.95f)));
+float uie_fragment_clip(v2f IN)
+{
+    float2 dist;
+#if UIE_SHADER_INFO_IN_VS
+    dist = abs(IN.uvClip.zw);
+#else // !UIE_SHADER_INFO_IN_VS
+    float4 rectClippingData = _ClipRects[IN.clipRectOpacityUVs.x];
+    dist = abs(ComputeRelativeClipRectCoords(rectClippingData.xy, rectClippingData.zw, IN.uvClip.zw));
+#endif // UIE_SHADER_INFO_IN_VS
+    return dist.x < 1.0001f & dist.y < 1.0001f;
 }
 
 float2 uie_decode_shader_info_texel_pos(float2 pageXY, float id, float yStride)
@@ -320,9 +346,9 @@ void uie_vert_load_payload(appdata_t v)
     float2 row2UV = (xformTexel + float2(0, 2) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
 
     uie_toWorldMat = float4x4(
-        tex2Dlod(_ShaderInfoTex, float4(row0UV, 0, 0)),
-        tex2Dlod(_ShaderInfoTex, float4(row1UV, 0, 0)),
-        tex2Dlod(_ShaderInfoTex, float4(row2UV, 0, 0)),
+        SampleShaderInfo(row0UV),
+        SampleShaderInfo(row1UV),
+        SampleShaderInfo(row2UV),
         float4(0, 0, 0, 1));
 
 #else // !UIE_SHADER_INFO_IN_VS
@@ -389,7 +415,7 @@ GradientLocation uie_sample_gradient_location(float settingIndex, float2 uv, sam
     //    zw = size.y
 
     float2 settingUV = float2(0.5f, settingIndex+0.5f) * texelSize;
-    fixed4 gradSettings = tex2D(settingsTex, settingUV);
+    fixed4 gradSettings = tex2Dlod(settingsTex, float4(settingUV, 0, 0));
     if (gradSettings.x > 0.0f)
     {
         // Radial texture case
@@ -408,8 +434,8 @@ GradientLocation uie_sample_gradient_location(float settingIndex, float2 uv, sam
 
     // Adjust UV to atlas position
     float2 nextUV = float2(texelSize.x, 0);
-    grad.location.xy = (uie_unpack_float2(tex2D(settingsTex, settingUV+nextUV) * 255) + float2(0.5f, 0.5f));
-    grad.location.zw = uie_unpack_float2(tex2D(settingsTex, settingUV+nextUV*2) * 255);
+    grad.location.xy = (uie_unpack_float2(tex2Dlod(settingsTex, float4(settingUV+nextUV, 0, 0)) * 255) + float2(0.5f, 0.5f));
+    grad.location.zw = uie_unpack_float2(tex2Dlod(settingsTex, float4(settingUV+nextUV*2, 0, 0)) * 255);
 
     return grad;
 }
@@ -457,24 +483,8 @@ float3 sd_to_coverage(float3 sd, float2 uv, float sdfSize, float sdfScale, float
 
 UIE_FRAG_T uie_textcore(float textAlpha, float2 uv, float2 textCoreUV, float4 vertexColor, half opacity, bool isDynamicColor, float extraDilate)
 {
-    float2 row0UV = (textCoreUV + float2(0, 0) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
-    float2 row1UV = (textCoreUV + float2(0, 1) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
-    float2 row2UV = (textCoreUV + float2(0, 2) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
     float2 row3UV = (textCoreUV + float2(0, 3) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
-
-    float4 outlineColor  = tex2Dlod(_ShaderInfoTex, float4(row1UV, 0, 0));
-    float4 underlayColor = tex2Dlod(_ShaderInfoTex, float4(row2UV, 0, 0));
-    float4 settings      = tex2Dlod(_ShaderInfoTex, float4(row3UV, 0, 0));
-
-    float4 faceColor = vertexColor;
-    if (isDynamicColor)
-    {
-        faceColor = tex2Dlod(_ShaderInfoTex, float4(row0UV, 0, 0));
-        faceColor.a *= opacity;
-    }
-
-    outlineColor.a *= opacity;
-    underlayColor.a *= opacity;
+    float4 settings = SampleShaderInfo(row3UV);
 
     settings *= _FontTexSDFScale;
     float2 underlayOffset = settings.xy;
@@ -489,12 +499,29 @@ UIE_FRAG_T uie_textcore(float textAlpha, float2 uv, float2 textCoreUV, float4 ve
     float3 alpha = sd_to_coverage(float3(alpha1, alpha1, alpha2), uv, _FontTex_TexelSize.w, _FontTexSDFScale, dilate + extraDilate, softness);
 
     // Blending of the 3 ARGB layers
-    underlayColor.a *= alpha.z;
+    float4 faceColor = vertexColor;
+    [branch] if (isDynamicColor)
+    {
+        float2 row0UV = (textCoreUV + float2(0, 0) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+        faceColor = SampleShaderInfo(row0UV);
+        faceColor.a *= opacity;
+    }
     faceColor.rgb *= faceColor.a;
-    outlineColor.rgb *= outlineColor.a;
-    underlayColor.rgb *= underlayColor.a;
+    UIE_FRAG_T color = faceColor * alpha.x;
 
-    UIE_FRAG_T color = lerp(lerp(underlayColor, outlineColor, alpha.y), faceColor, alpha.x);
+    float2 row1UV = (textCoreUV + float2(0, 1) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    float4 outlineColor  = SampleShaderInfo(row1UV);
+    outlineColor.a *= opacity;
+    outlineColor.rgb *= outlineColor.a;
+    color += outlineColor * (1 - alpha.x) * alpha.y;
+
+    float2 row2UV = (textCoreUV + float2(0, 2) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
+    float4 underlayColor = SampleShaderInfo(row2UV);
+    underlayColor.a *= opacity;
+    underlayColor.a *= alpha.z;
+    underlayColor.rgb *= underlayColor.a;
+    color += underlayColor * (1 - alpha.x) * (1 - alpha.y);
+
     color.rgb /= (color.a > 0.0f ? color.a : 1.0f);
 
     return color;
@@ -514,9 +541,9 @@ void uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color, out float2
 #if UIE_SHADER_INFO_IN_VS
     if (v.flags.w > 0.0f)
         // Color is stored in shader info
-        color = tex2Dlod(_ShaderInfoTex, float4(colorUV, 0, 0));
+        color = SampleShaderInfo(colorUV);
     clipRectUV = (uie_decode_shader_info_texel_pos(v.xformClipPages.zw, v.ids.y, 1.0f) + 0.5f) * _ShaderInfoTex_TexelSize.xy;
-    opacity = tex2Dlod(_ShaderInfoTex, float4(opacityUV, 0, 0)).a;
+    opacity = SampleShaderInfo(opacityUV).a;
     color.a *= opacity;
 #else // !UIE_SHADER_INFO_IN_VS
     clipRectUV = float2(v.ids.y * 255.0f, 0.0f);
@@ -532,6 +559,24 @@ float pixelDist(float2 uv)
     // Probably more accurate, but requires an additional length():
     // float2 ddist = float2(ddx(dist), ddy(dist));
     // return dist / length(ddist);
+}
+
+float ComputeCoverage(float2 outer, float2 inner)
+{
+    float coverage = 1;
+    // Don't evaluate circles defined as kUnusedArc
+    [branch] if (outer.x > -9999.0f)
+    {
+        float outerDist = pixelDist(outer);
+        coverage *= saturate(0.5f-outerDist);
+    }
+    [branch] if (inner.x > -9999.0f)
+    {
+        float innerDist = pixelDist(inner);
+        coverage *= 1.0f - saturate(0.5f-innerDist);
+    }
+
+    return coverage;
 }
 
 v2f uie_std_vert(appdata_t v)
@@ -550,15 +595,10 @@ v2f uie_std_vert(appdata_t v)
     const float isSolid = 1 - saturate(isText + isTextured + isDynamic + isSvgGradients);
 
     v.vertex.xyz = mul(uie_toWorldMat, v.vertex);
-
-    OUT.uvXY.zw = v.vertex.xy;
     OUT.pos = UnityObjectToClipPos(v.vertex);
 
     if (isText == 1 && _FontTexSDFScale == 0)
         OUT.pos.xy = uie_snap_to_integer_pos(OUT.pos.xy);
-
-    OUT.clipPos.xy = OUT.pos.xy / OUT.pos.w;
-    OUT.clipPos.zw = float2(0, v.flags.y);
 
     // 1 => solid, 2 => text, 3 => textured, 4 => svg
     half renderType = isSolid * 1 + isText * 2 + (isDynamic + isTextured) * 3 + isSvgGradients * 4;
@@ -570,42 +610,42 @@ v2f uie_std_vert(appdata_t v)
         wFlags += 2.0f; // Poor man's bitset
     OUT.typeTexSettings = half4(renderType, textureSlot, svgSettingIndex, wFlags);
 
-    OUT.uvXY.xy = v.uv;
+    OUT.uvClip.xy = v.uv;
     if (isDynamic == 1.0f)
-        OUT.uvXY.xy *= _TextureInfo[textureSlot].yz;
+        OUT.uvClip.xy *= _TextureInfo[textureSlot].yz;
 
     half opacity;
-    uie_std_vert_shader_info(v, OUT.color, OUT.clipRectOpacityUVs.xy, OUT.clipRectOpacityUVs.zw, opacity, OUT.colorUVs.xy);
+    float2 clipRectUVs, opacityUVs;
+    uie_std_vert_shader_info(v, OUT.color, clipRectUVs, opacityUVs, opacity, OUT.colorUVs.xy);
     if (isText == 1) // Case 1379601: Text needs to have the separate opacity as well
         OUT.typeTexSettings.z = opacity;
     OUT.colorUVs.xy = isText ? uie_decode_shader_info_texel_pos(v.opacityColorPages.zw, v.ids.w, 4.0f) : OUT.colorUVs.xy;
 
 #if UIE_SHADER_INFO_IN_VS
-    OUT.clipRect = tex2Dlod(_ShaderInfoTex, float4(OUT.clipRectOpacityUVs.xy, 0, 0));
-#endif // UIE_SHADER_INFO_IN_VS
+    float4 rectClippingData = SampleShaderInfo(clipRectUVs);
+    OUT.uvClip.zw = ComputeRelativeClipRectCoords(rectClippingData.xy, rectClippingData.zw, v.vertex.xy);
+#else // !UIE_SHADERs_INFO_IN_VS
+    OUT.clipRectOpacityUVs.xy = clipRectUVs;
+    OUT.clipRectOpacityUVs.zw = opacityUVs;
+    OUT.uvClip.zw = v.vertex.xy;
+#endif
 
     OUT.circle = v.circle;
+    if (isText == 1)
+        OUT.circle.x = v.flags.y; // Text Extra Dilate
 
     return OUT;
 }
 
 UIE_FRAG_T uie_std_frag(v2f IN)
 {
-    uie_fragment_clip(IN);
-
-    // Extract the render type
-    bool isSolid        = IN.typeTexSettings.x == 1;
-    bool isText         = IN.typeTexSettings.x == 2;
-    bool isTextured     = IN.typeTexSettings.x == 3;
-    bool isSvgGradients = IN.typeTexSettings.x == 4;
-
-    // Decode bitset
+    half renderType = IN.typeTexSettings.x;
     bool isDynamicColor = IN.typeTexSettings.w >= 2.0;
     if (isDynamicColor)
         IN.typeTexSettings.w -= 2.0f;
     float isArc = IN.typeTexSettings.w;
 
-    float2 uv = IN.uvXY.xy;
+    float2 uv = IN.uvClip.xy;
 
     half textOpacity;
 #if UIE_SHADER_INFO_IN_VS
@@ -613,28 +653,45 @@ UIE_FRAG_T uie_std_frag(v2f IN)
 #else
     {
         // Using curly braces to avoid exposing opacity, which is only available in this #else or for text
-        half opacity = tex2D(_ShaderInfoTex, IN.clipRectOpacityUVs.zw).a;
+        half opacity = SampleShaderInfo(IN.clipRectOpacityUVs.zw).a;
         IN.color.a *= opacity;
         textOpacity = opacity;
     }
-    if (isDynamicColor && !isText)
-        IN.color = tex2D(_ShaderInfoTex, IN.colorUVs.xy);
+    if (isDynamicColor && renderType != 2 /* anything but text */)
+        IN.color = SampleShaderInfo(IN.colorUVs.xy);
 #endif // !UIE_SHADER_INFO_IN_VS
 
-    UIE_FRAG_T texColor = (UIE_FRAG_T)isSolid;
-    if (isTextured)
+    UIE_FRAG_T color;
+    float coverage;
+    [branch] if (renderType == 1) // Solid
     {
-        texColor = SampleTextureSlot(IN.typeTexSettings.y, uv);
+        color = IN.color;
+        coverage = 1;
+        [branch] if (isArc)
+            coverage = ComputeCoverage(IN.circle.xy, IN.circle.zw);
     }
-    else if (isText)
+    else [branch] if (renderType == 3) // Textured
+    {
+        color = SampleTextureSlot(IN.typeTexSettings.y, uv) * IN.color;
+        coverage = 1;
+        [branch] if (isArc)
+            coverage = ComputeCoverage(IN.circle.xy, IN.circle.zw);
+    }
+    else [branch] if (renderType == 2) // Text
     {
         float textAlpha = tex2D(_FontTex, uv).a;
         if (_FontTexSDFScale > 0.0f)
-            texColor = uie_textcore(textAlpha, uv, IN.colorUVs.xy, IN.color, textOpacity, isDynamicColor, IN.clipPos.w);
+        {
+            color = uie_textcore(textAlpha, uv, IN.colorUVs.xy, IN.color, textOpacity, isDynamicColor, IN.circle.x);
+        }
         else
-            texColor = UIE_FRAG_T(1, 1, 1, tex2D(_FontTex, uv).a);
+        {
+            color = IN.color;
+            color.a *= textAlpha;
+        }
+        coverage = 1;
     }
-    else if (isSvgGradients)
+    else // Svg Gradients
     {
         float settingIndex  = IN.typeTexSettings.z;
         float2 texelSize = _TextureInfo[IN.typeTexSettings.y].yz;
@@ -642,30 +699,17 @@ UIE_FRAG_T uie_std_frag(v2f IN)
         grad.location *= texelSize.xyxy;
         grad.uv *= grad.location.zw;
         grad.uv += grad.location.xy;
-        texColor = SampleTextureSlot(IN.typeTexSettings.y, grad.uv);
+        color = SampleTextureSlot(IN.typeTexSettings.y, grad.uv) * IN.color;
+        coverage = 1;
     }
 
-    UIE_FRAG_T color = (isText && _FontTexSDFScale > 0.0f) ? texColor : texColor * IN.color;
+    coverage *= uie_fragment_clip(IN);
 
-    if (isArc)
-    {
-        // Don't evaluate circles defined as kUnusedArc
-        if (IN.circle.x > -9999.0f)
-        {
-            float outer = pixelDist(IN.circle.xy);
-            color.a *= saturate(0.5f-outer);
-        }
-        if (IN.circle.z > -9999.0f)
-        {
-            float inner = pixelDist(IN.circle.zw);
-            color.a *= 1.0f - saturate(0.5f-inner);
-        }
+    // Clip fragments when coverage is close to 0 (< 1/256 here).
+    // This will write proper masks values in the stencil buffer.
+    clip(coverage - 0.003f);
 
-        // Clip fragments when alpha is close to 0 (< 1/256 here).
-        // This will write proper masks values in the stencil buffer.
-        clip(color.a - 0.003f);
-    }
-
+    color.a *= coverage;
     return color;
 }
 

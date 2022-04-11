@@ -41,10 +41,7 @@ Shader "Hidden/GraphView/GraphViewUIE"
         v2f o;
         UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
         o.pos = UnityObjectToClipPos(float3(vertex.xy, kUIEMeshZ));
-        o.clipPos.xy = o.pos.xy / o.pos.w;
-        o.clipPos.zw = float2(0,0);
-        o.uvXY.xy = float2(vertexHalfWidth*sideSign, halfWidth);
-        o.uvXY.zw = vertex.xy;
+        o.uvClip.xy = float2(vertexHalfWidth*sideSign, halfWidth);
         o.typeTexSettings.x = 100.0f; // Marking as an edge
         o.typeTexSettings.y = _ZoomFactor;
         o.typeTexSettings.zw = half2(0, 0);
@@ -52,11 +49,17 @@ Shader "Hidden/GraphView/GraphViewUIE"
         o.circle = half4(0, 0, 0, 0);
 
         float unused;
-        uie_std_vert_shader_info(v, o.color, o.clipRectOpacityUVs.xy, o.clipRectOpacityUVs.zw, unused, o.colorUVs.xy);
+        float2 clipRectUVs, opacityUVs;
+        uie_std_vert_shader_info(v, o.color, clipRectUVs, opacityUVs, unused, o.colorUVs.xy);
 
 #if UIE_SHADER_INFO_IN_VS
-        o.clipRect = tex2Dlod(_ShaderInfoTex, float4(o.clipRectOpacityUVs.xy, 0, 0));
-#endif // UIE_SHADER_INFO_IN_VS
+        float4 rectClippingData = SampleShaderInfo(clipRectUVs);
+        o.uvClip.zw = ComputeRelativeClipRectCoords(rectClippingData.xy, rectClippingData.zw, vertex.xy);
+#else // !UIE_SHADER_INFO_IN_VS
+        o.clipRectOpacityUVs.xy = clipRectUVs;
+        o.clipRectOpacityUVs.zw = opacityUVs;
+        o.uvClip.zw = v.vertex.xy;
+#endif
 
         o.color.a *= edgeWidth / realWidth; // make up for bigger edge by fading it.
         return o;
@@ -71,11 +74,10 @@ Shader "Hidden/GraphView/GraphViewUIE"
 
     fixed4 frag(v2f IN) : SV_Target
     {
-        uie_fragment_clip(IN);
         fixed4 col = fixed4(0, 0, 0, 0);
         if (IN.typeTexSettings.x == 100.0f) // Is it an edge?
         {
-            float distanceSat = saturate((IN.uvXY.y - abs(IN.uvXY.x)) * IN.typeTexSettings.y + 0.5);
+            float distanceSat = saturate((IN.uvClip.y - abs(IN.uvClip.x)) * IN.typeTexSettings.y + 0.5);
             col = fixed4(IN.color.rgb, IN.color.a * distanceSat);
         }
         else
