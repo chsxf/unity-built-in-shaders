@@ -1,12 +1,8 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
-#pragma kernel main USE_RAW_BUFFER=0
-#pragma kernel main USE_RAW_BUFFER=0 SKIN_NORM
-#pragma kernel main USE_RAW_BUFFER=0 SKIN_NORM SKIN_TANG
-
-#pragma kernel main USE_RAW_BUFFER=1
-#pragma kernel main USE_RAW_BUFFER=1 SKIN_NORM
-#pragma kernel main USE_RAW_BUFFER=1 SKIN_NORM SKIN_TANG
+#pragma kernel main
+#pragma kernel main SKIN_NORM
+#pragma kernel main SKIN_NORM SKIN_TANG
 
 #include "HLSLSupport.cginc"
 #include "Internal-Skinning-Util.cginc"

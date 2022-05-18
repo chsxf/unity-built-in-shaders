@@ -1,31 +1,19 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
-#ifdef SKINNING_GENERIC_VERTEX_USE_BUFFER
+#ifdef SKINNING_GENERIC_VERTEX_VIEW_FORMAT
 #error Internal-Skinning-Util.cginc has been included twice
 #endif
 
-//There isn't anymore platform where raw or structured aren't supported _using compute shader_
-//GLES3.1 is the minimal requirement for compute shader and Shader model 5.0 is expected on D3D platform.
-#define SKINNING_SUPPORT_RAW_OR_STRUCTURED_BUFFER 1
-
-#ifndef SKINNING_SUPPORT_RAW_OR_STRUCTURED_BUFFER
-#error SKINNING_SUPPORT_RAW_OR_STRUCTURED_BUFFER must be declared
-#endif
-
-#define SKINNING_GENERIC_VERTEX_USE_BUFFER (1)
 #define SKINNING_GENERIC_VERTEX_USE_STRUCTURED_BUFFER (2)
 #define SKINNING_GENERIC_VERTEX_USE_RAW_BUFFER (3)
 
-#if SKINNING_SUPPORT_RAW_OR_STRUCTURED_BUFFER == 1
-#if USE_RAW_BUFFER
-//Should correspond to GeometryBuffers::GetComputeBufferFlag, here kGfxBufferTargetRaw
-#define SKINNING_GENERIC_VERTEX_VIEW_FORMAT SKINNING_GENERIC_VERTEX_USE_RAW_BUFFER
+// GPU skinning code can use either Structured or Raw buffer for the mesh data access; this
+// varies by platform. Choices here should match what's in GraphicsCaps::computeBufferTargetForGeometryBuffer
+// on the C++ side.
+#if defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
+    #define SKINNING_GENERIC_VERTEX_VIEW_FORMAT SKINNING_GENERIC_VERTEX_USE_STRUCTURED_BUFFER
 #else
-//Should correspond to GeometryBuffers::GetComputeBufferFlag, here kGfxBufferTargetStructured
-#define SKINNING_GENERIC_VERTEX_VIEW_FORMAT SKINNING_GENERIC_VERTEX_USE_STRUCTURED_BUFFER
-#endif
-#else
-#define SKINNING_GENERIC_VERTEX_VIEW_FORMAT SKINNING_GENERIC_VERTEX_USE_BUFFER
+    #define SKINNING_GENERIC_VERTEX_VIEW_FORMAT SKINNING_GENERIC_VERTEX_USE_RAW_BUFFER
 #endif
 
 #if SKIN_NORM && SKIN_TANG
@@ -80,9 +68,8 @@ struct BlendShapeVertex
     float3 tang;
 };
 
-#if SKINNING_GENERIC_VERTEX_VIEW_FORMAT == SKINNING_GENERIC_VERTEX_USE_BUFFER || SKINNING_GENERIC_VERTEX_VIEW_FORMAT == SKINNING_GENERIC_VERTEX_USE_RAW_BUFFER
-
 #if SKINNING_GENERIC_VERTEX_VIEW_FORMAT == SKINNING_GENERIC_VERTEX_USE_RAW_BUFFER
+
 #define SKINNING_GENERIC_VERTEX_BUFFER SAMPLER_UNIFORM ByteAddressBuffer
 #define SKINNING_GENERIC_VERTEX_RWBUFFER SAMPLER_UNIFORM RWByteAddressBuffer
 #define SKINNING_GENERIC_SKIN_BUFFER SAMPLER_UNIFORM ByteAddressBuffer
@@ -103,30 +90,7 @@ void StoreBuffer2(RWByteAddressBuffer buffer, int offset, float2 value) { buffer
 void StoreBuffer3(RWByteAddressBuffer buffer, int offset, float3 value) { buffer.Store3(offset << 2, asuint(value)); }
 void StoreBuffer4(RWByteAddressBuffer buffer, int offset, float4 value) { buffer.Store4(offset << 2, asuint(value)); }
 
-#else
 
-#define SKINNING_GENERIC_VERTEX_BUFFER SAMPLER_UNIFORM Buffer<float>
-#define SKINNING_GENERIC_VERTEX_RWBUFFER SAMPLER_UNIFORM RWBuffer<float>
-#define SKINNING_GENERIC_SKIN_BUFFER SAMPLER_UNIFORM Buffer<float>
-#define SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE SAMPLER_UNIFORM Buffer<float>
-
-float  FetchBuffer (Buffer<float> buffer, int offset)      { return buffer.Load(offset); }
-float2 FetchBuffer2(Buffer<float> buffer, int offset)      { return float2(buffer.Load(offset), buffer.Load(offset + 1)); }
-float3 FetchBuffer3(Buffer<float> buffer, int offset)      { return float3(buffer.Load(offset), buffer.Load(offset + 1), buffer.Load(offset + 2)); }
-float4 FetchBuffer4(Buffer<float> buffer, int offset)      { return float4(buffer.Load(offset), buffer.Load(offset + 1), buffer.Load(offset + 2), buffer.Load(offset + 3)); }
-
-float  FetchBuffer (RWBuffer<float> buffer, int offset)    { return buffer.Load(offset); }
-float2 FetchBuffer2(RWBuffer<float> buffer, int offset)    { return float2(buffer.Load(offset), buffer.Load(offset + 1)); }
-float3 FetchBuffer3(RWBuffer<float> buffer, int offset)    { return float3(buffer.Load(offset), buffer.Load(offset + 1), buffer.Load(offset + 2)); }
-float4 FetchBuffer4(RWBuffer<float> buffer, int offset)    { return float4(buffer.Load(offset), buffer.Load(offset + 1), buffer.Load(offset + 2), buffer.Load(offset + 3)); }
-
-void StoreBuffer (RWBuffer<float> buffer, int offset, float  value) { buffer[offset] = value; }
-void StoreBuffer2(RWBuffer<float> buffer, int offset, float2 value) { buffer[offset] = value.x; buffer[offset + 1] = value.y; }
-void StoreBuffer3(RWBuffer<float> buffer, int offset, float3 value) { buffer[offset] = value.x; buffer[offset + 1] = value.y; buffer[offset + 2] = value.z; }
-void StoreBuffer4(RWBuffer<float> buffer, int offset, float4 value) { buffer[offset] = value.x; buffer[offset + 1] = value.y; buffer[offset + 2] = value.z; buffer[offset + 3] = value.w; }
-#endif
-
-//Common implementation for Buffer & ByteAddressBuffer
 MeshVertex FetchVert(SKINNING_GENERIC_VERTEX_BUFFER vertices, const uint index)
 {
     MeshVertex vert;
