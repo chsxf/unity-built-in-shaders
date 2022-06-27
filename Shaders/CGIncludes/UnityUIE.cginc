@@ -17,6 +17,10 @@
     #define UIE_FLAT_OPTIM nointerpolation
 #endif // SHADER_TARGET >= 35
 
+#ifndef UIE_TEXTURE_SLOT_SIZE
+    #define UIE_TEXTURE_SLOT_SIZE 1
+#endif // UIE_TEXTURE_SLOT_SIZE
+
 #ifndef UIE_COLORSPACE_GAMMA
     #ifdef UNITY_COLORSPACE_GAMMA
         #define UIE_COLORSPACE_GAMMA 1
@@ -25,13 +29,16 @@
     #endif // UNITY_COLORSPACE_GAMMA
 #endif // UIE_COLORSPACE_GAMMA
 
-#ifndef UIE_FRAG_T
+#ifndef UIE_FRAG_SCALAR_T
     #if UIE_COLORSPACE_GAMMA
-        #define UIE_FRAG_T fixed4
+        #define UIE_FRAG_SCALAR_T fixed
     #else
-        #define UIE_FRAG_T half4
+        #define UIE_FRAG_SCALAR_T half
     #endif // UIE_COLORSPACE_GAMMA
-#endif // UIE_FRAG_T
+#endif // UIE_FRAG_SCALAR_T
+
+#define JOIN2(a, b) a##b
+#define UIE_FRAG_T JOIN2(UIE_FRAG_SCALAR_T, 4)
 
 #ifndef UIE_V2F_COLOR_T
     #if UIE_COLORSPACE_GAMMA
@@ -59,7 +66,7 @@ float4 _GradientSettingsTex_TexelSize;
 sampler2D _ShaderInfoTex;
 float4 _ShaderInfoTex_TexelSize;
 
-float4 _TextureInfo[UIE_TEXTURE_SLOT_COUNT]; // X id YZ texelSize
+float4 _TextureInfo[UIE_TEXTURE_SLOT_COUNT * UIE_TEXTURE_SLOT_SIZE];
 
 sampler2D _Texture0;
 float4 _Texture0_ST;
@@ -157,21 +164,41 @@ struct v2f
 static const float kUIEMeshZ = 0.0f; // Keep in track with UIRUtility.k_MeshPosZ
 static const float kUIEMaskZ = 1.0f; // Keep in track with UIRUtility.k_MaskPosZ
 
+struct TextureInfo
+{
+    float textureId;
+    float2 texelSize;
+    float unused;
+};
+
+// index: integer between [0..UIE_TEXTURE_SLOT_COUNT[
+TextureInfo GetTextureInfo(half index)
+{
+    half offset = index * UIE_TEXTURE_SLOT_SIZE;
+    float4 data0 = _TextureInfo[offset];
+
+    TextureInfo info;
+    info.textureId = data0.x;
+    info.texelSize = data0.yz;
+
+    return info;
+}
+
 // returns: Integer between 0 and UIE_TEXTURE_SLOT_COUNT - 1
 half FindTextureSlot(float textureId)
 {
 #if UIE_TEXTURE_SLOT_COUNT > 4
-    for(int i = 0 ; i < UIE_TEXTURE_SLOT_COUNT - 1 ; ++i)
-        if (_TextureInfo[i].x == textureId)
+    for (half i = 0 ; i < UIE_TEXTURE_SLOT_COUNT - 1 ; ++i)
+        if (GetTextureInfo(i).textureId == textureId)
             return i;
     return UIE_TEXTURE_SLOT_COUNT - 1;
 #else
     // Unrolling because of GLES2 issues with loops.
     // Replaced '==' because they're messed up on some old GPUs.
     half slotIndex = 0;
-    slotIndex += (1.0 - abs(sign(_TextureInfo[1].x - textureId))) * 1;
-    slotIndex += (1.0 - abs(sign(_TextureInfo[2].x - textureId))) * 2;
-    slotIndex += (1.0 - abs(sign(_TextureInfo[3].x - textureId))) * 3;
+    slotIndex += (1.0 - abs(sign(GetTextureInfo(1).textureId - textureId))) * 1;
+    slotIndex += (1.0 - abs(sign(GetTextureInfo(2).textureId - textureId))) * 2;
+    slotIndex += (1.0 - abs(sign(GetTextureInfo(3).textureId - textureId))) * 3;
     return slotIndex;
 #endif
 }
@@ -440,14 +467,12 @@ GradientLocation uie_sample_gradient_location(float settingIndex, float2 uv, sam
     return grad;
 }
 
-float TestForValue(float value, inout float flags)
+bool fpEqual(float a, float b)
 {
-#if SHADER_API_GLES
-    float result = saturate(flags - value + 1.0);
-    flags -= result * value;
-    return result;
+#if SHADER_API_GLES || SHADER_API_GLES3
+    return abs(a-b) < 0.0001;
 #else
-    return flags == value;
+    return a == b;
 #endif
 }
 
@@ -588,10 +613,10 @@ v2f uie_std_vert(appdata_t v)
     uie_vert_load_payload(v);
     float flags = round(v.flags.x*255.0f); // Must round for MacGL VM
     // Keep the descending order for GLES2
-    const float isSvgGradients   = TestForValue(4.0, flags);
-    const float isDynamic        = TestForValue(3.0, flags);
-    const float isTextured       = TestForValue(2.0, flags);
-    const float isText           = TestForValue(1.0, flags);
+    const float isSvgGradients   = fpEqual(4.0, flags) ? 1.0 : 0.0;
+    const float isDynamic        = fpEqual(3.0, flags) ? 1.0 : 0.0;
+    const float isTextured       = fpEqual(2.0, flags) ? 1.0 : 0.0;
+    const float isText           = fpEqual(1.0, flags) ? 1.0 : 0.0;
     const float isSolid = 1 - saturate(isText + isTextured + isDynamic + isSvgGradients);
 
     v.vertex.xyz = mul(uie_toWorldMat, v.vertex);
@@ -612,7 +637,7 @@ v2f uie_std_vert(appdata_t v)
 
     OUT.uvClip.xy = v.uv;
     if (isDynamic == 1.0f)
-        OUT.uvClip.xy *= _TextureInfo[textureSlot].yz;
+        OUT.uvClip.xy *= GetTextureInfo(textureSlot).texelSize;
 
     half opacity;
     float2 clipRectUVs, opacityUVs;
@@ -661,6 +686,8 @@ UIE_FRAG_T uie_std_frag(v2f IN)
         IN.color = SampleShaderInfo(IN.colorUVs.xy);
 #endif // !UIE_SHADER_INFO_IN_VS
 
+    half textureSlot = IN.typeTexSettings.y;
+
     UIE_FRAG_T color;
     float coverage;
     [branch] if (renderType == 1) // Solid
@@ -672,7 +699,7 @@ UIE_FRAG_T uie_std_frag(v2f IN)
     }
     else [branch] if (renderType == 3) // Textured
     {
-        color = SampleTextureSlot(IN.typeTexSettings.y, uv) * IN.color;
+        color = SampleTextureSlot(textureSlot, uv) * IN.color;
         coverage = 1;
         [branch] if (isArc)
             coverage = ComputeCoverage(IN.circle.xy, IN.circle.zw);
@@ -694,12 +721,12 @@ UIE_FRAG_T uie_std_frag(v2f IN)
     else // Svg Gradients
     {
         float settingIndex  = IN.typeTexSettings.z;
-        float2 texelSize = _TextureInfo[IN.typeTexSettings.y].yz;
+        float2 texelSize = GetTextureInfo(textureSlot).texelSize;
         GradientLocation grad = uie_sample_gradient_location(settingIndex, uv, _GradientSettingsTex, _GradientSettingsTex_TexelSize.xy);
         grad.location *= texelSize.xyxy;
         grad.uv *= grad.location.zw;
         grad.uv += grad.location.xy;
-        color = SampleTextureSlot(IN.typeTexSettings.y, grad.uv) * IN.color;
+        color = SampleTextureSlot(textureSlot, grad.uv) * IN.color;
         coverage = 1;
     }
 
@@ -709,7 +736,7 @@ UIE_FRAG_T uie_std_frag(v2f IN)
     // This will write proper masks values in the stencil buffer.
     clip(coverage - 0.003f);
 
-    color.a *= coverage;
+    color.a *= UIE_FRAG_SCALAR_T(coverage); // The explicit cast is a workaround for Adreno320 precision bug (case 1429559)
     return color;
 }
 
