@@ -7,7 +7,7 @@ Shader "Sprites/Mask"
         [PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
         [PerRendererData] _AlphaTex ("External Alpha", 2D) = "white" {}
         [HideInInspector] _Cutoff ("Mask alpha cutoff", Range(0.0, 1.0)) = 0.0
-        _Color ("Tint", Color) = (1,1,1,0.2)
+        [HideInInspector] _Color ("Tint", Color) = (1,1,1,0.2)
         [PerRendererData] _EnableExternalAlpha ("Enable External Alpha", Float) = 0
         [MaterialToggle] PixelSnap ("Pixel snap", Float) = 0
     }
