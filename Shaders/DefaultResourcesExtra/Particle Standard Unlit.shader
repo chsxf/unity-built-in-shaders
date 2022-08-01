@@ -57,7 +57,7 @@ Shader "Particles/Standard Unlit"
 
             GrabPass
             {
-                Tags { "LightMode" = "Always" }
+                Tags { "LightMode" = "GrabPass" }
                 "_GrabTexture"
             }
 
@@ -146,15 +146,12 @@ Shader "Particles/Standard Unlit"
 
             Pass
             {
-                Tags { "LightMode"="ForwardBase" }
-
                 CGPROGRAM
                 //vertInstancingSetup writes to global, not allowed with DXC
                 #pragma never_use_dxc
                 #pragma multi_compile __ SOFTPARTICLES_ON
                 #pragma multi_compile_fog
                 #pragma target 2.5
-
                 #pragma shader_feature_local_fragment _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON _ALPHAMODULATE_ON
                 #pragma shader_feature_local_fragment _ _COLOROVERLAY_ON _COLORCOLOR_ON _COLORADDSUBDIFF_ON
                 #pragma shader_feature_local _NORMALMAP
