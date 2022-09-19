@@ -74,6 +74,7 @@
 * Version 2021.1.2f1: https://download.unity3d.com/download_unity/e5d502d80fbb/builtin_shaders-2021.1.2f1.zip
 * Version 2021.1.1f1: https://download.unity3d.com/download_unity/6fdc41dfa55a/builtin_shaders-2021.1.1f1.zip
 * Version 2021.1.0f1: https://download.unity3d.com/download_unity/61a549675243/builtin_shaders-2021.1.0f1.zip
+* Version 2020.3.39f1: https://download.unity3d.com/download_unity/fd6670bb8be9/builtin_shaders-2020.3.39f1.zip
 * Version 2020.3.38f1: https://download.unity3d.com/download_unity/8f5fde82e2dc/builtin_shaders-2020.3.38f1.zip
 * Version 2020.3.37f1: https://download.unity3d.com/download_unity/8c66806a0c04/builtin_shaders-2020.3.37f1.zip
 * Version 2020.3.36f1: https://download.unity3d.com/download_unity/71f96b79b9f0/builtin_shaders-2020.3.36f1.zip
