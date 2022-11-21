@@ -579,11 +579,8 @@ void uie_std_vert_shader_info(appdata_t v, out UIE_V2F_COLOR_T color, out float2
 float pixelDist(float2 uv)
 {
     float dist = length(uv) - 1.0f; // Bring from [0,...] to [-1,...] range
-    return dist / fwidth(dist);
-
-    // Probably more accurate, but requires an additional length():
-    // float2 ddist = float2(ddx(dist), ddy(dist));
-    // return dist / length(ddist);
+    float2 ddist = float2(ddx(dist), ddy(dist));
+    return dist / length(ddist);
 }
 
 float ComputeCoverage(float2 outer, float2 inner)
