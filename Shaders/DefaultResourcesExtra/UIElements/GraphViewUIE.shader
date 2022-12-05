@@ -67,7 +67,7 @@ Shader "Hidden/GraphView/GraphViewUIE"
 
     v2f vert(appdata_t v)
     {
-        if (v.flags.x*255.0f == kGraphViewEdgeFlag)
+        if (round(v.flags.x*255.0f) == kGraphViewEdgeFlag)
             return ProcessEdge(v);
         return uie_std_vert(v);
     }

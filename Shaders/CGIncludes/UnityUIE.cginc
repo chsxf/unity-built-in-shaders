@@ -353,7 +353,7 @@ float2 uie_decode_shader_info_texel_pos(float2 pageXY, float id, float yStride)
 {
     const float kShaderInfoPageWidth = 32;
     const float kShaderInfoPageHeight = 8;
-    id *= 255.0f;
+    id = round(id * 255.0f);
     pageXY *= 255.0f; // From [0,1] to [0,255]
     float idX = id % kShaderInfoPageWidth;
     float idY = (id - idX) / kShaderInfoPageWidth;
