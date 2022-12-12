@@ -5,7 +5,6 @@
 // - specular lighting directions are approximated per vertex
 // - writes zero to alpha channel
 // - Normalmap uses Tiling/Offset of the Base texture
-// - no Deferred Lighting support
 // - no Lightmap support
 // - supports ONLY 1 directional light. Other lights are completely ignored.
 
@@ -20,7 +19,7 @@ SubShader {
     LOD 250
 
 CGPROGRAM
-#pragma surface surf MobileBlinnPhong exclude_path:prepass nolightmap noforwardadd halfasview novertexlights
+#pragma surface surf MobileBlinnPhong nolightmap noforwardadd halfasview novertexlights
 
 inline fixed4 LightingMobileBlinnPhong (SurfaceOutput s, fixed3 lightDir, fixed3 halfDir, fixed atten)
 {

@@ -85,9 +85,9 @@ Shader "Hidden/VideoDecode"
 
         fixed4 fragmentNV12RGBA(v2f i) : SV_Target
         {
-            float ty  = 0.5f * i.texcoord.x;    // Y  : left half of luma plane
-            float ta  = ty + 0.5f;              // A  : right half of luma plane
-            float tuv = ty;                     // UV : just use left half of chroma plane
+            float ty  = 0.5f * i.texcoord.x;        // Y  : left half of luma plane
+            float ta  = ty + 0.5f * _MainTex_ST.x;  // A  : right half of luma plane
+            float tuv = ty;                         // UV : just use left half of chroma plane
 
             fixed  y  = tex2D(_MainTex,   float2(ty,  i.texcoord.y)).a;
             fixed  a  = tex2D(_MainTex,   float2(ta,  i.texcoord.y)).a;

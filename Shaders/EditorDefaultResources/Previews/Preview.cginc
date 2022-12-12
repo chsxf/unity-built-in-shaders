@@ -83,8 +83,7 @@ fixed4 fragAlpha(v2f i) : SV_Target
     // Just like for Normal Maps, we force an extra conversion for
     // AssetPreviews because we do not wish for Alpha-Only to appear
     // "overblown" due to the linear -> sRGB conversion.
-    if (_ManualTex2Linear)
-        c.rgb = GammaToLinearSpace(c.rgb);
+    if (_ManualTex2Linear) c.rgb = GammaToLinearSpace(c.rgb);
 
     c.a = UNITY_SAMPLE_1CHANNEL(_GUIClipTexture, i.clipUV);
     return c;

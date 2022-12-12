@@ -76,14 +76,6 @@ inline void LightingLambert_GI (
     gi = UnityGlobalIllumination (data, 1.0, s.Normal);
 }
 
-inline fixed4 LightingLambert_PrePass (SurfaceOutput s, half4 light)
-{
-    fixed4 c;
-    c.rgb = s.Albedo * light.rgb;
-    c.a = s.Alpha;
-    return c;
-}
-
 // NOTE: some intricacy in shader compiler on some GLES2.0 platforms (iOS) needs 'viewDir' & 'h'
 // to be mediump instead of lowp, otherwise specular highlight becomes too bright.
 inline fixed4 UnityBlinnPhongLight (SurfaceOutput s, half3 viewDir, UnityLight light)
@@ -141,16 +133,6 @@ inline void LightingBlinnPhong_GI (
     inout UnityGI gi)
 {
     gi = UnityGlobalIllumination (data, 1.0, s.Normal);
-}
-
-inline fixed4 LightingBlinnPhong_PrePass (SurfaceOutput s, half4 light)
-{
-    fixed spec = light.a * s.Gloss;
-
-    fixed4 c;
-    c.rgb = (s.Albedo * light.rgb + light.rgb * _SpecColor.rgb * spec);
-    c.a = s.Alpha;
-    return c;
 }
 
 #ifdef UNITY_CAN_COMPILE_TESSELLATION

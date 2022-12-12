@@ -1,49 +1,58 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
-Shader "Hidden/FrameDebuggerRenderTargetDisplay" {
-    Properties {
-        _MainTex ("", any) = "white" {}
+Shader "Hidden/FrameDebuggerRenderTargetDisplay"
+{
+    Properties
+    {
+        _MainTex("", any) = "black" {}
     }
 
     CGINCLUDE
     #include "UnityCG.cginc"
     #include "HLSLSupport.cginc"
-    struct appdata {
+
+    bool _UndoOutputSRGB;
+    bool _ShouldYFlip;
+    half4 _Levels;
+    fixed4 _Channels;
+    float _MainTexWidth;
+    float _MainTexHeight;
+
+    struct appdata
+    {
         float4 vertex : POSITION;
         float3 uv : TEXCOORD0;
     };
 
-    struct v2f {
+    struct v2f
+    {
         float4 pos : SV_POSITION;
         float3 uv : TEXCOORD0;
     };
 
-    v2f vert(appdata v) {
+    v2f vert(appdata v)
+    {
         v2f o;
         o.pos = UnityObjectToClipPos(v.vertex);
         o.uv = v.uv;
         return o;
     }
 
-    fixed4 _Channels;
-    half4 _Levels;
-    bool _UndoOutputSRGB;
-
-    fixed4 ProcessColor (half4 tex)
+    float4 ProcessColor(float4 tex)
     {
+        float4 col = tex;
+
         // adjust levels
-        half4 col = tex;
         col -= _Levels.rrrr;
-        col /= _Levels.gggg-_Levels.rrrr;
+        col /= _Levels.gggg - _Levels.rrrr;
 
         // leave only channels we want to show
         col *= _Channels;
 
         // if we're showing only a single channel, display that as grayscale
-        if (dot(_Channels,fixed4(1,1,1,1)) == 1.0)
+        if (dot(_Channels, float4(1, 1, 1, 1)) == 1.0)
         {
-            half c = dot(col,half4(1,1,1,1));
-            col = c;
+            col = dot(col, float4(1, 1, 1, 1));
         }
 
         // When writing to the render target, it will compress our output into
@@ -51,60 +60,85 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay" {
         // to cancel the hardware's sRGB conversion, so we convert "from" sRGB
         // which the HW will revert by converting back "to" sRGB.
         if (_UndoOutputSRGB)
+        {
             col.rgb = GammaToLinearSpace(saturate(col.rgb));
+        }
 
         return col;
     }
     ENDCG
 
-    SubShader {
-        Cull Off ZWrite Off ZTest Always
+    SubShader
+    {
+        Cull Off
+        ZWrite Off
+        ZTest Always
 
         // 2D texture
-        Pass {
+        Pass
+        {
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_local_fragment _ _TEX2DARRAY _CUBEMAP
+            #pragma multi_compile_local_fragment _ _MSAA_2 _MSAA_4 _MSAA_8
 
-            sampler2D_float _MainTex;
+            #if defined(_MSAA_2)
+                #define MSAA_SAMPLES 2
+            #elif defined(_MSAA_4)
+                #define MSAA_SAMPLES 4
+            #elif defined(_MSAA_8)
+                #define MSAA_SAMPLES 8
+            #else
+                #define MSAA_SAMPLES 1
+            #endif
 
-            fixed4 frag (v2f i) : SV_Target {
-                half4 tex = tex2D (_MainTex, i.uv.xy);
-                return ProcessColor (tex);
+            #if _TEX2DARRAY
+                UNITY_DECLARE_TEX2DARRAY(_MainTex);
+            #elif _CUBEMAP
+                samplerCUBE_float _MainTex;
+            #else
+                #if MSAA_SAMPLES == 1
+                    Texture2D _MainTex;
+                #else
+                    Texture2DMS<float, MSAA_SAMPLES> _MainTex;
+                #endif
+            #endif
+
+            float4 SampleTexture(float3 uv)
+            {
+                #if _TEX2DARRAY
+                    return UNITY_SAMPLE_TEX2DARRAY(_MainTex, uv.xyz);
+                #elif _CUBEMAP
+                    return texCUBE(_MainTex, uv.xyz);
+                #else
+                    int3 coord = int3(uv.xy * float2(_MainTexWidth, _MainTexHeight), 0);
+
+                    #if MSAA_SAMPLES == 1
+                        return _MainTex.Load(coord);
+                    #else
+                        float rcpSampleCount = rcp(MSAA_SAMPLES);
+                        float4 finalVal = 0;
+                        for (int i = 0; i < MSAA_SAMPLES; ++i)
+                        {
+                            float4 currSample = _MainTex.Load(coord, i);
+                            finalVal.rgb += currSample.rgb * rcpSampleCount;
+                            finalVal.a += currSample.a * rcpSampleCount;
+                        }
+                        return finalVal;
+                    #endif
+                #endif
             }
-            ENDCG
-        }
 
-        // Cubemap
-        Pass {
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
+            float4 frag(v2f i) : SV_Target
+            {
+                float3 uv = i.uv;
+                if (_ShouldYFlip)
+                {
+                    uv.y = 1.0 - uv.y;
+                }
 
-            samplerCUBE_float _MainTex;
-
-            fixed4 frag (v2f i) : SV_Target {
-                half4 tex = texCUBE (_MainTex, i.uv.xyz);
-                return ProcessColor (tex);
-            }
-            ENDCG
-        }
-    }
-
-    SubShader{
-        Cull Off ZWrite Off ZTest Always
-
-        // 2D array texture
-        Pass {
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            #pragma target 3.5
-
-            UNITY_DECLARE_TEX2DARRAY(_MainTex);
-
-            fixed4 frag(v2f i) : SV_Target{
-                half4 tex = UNITY_SAMPLE_TEX2DARRAY(_MainTex, i.uv.xyz);
+                float4 tex = SampleTexture(uv);
                 return ProcessColor(tex);
             }
             ENDCG

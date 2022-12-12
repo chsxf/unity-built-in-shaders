@@ -5,7 +5,7 @@ struct vertex_t
     float4  position        : POSITION;
     float3  normal          : NORMAL;
     float4  color           : COLOR;
-    float2  texcoord0       : TEXCOORD0;
+    float4  texcoord0       : TEXCOORD0;
     float2  texcoord1       : TEXCOORD1;
 };
 
@@ -36,7 +36,7 @@ pixel_t VertShader(vertex_t input)
 {
     pixel_t output;
 
-    float bold = step(input.texcoord1.y, 0);
+    float bold = step(input.texcoord0.w, 0);
 
     float4 vert = input.position;
     vert.x += _VertexOffsetX;
@@ -72,7 +72,7 @@ pixel_t VertShader(vertex_t input)
     output.faceColor = faceColor;
     output.outlineColor = outlineColor;
     output.texcoord0 = float2(input.texcoord0.xy);
-    output.param = float4(0.5 - weight, 1.3333 * _GradientScale * (_Sharpness + 1) / _MainTex_TexelSize.z , _OutlineWidth * _ScaleRatioA * 0.5, 0);
+    output.param = float4(0.5 - weight, 1.3333 * _GradientScale * (_Sharpness + 1) / _MainTex_TexelSize.z, _OutlineWidth * _ScaleRatioA * 0.5, 0);
     output.clipUV = clipUV;
 
     #if (UNDERLAY_ON || UNDERLAY_INNER)

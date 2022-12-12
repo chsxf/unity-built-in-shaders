@@ -62,7 +62,7 @@
     #define UNITY_STEREO_INSTANCING_ENABLED
 #endif
 
-#if defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN)
+#if defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
     // These platforms have constant buffers disabled normally, but not here (see CBUFFER_START/CBUFFER_END in HLSLSupport.cginc).
     #define UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(name)  cbuffer name {
     #define UNITY_INSTANCING_CBUFFER_SCOPE_END          }
@@ -81,12 +81,12 @@
     static uint unity_InstanceID;
 
     // Don't make UnityDrawCallInfo an actual CB on GL
-    #if !defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)
+    #if (!defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)) || defined(SHADER_API_SWITCH)
         UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(UnityDrawCallInfo)
     #endif
             int unity_BaseInstanceID;
             int unity_InstanceCount;
-    #if !defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)
+    #if (!defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)) || defined(SHADER_API_SWITCH)
         UNITY_INSTANCING_CBUFFER_SCOPE_END
     #endif
 
@@ -126,6 +126,8 @@
     #define DEFAULT_UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input) unity_StereoEyeIndex = input.stereoTargetEyeIndex;
 #elif defined(UNITY_STEREO_MULTIVIEW_ENABLED)
     #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO uint stereoTargetEyeIndex : BLENDINDICES0;
+    #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX uint stereoTargetEyeIndex : BLENDINDICES0;
+    #define DEFAULT_UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(output) output.stereoTargetEyeIndex = unity_StereoEyeIndex;
     // HACK: Workaround for Mali shader compiler issues with directly using GL_ViewID_OVR (GL_OVR_multiview). This array just contains the values 0 and 1.
     #define DEFAULT_UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output) output.stereoTargetEyeIndex = unity_StereoEyeIndex;
     #define DEFAULT_UNITY_TRANSFER_VERTEX_OUTPUT_STEREO(input, output) output.stereoTargetEyeIndex = input.stereoTargetEyeIndex;
@@ -230,7 +232,7 @@
         #endif
     #endif
 
-    #define UNITY_INSTANCING_BUFFER_START(buf)      UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(UnityInstancing_##buf) struct {
+    #define UNITY_INSTANCING_BUFFER_START(buf)      UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(UnityInstancing_##buf) struct  _type_##buf {
     #define UNITY_INSTANCING_BUFFER_END(arr)        } arr##Array[UNITY_INSTANCED_ARRAY_SIZE]; UNITY_INSTANCING_CBUFFER_SCOPE_END
     #define UNITY_DEFINE_INSTANCED_PROP(type, var)  type var;
     #define UNITY_ACCESS_INSTANCED_PROP(arr, var)   arr##Array[unity_InstanceID].var
