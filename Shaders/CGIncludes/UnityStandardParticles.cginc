@@ -11,6 +11,7 @@
 #define _DISTORTION_ON 1
 #endif
 
+#include "HLSLSupport.cginc"
 #include "UnityPBSLighting.cginc"
 #include "UnityStandardParticleInstancing.cginc"
 
@@ -134,10 +135,21 @@ int _DstBlend;
 #define CAMERA_NEAR_FADE _CameraFadeParams.x
 #define CAMERA_INV_FADE_DISTANCE _CameraFadeParams.y
 
+#if (defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)) && !SHADER_TARGET_SURFACE_ANALYSIS
+    #define SampleGrabPassTexture(tex, t) UNITY_SAMPLE_SCREENSPACE_TEXTURE(tex, t.xy / t.w)
+#else
+    #define SampleGrabPassTexture(tex, t) tex2Dproj(tex, t)
+#endif
+
+
 #if _DISTORTION_ON
-sampler2D _GrabTexture;
-half _DistortionStrengthScaled;
-half _DistortionBlend;
+    #if SHADER_TARGET_SURFACE_ANALYSIS
+        sampler2D _GrabTexture;
+    #else
+        UNITY_DECLARE_SCREENSPACE_TEXTURE(_GrabTexture);
+    #endif
+    half _DistortionStrengthScaled;
+    half _DistortionBlend;
 #endif
 
 #if defined (_COLORADDSUBDIFF_ON)
@@ -267,8 +279,8 @@ half3 HSVtoRGB(half3 arg1)
 #define fragDistortion(i) \
     float4 grabPosUV = UNITY_PROJ_COORD(i.grabPassPosition); \
     grabPosUV.xy += normal.xy * _DistortionStrengthScaled * albedo.a; \
-    half3 grabPass = tex2Dproj(_GrabTexture, grabPosUV).rgb; \
-    albedo.rgb = lerp(grabPass, albedo.rgb, saturate(albedo.a - _DistortionBlend));
+half3 grabPass = SampleGrabPassTexture(_GrabTexture, grabPosUV).rgb; \
+albedo.rgb = lerp(grabPass, albedo.rgb, saturate(albedo.a - _DistortionBlend));
 #else
 #define fragDistortion(i)
 #endif
@@ -354,8 +366,9 @@ void vertParticleUnlit (appdata_particles v, out VertexOutput o)
     UNITY_TRANSFER_FOG(o, o.vertex);
 }
 
-half4 fragParticleUnlit (VertexOutput IN) : SV_Target
+half4 fragParticleUnlit(VertexOutput IN) : SV_Target
 {
+    UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
     half4 albedo = readTexture (_MainTex, IN);
     albedo *= _Color;
 
