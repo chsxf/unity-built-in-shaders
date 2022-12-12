@@ -140,7 +140,7 @@ function addNextMissingBranch() {
 	}
 }
 
-var versionRegex = /\<div class="contextual-links-region clearfix"\>\<h4\>Unity (.+)\<\/h4\>\<\/div\>/g;
+var versionRegex = /\<div class="release-title"\>Unity (.+)\<\/div\>/g;
 var urlRegex = /\<a href="((?:.+)builtin_shaders(?:.+))"\>/g;
 function parsePage(_pageContent) {
 	let result = versionRegex.exec(_pageContent);
@@ -179,8 +179,8 @@ function parsePage(_pageContent) {
 }
 
 let options = {
-	host: 'unity3d.com',
-	path: '/get-unity/download/archive'
+	host: 'unity.com',
+	path: '/releases/editor/archive'
 };
 
 var content = '';
