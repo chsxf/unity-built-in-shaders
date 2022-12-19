@@ -230,7 +230,7 @@ float2 uie_decode_shader_info_texel_pos(float2 pageXY, float id, float yStride)
 {
     const float kShaderInfoPageWidth = 32;
     const float kShaderInfoPageHeight = 8;
-    id *= 255.0f;
+    id = round(id * 255.0f);
     pageXY *= 255.0f; // From [0,1] to [0,255]
     float idX = id % kShaderInfoPageWidth;
     float idY = (id - idX) / kShaderInfoPageWidth;
@@ -395,7 +395,7 @@ v2f uie_std_vert(appdata_t v, out float4 clipSpacePos)
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
 
     uie_vert_load_payload(v);
-    float flags = v.idsFlags.w*255.0f;
+    float flags = round(v.idsFlags.w*255.0f);
     // Keep the descending order for GLES2
     const float isCustomSVGGradients = TestForValue(9.0, flags);
     const float isSVGGradients = TestForValue(8.0, flags);

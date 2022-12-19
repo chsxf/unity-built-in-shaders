@@ -58,7 +58,7 @@ Shader "Hidden/GraphView/GraphViewUIE"
 
     v2f vert(appdata_t v, out float4 clipSpacePos : SV_POSITION)
     {
-        if (v.idsFlags.w*255.0f == kUIEVertexLastFlagValue)
+        if (round(v.idsFlags.w*255.0f) == kUIEVertexLastFlagValue)
             return ProcessEdge(v, clipSpacePos);
         return uie_std_vert(v, clipSpacePos);
     }
