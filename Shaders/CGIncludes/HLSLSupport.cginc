@@ -327,7 +327,7 @@ float4 texCUBEproj(samplerCUBE s, in float4 t)          { return texCUBE(s, t.xy
 // Special declaration macro for requiring the extended blend functionality
 #if defined(SHADER_API_GLES3)
 // Declare the need for the KHR_blend_equation_advanced extension plus the specific blend mode (see the extension spec for list or "all_equations" for all)
-#define UNITY_REQUIRE_ADVANCED_BLEND(mode) uint hlslcc_blend_support_##mode
+#define UNITY_REQUIRE_ADVANCED_BLEND(mode) uint hlslcc_blend_support_##mode;
 #else
 #define UNITY_REQUIRE_ADVANCED_BLEND(mode)
 #endif
