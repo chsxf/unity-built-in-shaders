@@ -63,7 +63,7 @@ float _FontTexSDFScale;
 sampler2D _GradientSettingsTex;
 float4 _GradientSettingsTex_TexelSize;
 
-sampler2D _ShaderInfoTex;
+sampler2D_float _ShaderInfoTex;
 float4 _ShaderInfoTex_TexelSize;
 
 float4 _TextureInfo[UIE_TEXTURE_SLOT_COUNT * UIE_TEXTURE_SLOT_SIZE];
