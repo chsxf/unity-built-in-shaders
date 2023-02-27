@@ -56,7 +56,7 @@ Shader "Particles/Standard Surface"
 
         GrabPass
         {
-            Tags { "LightMode" = "Always" }
+            Tags { "LightMode" = "GrabPass" }
             "_GrabTexture"
         }
 
