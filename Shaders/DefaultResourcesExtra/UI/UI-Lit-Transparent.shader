@@ -81,11 +81,21 @@ Shader "UI/Lit/Transparent"
             fixed4 _TextureSampleAdd;
             float4 _ClipRect;
 
+            int _UIVertexColorAlwaysGammaSpace;
+
             void vert (inout appdata_t v, out Input o)
             {
                 UNITY_INITIALIZE_OUTPUT(Input, o);
                 o.worldPosition = v.vertex;
                 v.vertex = o.worldPosition;
+
+                if (_UIVertexColorAlwaysGammaSpace)
+                {
+                    if(!IsGammaSpace())
+                    {
+                        v.color.rgb = UIGammaToLinear(v.color.rgb);
+                    }
+                }
 
                 v.color = v.color * _Color;
             }

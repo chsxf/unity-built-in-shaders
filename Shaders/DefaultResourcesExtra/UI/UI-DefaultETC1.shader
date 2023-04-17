@@ -83,6 +83,7 @@ Shader "UI/DefaultETC1"
             float4 _MainTex_ST;
             float _UIMaskSoftnessX;
             float _UIMaskSoftnessY;
+            int _UIVertexColorAlwaysGammaSpace;
 
             v2f vert(appdata_t IN)
             {
@@ -103,7 +104,16 @@ Shader "UI/DefaultETC1"
                 OUT.texcoord = TRANSFORM_TEX(IN.texcoord.xy, _MainTex);
                 OUT.mask = float4(IN.vertex.xy * 2 - clampedRect.xy - clampedRect.zw, 0.25 / (0.25 * half2(_UIMaskSoftnessX, _UIMaskSoftnessY) + abs(pixelSize.xy)));
 
+                if (_UIVertexColorAlwaysGammaSpace)
+                {
+                    if(!IsGammaSpace())
+                    {
+                        IN.color.rgb = UIGammaToLinear(IN.color.rgb);
+                    }
+                }
+
                 OUT.color = IN.color * _Color;
+
                 return OUT;
             }
 

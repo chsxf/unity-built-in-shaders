@@ -6,6 +6,7 @@ Shader "Hidden/BlitCopyHDRTonemap" {
         _MainTex ("Texture", any) = "" {}
         _NitsForPaperWhite("NitsForPaperWhite", Float) = 160.0
         _ColorGamut("ColorGamut", Int) = 0
+        _ForceGammaToLinear("ForceGammaToLinear", Float) = 0.0
     }
     SubShader {
         Pass {
@@ -20,6 +21,7 @@ Shader "Hidden/BlitCopyHDRTonemap" {
             uniform float4 _MainTex_ST;
             uniform float _NitsForPaperWhite;
             uniform int _ColorGamut;
+            uniform bool _ForceGammaToLinear;
 
             struct appdata_t {
                 float4 vertex : POSITION;
@@ -50,6 +52,8 @@ Shader "Hidden/BlitCopyHDRTonemap" {
             #define kColorGamutDisplayP3    3
             #define kColorGamutHDR10        4
             #define kColorGamutDolbyHDR     5
+
+            #define kReferenceLuminanceWhiteForRec709 80
 
             float3 LinearToSRGB(float3 color)
             {
@@ -93,11 +97,12 @@ Shader "Hidden/BlitCopyHDRTonemap" {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 // The scene is rendered with linear gamma and Rec.709 primaries. (DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709)
                 float4 scene = UNITY_SAMPLE_SCREENSPACE_TEXTURE(_MainTex, i.texcoord);
-                float3 result = IsGammaSpace() ? float3(GammaToLinearSpaceExact(scene.r), GammaToLinearSpaceExact(scene.g), GammaToLinearSpaceExact(scene.b)) : scene.rgb;
+                float3 result = (IsGammaSpace() || _ForceGammaToLinear) ? float3(GammaToLinearSpaceExact(scene.r), GammaToLinearSpaceExact(scene.g), GammaToLinearSpaceExact(scene.b)) : scene.rgb;
 
                 if (_ColorGamut == kColorGamutSRGB)
                 {
-                    result = LinearToSRGB(result);
+                    if (!IsGammaSpace())
+                        result = LinearToSRGB(result);
                 }
                 else if (_ColorGamut == kColorGamutHDR10)
                 {
@@ -110,7 +115,8 @@ Shader "Hidden/BlitCopyHDRTonemap" {
                 }
                 else // _ColorGamut == kColorGamutRec709
                 {
-                    // Just pass through
+                    const float hdrScalar = _NitsForPaperWhite / kReferenceLuminanceWhiteForRec709;
+                    result *= hdrScalar;
                 }
 
                 return float4(result.rgb, scene.a);
