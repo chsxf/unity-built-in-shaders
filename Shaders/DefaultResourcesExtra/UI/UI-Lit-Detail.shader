@@ -92,6 +92,7 @@ Shader "UI/Lit/Detail"
             half _Shininess;
             fixed4 _TextureSampleAdd;
             float4 _ClipRect;
+            int _UIVertexColorAlwaysGammaSpace;
 
             void vert (inout appdata_t v, out Input o)
             {
@@ -100,6 +101,15 @@ Shader "UI/Lit/Detail"
                 v.vertex = o.worldPosition;
 
                 v.texcoord1.xy *= _DetailTex_TexelSize.xy;
+
+                if (_UIVertexColorAlwaysGammaSpace)
+                {
+                    if(!IsGammaSpace())
+                    {
+                        v.color.rgb = UIGammaToLinear(v.color.rgb);
+                    }
+                }
+
                 v.color = v.color * _Color;
             }
 

@@ -95,6 +95,8 @@ Shader "UI/Unlit/Detail"
 
             bool _UseAlphaClip;
 
+            int _UIVertexColorAlwaysGammaSpace;
+
             v2f vert (appdata_t v)
             {
                 v2f o;
@@ -105,6 +107,15 @@ Shader "UI/Unlit/Detail"
 
                 o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
                 o.texcoord2 = TRANSFORM_TEX(v.texcoord2 * _DetailTex_TexelSize.xy, _DetailTex);
+
+                if (_UIVertexColorAlwaysGammaSpace)
+                {
+                    if(!IsGammaSpace())
+                    {
+                        v.color.rgb = UIGammaToLinear(v.color.rgb);
+                    }
+                }
+
                 o.color = v.color * _Color;
 
                 return o;
