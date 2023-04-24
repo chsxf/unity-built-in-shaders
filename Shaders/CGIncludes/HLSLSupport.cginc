@@ -480,11 +480,15 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 
     // Cubemaps
     #define UNITY_DECLARE_TEXCUBE(tex) TextureCube tex; SamplerState sampler##tex
+    #define UNITY_DECLARE_TEXCUBE_NOSAMPLER(tex) TextureCube tex
+
     #define UNITY_ARGS_TEXCUBE(tex) TextureCube tex, SamplerState sampler##tex
     #define UNITY_PASS_TEXCUBE(tex) tex, sampler##tex
     #define UNITY_PASS_TEXCUBE_SAMPLER(tex,samplertex) tex, sampler##samplertex
     #define UNITY_PASS_TEXCUBE_SAMPLER_LOD(tex, samplertex, lod) tex, sampler##samplertex, lod
-    #define UNITY_DECLARE_TEXCUBE_NOSAMPLER(tex) TextureCube tex
+    #define UNITY_ARGS_TEXCUBE_NOSAMPLER(tex) TextureCube tex
+    #define UNITY_PASS_TEXCUBE_NOSAMPLER(tex) tex
+
     #define UNITY_SAMPLE_TEXCUBE(tex,coord) tex.Sample (sampler##tex,coord)
     #define UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, lod)
     #define UNITY_SAMPLE_TEXCUBE_SAMPLER(tex,samplertex,coord) tex.Sample (sampler##samplertex,coord)
@@ -510,8 +514,12 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     #define UNITY_DECLARE_TEX2DARRAY_MS_NOSAMPLER(tex) Texture2DArray<float> tex
     #define UNITY_DECLARE_TEX2DARRAY(tex) Texture2DArray tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX2DARRAY_NOSAMPLER(tex) Texture2DArray tex
+
     #define UNITY_ARGS_TEX2DARRAY(tex) Texture2DArray tex, SamplerState sampler##tex
     #define UNITY_PASS_TEX2DARRAY(tex) tex, sampler##tex
+    #define UNITY_ARGS_TEX2DARRAY_NOSAMPLER(tex) Texture2DArray tex
+    #define UNITY_PASS_TEX2DARRAY_NOSAMPLER(tex) tex
+
     #define UNITY_SAMPLE_TEX2DARRAY(tex,coord) tex.Sample (sampler##tex,coord)
     #define UNITY_SAMPLE_TEX2DARRAY_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, lod)
     #define UNITY_SAMPLE_TEX2DARRAY_SAMPLER(tex,samplertex,coord) tex.Sample (sampler##samplertex,coord)
@@ -520,8 +528,11 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     // Cube arrays
     #define UNITY_DECLARE_TEXCUBEARRAY(tex) TextureCubeArray tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEXCUBEARRAY_NOSAMPLER(tex) TextureCubeArray tex
+
     #define UNITY_ARGS_TEXCUBEARRAY(tex) TextureCubeArray tex, SamplerState sampler##tex
     #define UNITY_PASS_TEXCUBEARRAY(tex) tex, sampler##tex
+    #define UNITY_ARGS_TEXCUBEARRAY_NOSAMPLER(tex) TextureCubeArray tex
+    #define UNITY_PASS_TEXCUBEARRAY_NOSAMPLER(tex) tex
 #if defined(SHADER_API_PSSL)
     // round the layer index to get DX11-like behaviour (otherwise fractional indices result in mixed up cubemap faces)
     #define UNITY_SAMPLE_TEXCUBEARRAY(tex,coord) tex.Sample (sampler##tex,float4((coord).xyz, round((coord).w)))
@@ -556,6 +567,8 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     #define UNITY_PASS_TEXCUBE_SAMPLER(tex,samplertex) tex
     #define UNITY_DECLARE_TEXCUBE_NOSAMPLER(tex) samplerCUBE tex
     #define UNITY_SAMPLE_TEXCUBE(tex,coord) texCUBE (tex,coord)
+    #define UNITY_ARGS_TEXCUBE_NOSAMPLER(tex) samplerCUBE tex
+    #define UNITY_PASS_TEXCUBE_NOSAMPLER(tex) tex
 
     #define UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod) texCUBElod (tex, half4(coord, lod))
     #define UNITY_SAMPLE_TEXCUBE_SAMPLER_LOD(tex,samplertex,coord,lod) UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod)
@@ -577,6 +590,8 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
         #define UNITY_DECLARE_TEX2DARRAY_NOSAMPLER(tex) sampler2DArray tex
         #define UNITY_ARGS_TEX2DARRAY(tex) sampler2DArray tex
         #define UNITY_PASS_TEX2DARRAY(tex) tex
+        #define UNITY_ARGS_TEX2DARRAY_NOSAMPLER(tex) sampler2DArray tex
+        #define UNITY_PASS_TEX2DARRAY_NOSAMPLER(tex) tex
         #define UNITY_SAMPLE_TEX2DARRAY(tex,coord) tex2DArray (tex,coord)
         #define UNITY_SAMPLE_TEX2DARRAY_LOD(tex,coord,lod) tex2DArraylod (tex, float4(coord,lod))
         #define UNITY_SAMPLE_TEX2DARRAY_SAMPLER(tex,samplertex,coord) tex2DArray (tex,coord)
