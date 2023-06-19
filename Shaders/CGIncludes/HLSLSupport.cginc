@@ -297,7 +297,7 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 // This allows people to use min16float and friends in their shader code if they
 // really want to (making that will make shaders not load before DX11.1, e.g. on Win7,
 // but if they target WSA/WP exclusively that's fine).
-#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_GLES) && !defined(SHADER_API_SWITCH)
+#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_GLES) && !defined(SHADER_API_SWITCH) && !defined(SHADER_API_PSSL)
 #define min16float half
 #define min16float2 half2
 #define min16float3 half3
@@ -349,11 +349,11 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 #define SAMPLER_UNIFORM
 #endif
 
-#if defined(SHADER_API_D3D11) || defined(UNITY_ENABLE_CBUFFER) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D11) || defined(UNITY_ENABLE_CBUFFER) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL)
 #define CBUFFER_START(name) cbuffer name {
 #define CBUFFER_END };
 #else
-// On specific platforms, like OpenGL, GLES3 and Metal, constant buffers may still be used for instancing
+// On specific platforms, like OpenGL and GLES3, constant buffers may still be used for instancing
 #define CBUFFER_START(name)
 #define CBUFFER_END
 #endif
@@ -467,10 +467,10 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     #define UNITY_SAMPLE_TEX2D_SAMPLER_LOD(tex, samplertex, coord, lod) tex.SampleLevel (sampler##samplertex, coord, lod)
 
 #if defined(UNITY_COMPILER_HLSLCC) && (!defined(SHADER_API_GLCORE) || defined(SHADER_API_SWITCH)) // GL Core doesn't have the _half mangling, the rest of them do. Workaround for Nintendo Switch.
-    #define UNITY_DECLARE_TEX2D_HALF(tex) Texture2D_half tex; SamplerState sampler##tex
-    #define UNITY_DECLARE_TEX2D_FLOAT(tex) Texture2D_float tex; SamplerState sampler##tex
-    #define UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(tex) Texture2D_half tex
-    #define UNITY_DECLARE_TEX2D_NOSAMPLER_FLOAT(tex) Texture2D_float tex
+    #define UNITY_DECLARE_TEX2D_HALF(tex) Texture2D<half4> tex; SamplerState sampler##tex
+    #define UNITY_DECLARE_TEX2D_FLOAT(tex) Texture2D<float4> tex; SamplerState sampler##tex
+    #define UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(tex) Texture2D<half4> tex
+    #define UNITY_DECLARE_TEX2D_NOSAMPLER_FLOAT(tex) Texture2D<float4> tex
 #else
     #define UNITY_DECLARE_TEX2D_HALF(tex) Texture2D tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX2D_FLOAT(tex) Texture2D tex; SamplerState sampler##tex
@@ -502,8 +502,8 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     #define UNITY_SAMPLE_TEX3D_SAMPLER_LOD(tex, samplertex, coord, lod) tex.SampleLevel(sampler##samplertex, coord, lod)
 
 #if defined(UNITY_COMPILER_HLSLCC) && !defined(SHADER_API_GLCORE) // GL Core doesn't have the _half mangling, the rest of them do.
-    #define UNITY_DECLARE_TEX3D_FLOAT(tex) Texture3D_float tex; SamplerState sampler##tex
-    #define UNITY_DECLARE_TEX3D_HALF(tex) Texture3D_half tex; SamplerState sampler##tex
+    #define UNITY_DECLARE_TEX3D_FLOAT(tex) Texture3D<float4> tex; SamplerState sampler##tex
+    #define UNITY_DECLARE_TEX3D_HALF(tex) Texture3D<half4> tex; SamplerState sampler##tex
 #else
     #define UNITY_DECLARE_TEX3D_FLOAT(tex) Texture3D tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX3D_HALF(tex) Texture3D tex; SamplerState sampler##tex
@@ -754,7 +754,7 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 #endif
 
 // TODO: Really need a better define for iOS Metal than the framebuffer fetch one, that's also enabled on android and webgl (???)
-#if defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL)
+#if defined(SHADER_API_VULKAN) || (defined(SHADER_API_METAL) && defined(UNITY_FRAMEBUFFER_FETCH_AVAILABLE))
 
     #if defined(UNITY_COMPILER_DXC)
 
@@ -787,76 +787,7 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
             #define UNITY_READ_FRAMEBUFFER_INPUT(idx, v2fname) DXC_DummySubpassVariable##idx
             #define UNITY_READ_FRAMEBUFFER_INPUT_MS(idx, sampleIdx, v2fname) DXC_DummySubpassVariable##idx
         #endif
-
-    #elif defined(SHADER_API_METAL) && defined(SHADER_API_DESKTOP)
-
-        // On desktop metal we need special magic due to the need to support both intel and apple silicon
-        // since the former does not support framebuffer fetch
-        // Due to this we have special considerations:
-        // 1. since we might need to bind the copy texture, to simplify our lives we always declare _UnityFBInput texture
-        //    in metal translation we will add function_constant, but we still want to generate binding in hlsl
-        //    so that unity knows about the possibility
-        // 2. hlsl do not have anything like function constants, hence we will add bool to the fake cbuffer for subpass
-        //    again, this is done only for hlsl to generate proper code - in translation it will be changed to
-        //    a proper function constant (i.e. hlslcc_SubpassInput_f_ cbuffer is just "metadata" and is absent in metal code)
-        // 3. we want to generate an actual if command (not conditional move), hence we need to have an interim function
-        //    alas we are not able to hide in it the texture coords: we are guaranteed to have just one "declare fb input"
-        //    per index, but nothing stops users to have several "read fb input", hence we need to generate function code
-        //    in the former, where we do not know the source of uv coords
-        //    while the usage looks weird (we pass hlslcc_fbfetch_ in the function), it is ok due to the way hlsl compiler works
-        //    it will generate an actual if and access hlslcc_fbfetch_ only if framebuffer fetch is available
-        //    and when creating metal program, compiler takes care of this (function_constant magic)
-
-        #define UNITY_RENDERPASS_DECLARE_FALLBACK(T, idx)                                                       \
-            Texture2D<T> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize;                             \
-            inline T ReadFBInput_##idx(bool var, uint2 coord) {                                                 \
-                [branch]if(var) { return hlslcc_fbinput_##idx; }                                                \
-                else { return _UnityFBInput##idx.Load(uint3(coord,0)); }                                        \
-            }
-        #define UNITY_RENDERPASS_DECLARE_FALLBACK_MS(T, idx)                                                    \
-            Texture2DMS<T> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize;                           \
-            inline T ReadFBInput_##idx(bool var, uint2 coord, uint sampleIdx) {                                 \
-                [branch]if(var) { return hlslcc_fbinput_##idx[sampleIdx]; }                                     \
-                else { return _UnityFBInput##idx.Load(coord,sampleIdx); }                                       \
-            }
-
-        #define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT(idx)                                                      \
-            cbuffer hlslcc_SubpassInput_f_##idx { float4 hlslcc_fbinput_##idx; bool hlslcc_fbfetch_##idx; };    \
-            UNITY_RENDERPASS_DECLARE_FALLBACK(float4, idx)
-
-        #define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT_MS(idx)                                                   \
-            cbuffer hlslcc_SubpassInput_F_##idx { float4 hlslcc_fbinput_##idx[8]; bool hlslcc_fbfetch_##idx; }; \
-            UNITY_RENDERPASS_DECLARE_FALLBACK_MS(float4, idx)
-
-        #define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF(idx)                                                       \
-            cbuffer hlslcc_SubpassInput_h_##idx { half4 hlslcc_fbinput_##idx; bool hlslcc_fbfetch_##idx; };     \
-            UNITY_RENDERPASS_DECLARE_FALLBACK(half4, idx)
-
-        #define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF_MS(idx)                                                    \
-            cbuffer hlslcc_SubpassInput_H_##idx { half4 hlslcc_fbinput_##idx[8]; bool hlslcc_fbfetch_##idx; };  \
-            UNITY_RENDERPASS_DECLARE_FALLBACK_MS(half4, idx)
-
-        #define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT(idx)                                                        \
-            cbuffer hlslcc_SubpassInput_i_##idx { int4 hlslcc_fbinput_##idx; bool hlslcc_fbfetch_##idx; };      \
-            UNITY_RENDERPASS_DECLARE_FALLBACK(int4, idx)
-
-        #define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT_MS(idx)                                                     \
-            cbuffer hlslcc_SubpassInput_I_##idx { int4 hlslcc_fbinput_##idx[8]; bool hlslcc_fbfetch_##idx; };   \
-            UNITY_RENDERPASS_DECLARE_FALLBACK_MS(int4, idx)
-
-        #define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT(idx)                                                       \
-            cbuffer hlslcc_SubpassInput_u_##idx { uint4 hlslcc_fbinput_##idx; bool hlslcc_fbfetch_##idx; };     \
-            UNITY_RENDERPASS_DECLARE_FALLBACK(uint4, idx)
-
-        #define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT_MS(idx)                                                    \
-            cbuffer hlslcc_SubpassInput_U_##idx { uint4 hlslcc_fbinput_##idx[8]; bool hlslcc_fbfetch_##idx; };  \
-            UNITY_RENDERPASS_DECLARE_FALLBACK_MS(uint4, idx)
-
-        #define UNITY_READ_FRAMEBUFFER_INPUT(idx, v2fname) ReadFBInput_##idx(hlslcc_fbfetch_##idx, uint2(v2fname.xy))
-        #define UNITY_READ_FRAMEBUFFER_INPUT_MS(idx, sampleIdx, v2fname) ReadFBInput_##idx(hlslcc_fbfetch_##idx, uint2(v2fname.xy), sampleIdx)
-
     #else
-
         // Renderpass inputs: Vulkan/Metal subpass input
         #define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT(idx) cbuffer hlslcc_SubpassInput_f_##idx { float4 hlslcc_fbinput_##idx; }
         #define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT_MS(idx) cbuffer hlslcc_SubpassInput_F_##idx { float4 hlslcc_fbinput_##idx[8]; }
@@ -872,27 +803,25 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 
         #define UNITY_READ_FRAMEBUFFER_INPUT(idx, v2fname) hlslcc_fbinput_##idx
         #define UNITY_READ_FRAMEBUFFER_INPUT_MS(idx, sampleIdx, v2fname) hlslcc_fbinput_##idx[sampleIdx]
-
     #endif //defined(UNITY_COMPILER_DXC)
 
 #else
+// Renderpass inputs: General fallback path
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_FLOAT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize;
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize;
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_INT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize;
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_UINT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize;
 
-    // Renderpass inputs: General fallback path
-    #define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_FLOAT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize;
-    #define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize;
-    #define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_INT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize;
-    #define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_UINT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize;
+#define UNITY_READ_FRAMEBUFFER_INPUT(idx, v2fvertexname) _UnityFBInput##idx.Load(uint3(v2fvertexname.xy, 0))
 
-    #define UNITY_READ_FRAMEBUFFER_INPUT(idx, v2fvertexname) _UnityFBInput##idx.Load(uint3(v2fvertexname.xy, 0))
+// MSAA input framebuffers via tex2dms
 
-    // MSAA input framebuffers via tex2dms
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT_MS(idx) Texture2DMS<float4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize;
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF_MS(idx) Texture2DMS<float4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize;
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT_MS(idx) Texture2DMS<int4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize;
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT_MS(idx) Texture2DMS<uint4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize;
 
-    #define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT_MS(idx) Texture2DMS<float4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize;
-    #define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF_MS(idx) Texture2DMS<float4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize;
-    #define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT_MS(idx) Texture2DMS<int4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize;
-    #define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT_MS(idx) Texture2DMS<uint4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize;
-
-    #define UNITY_READ_FRAMEBUFFER_INPUT_MS(idx, sampleIdx, v2fvertexname) _UnityFBInput##idx.Load(uint2(v2fvertexname.xy), sampleIdx)
+#define UNITY_READ_FRAMEBUFFER_INPUT_MS(idx, sampleIdx, v2fvertexname) _UnityFBInput##idx.Load(uint2(v2fvertexname.xy), sampleIdx)
 
 #endif
 
@@ -971,7 +900,11 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 #define UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_270 3
 
 #ifdef UNITY_PRETRANSFORM_TO_DISPLAY_ORIENTATION
-    cbuffer UnityDisplayOrientationPreTransformData { int UnityDisplayOrientationPreTransform; };
+#   ifdef UNITY_COMPILER_DXC
+        [[vk::constant_id(1)]] const int UnityDisplayOrientationPreTransform = 0;
+#   else
+        cbuffer UnityDisplayOrientationPreTransformData { int UnityDisplayOrientationPreTransform; };
+#   endif
 #   define UNITY_DISPLAY_ORIENTATION_PRETRANSFORM UnityDisplayOrientationPreTransform
 #else
 #   define UNITY_DISPLAY_ORIENTATION_PRETRANSFORM UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_0
