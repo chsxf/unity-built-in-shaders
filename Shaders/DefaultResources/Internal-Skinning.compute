@@ -2,93 +2,304 @@
 
 // Generic compute skinning ... with pos, norm, and tangent skinning
 
+// Per instance skinning (16 kernels).
 #pragma kernel main SKIN_BONESFORVERT=0
 #pragma kernel main SKIN_BONESFORVERT=0 SKIN_NORM
-#pragma kernel main SKIN_BONESFORVERT=0 SKIN_TANG
+#pragma kernel main SKIN_BONESFORVERT=0           SKIN_TANG
 #pragma kernel main SKIN_BONESFORVERT=0 SKIN_NORM SKIN_TANG
 #pragma kernel main SKIN_BONESFORVERT=1
 #pragma kernel main SKIN_BONESFORVERT=1 SKIN_NORM
-#pragma kernel main SKIN_BONESFORVERT=1 SKIN_TANG
+#pragma kernel main SKIN_BONESFORVERT=1           SKIN_TANG
 #pragma kernel main SKIN_BONESFORVERT=1 SKIN_NORM SKIN_TANG
 #pragma kernel main SKIN_BONESFORVERT=2
 #pragma kernel main SKIN_BONESFORVERT=2 SKIN_NORM
-#pragma kernel main SKIN_BONESFORVERT=2 SKIN_TANG
+#pragma kernel main SKIN_BONESFORVERT=2           SKIN_TANG
 #pragma kernel main SKIN_BONESFORVERT=2 SKIN_NORM SKIN_TANG
 #pragma kernel main SKIN_BONESFORVERT=4
 #pragma kernel main SKIN_BONESFORVERT=4 SKIN_NORM
-#pragma kernel main SKIN_BONESFORVERT=4 SKIN_TANG
+#pragma kernel main SKIN_BONESFORVERT=4           SKIN_TANG
 #pragma kernel main SKIN_BONESFORVERT=4 SKIN_NORM SKIN_TANG
+
+// batch skinning (12 kernels).
+// Less dispatches allow 15% better GPU performance on small dispatches.
+#pragma kernel batchMain SKIN_BONESFORVERT=0                     BATCH_SKIN
+#pragma kernel batchMain SKIN_BONESFORVERT=0 SKIN_NORM           BATCH_SKIN
+#pragma kernel batchMain SKIN_BONESFORVERT=0 SKIN_NORM SKIN_TANG BATCH_SKIN
+#pragma kernel batchMain SKIN_BONESFORVERT=1                     BATCH_SKIN
+#pragma kernel batchMain SKIN_BONESFORVERT=1 SKIN_NORM           BATCH_SKIN
+#pragma kernel batchMain SKIN_BONESFORVERT=1 SKIN_NORM SKIN_TANG BATCH_SKIN
+#pragma kernel batchMain SKIN_BONESFORVERT=2                     BATCH_SKIN
+#pragma kernel batchMain SKIN_BONESFORVERT=2 SKIN_NORM           BATCH_SKIN
+#pragma kernel batchMain SKIN_BONESFORVERT=2 SKIN_NORM SKIN_TANG BATCH_SKIN
+#pragma kernel batchMain SKIN_BONESFORVERT=4                     BATCH_SKIN
+#pragma kernel batchMain SKIN_BONESFORVERT=4 SKIN_NORM           BATCH_SKIN
+#pragma kernel batchMain SKIN_BONESFORVERT=4 SKIN_NORM SKIN_TANG BATCH_SKIN
+
+// batch skinning in place (12 kernels).
+// D3D11 not happy otherwise
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=0                     BATCH_SKIN_IN_PLACE
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=0 SKIN_NORM           BATCH_SKIN_IN_PLACE
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=0 SKIN_NORM SKIN_TANG BATCH_SKIN_IN_PLACE
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=1                     BATCH_SKIN_IN_PLACE
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=1 SKIN_NORM           BATCH_SKIN_IN_PLACE
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=1 SKIN_NORM SKIN_TANG BATCH_SKIN_IN_PLACE
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=2                     BATCH_SKIN_IN_PLACE
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=2 SKIN_NORM           BATCH_SKIN_IN_PLACE
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=2 SKIN_NORM SKIN_TANG BATCH_SKIN_IN_PLACE
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=4                     BATCH_SKIN_IN_PLACE
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=4 SKIN_NORM           BATCH_SKIN_IN_PLACE
+#pragma kernel batchMainInPlace SKIN_BONESFORVERT=4 SKIN_NORM SKIN_TANG BATCH_SKIN_IN_PLACE
 
 #include "HLSLSupport.cginc"
 #include "Internal-Skinning-Util.cginc"
 
-uint g_VertCount;
+#define SKIN_BATCH_SIZE 5
+#define SKIN_IN_PLACE_BATCH_SIZE 7
 
-SKINNING_GENERIC_VERTEX_BUFFER inVertices;
-SKINNING_GENERIC_SKIN_BUFFER inSkin;
-SKINNING_GENERIC_VERTEX_RWBUFFER outVertices;
-SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices;
-
-[numthreads(64, 1, 1)]
-void main(uint3 threadID : SV_DispatchThreadID)
+void DoSkinning(uint vertexIndex,
+                uint vertCount,
+                uint poseOffset,
+                SKINNING_GENERIC_VERTEX_BUFFER inVertices,
+                SKINNING_GENERIC_SKIN_BUFFER inSkin,
+                SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices,
+                SKINNING_GENERIC_VERTEX_RWBUFFER outVertices)
 {
-    const uint t = threadID.x;
-
-    if (t >= g_VertCount)
-    {
+    if (vertexIndex >= vertCount)
         return;
-    }
 
-    const MeshVertex vert = FetchVert(inVertices, t);
-    SkinInfluence si = FetchSkin(inSkin, t);
-
-    float3 vPos = vert.pos.xyz;
-#if SKIN_NORM
-    float3 vNorm = vert.norm.xyz;
-#endif
-#if SKIN_TANG
-    float3 vTang = vert.tang.xyz;
-#endif
-
-    float3 oPos = float3(0, 0, 0);
-    float3 oNorm = float3(0, 0, 0);
-    float4 oTang = float4(0, 0, 0, 0);
-
-#if SKIN_BONESFORVERT == 0
-    uint startIndex = si.index0;
-    uint endIndex = FetchSkin(inSkin, t + 1).index0;
-    float4x4 blendedMatrix = 0;
-    for (uint i = startIndex; i < endIndex; i++)
-    {
-        uint weightAndIndex = FetchSkin(inSkin, i).index0;
-        float weight = float(weightAndIndex >> 16) * (1.0f / 65535.0f);
-        uint index = weightAndIndex & 0xFFFF;
-        blendedMatrix += inMatrices[index] * weight;
-    }
-#elif SKIN_BONESFORVERT == 1
-    const float4x4 blendedMatrix = inMatrices[si.index0];
-#elif SKIN_BONESFORVERT == 2
-    const float4x4 blendedMatrix = inMatrices[si.index0] * si.weight0 +
-                                   inMatrices[si.index1] * si.weight1;
-#elif SKIN_BONESFORVERT == 4
-    const float4x4 blendedMatrix = inMatrices[si.index0] * si.weight0 +
-                                   inMatrices[si.index1] * si.weight1 +
-                                   inMatrices[si.index2] * si.weight2 +
-                                   inMatrices[si.index3] * si.weight3;
-#endif
-
-    MeshVertex ouputVertex;
-
-    ouputVertex.pos = mul(blendedMatrix, float4(vPos, 1)).xyz;
-
-#if SKIN_NORM
-    ouputVertex.norm = mul(blendedMatrix, float4(vNorm, 0)).xyz;
-#endif
-
-#if SKIN_TANG
-    ouputVertex.tang.xyz = mul(blendedMatrix, float4(vTang, 0)).xyz;
-    ouputVertex.tang.w = vert.tang.w;
-#endif
-
-    StoreVert(outVertices, ouputVertex, t);
+    MeshVertex vertex = FetchVert(inVertices, vertexIndex);
+    vertex = DoSkinning(vertex, vertexIndex, poseOffset, inSkin, inMatrices);
+    StoreVert(outVertices, vertex, vertexIndex);
 }
+
+void DoSkinningInPlace(uint vertexIndex,
+                       uint vertCount,
+                       uint poseOffset,
+                       SKINNING_GENERIC_SKIN_BUFFER inSkin,
+                       SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices,
+                       SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices)
+{
+    if (vertexIndex >= vertCount)
+        return;
+
+    MeshVertex vertex = FetchVert(inOutVertices, vertexIndex);
+    vertex = DoSkinning(vertex, vertexIndex, poseOffset, inSkin, inMatrices);
+    StoreVert(inOutVertices, vertex, vertexIndex);
+}
+
+#if BATCH_SKIN
+    cbuffer ComputeSkinCBuffer
+    {
+        uint4 g_VertCounts[(SKIN_BATCH_SIZE + 3) / 4];
+        uint4 g_BatchOffsets[(SKIN_BATCH_SIZE + 3) / 4];
+        uint4 g_PoseOffsets[(SKIN_BATCH_SIZE + 3) / 4];
+    }
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices0;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices1;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices2;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices3;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices4;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices5;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices6;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices7;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices8;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices9;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin0;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin1;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin2;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin3;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin4;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin5;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin6;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin7;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin8;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin9;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices0;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices1;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices2;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices3;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices4;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices5;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices6;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices7;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices8;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices9;
+    SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices;
+
+    [numthreads(64, 1, 1)]
+    void batchMain(uint3 threadID : SV_DispatchThreadID)
+    {
+        // A more elegant approach would be to declare uniform arrays of ByteAddressBuffer/StructuredBuffer,
+        // in which case we could process each mesh in a [unroll] loop.
+        // Instead, we must manually unroll the loop due to Unity shader compiler limitations on some platforms.
+
+        #define DO_SKINNING(index)                                                   \
+            else [branch] if (threadID.x >= g_BatchOffsets[index >> 2][index & 3]) { \
+                DoSkinning(                                                          \
+                    threadID.x - g_BatchOffsets[index >> 2][index & 3],              \
+                    g_VertCounts[index >> 2][index & 3],                             \
+                    g_PoseOffsets[index >> 2][index & 3],                            \
+                    inVertices ## index,                                             \
+                    inSkin ## index,                                                 \
+                    inMatrices,                                                      \
+                    outVertices ## index);                                           \
+            }
+
+        if (false) // This statement is intended and allows processing batches in descending order (minimizes number of uniforms uploaded).
+        {}         // Check DO_SKINNING() macro to understand the logic.
+        #if SKIN_BATCH_SIZE >= 10
+            DO_SKINNING(9)
+        #endif
+        #if SKIN_BATCH_SIZE >= 9
+            DO_SKINNING(8)
+        #endif
+        #if SKIN_BATCH_SIZE >= 8
+            DO_SKINNING(7)
+        #endif
+        #if SKIN_BATCH_SIZE >= 7
+            DO_SKINNING(6)
+        #endif
+        #if SKIN_BATCH_SIZE >= 6
+            DO_SKINNING(5)
+        #endif
+        #if SKIN_BATCH_SIZE >= 5
+            DO_SKINNING(4)
+        #endif
+        #if SKIN_BATCH_SIZE >= 4
+            DO_SKINNING(3)
+        #endif
+        #if SKIN_BATCH_SIZE >= 3
+            DO_SKINNING(2)
+        #endif
+        #if SKIN_BATCH_SIZE >= 2
+            DO_SKINNING(1)
+        #endif
+        #if SKIN_BATCH_SIZE >= 1
+            DO_SKINNING(0)
+        #endif
+
+        #undef DO_SKINNING
+    }
+
+#elif BATCH_SKIN_IN_PLACE
+    cbuffer ComputeSkinInPlaceCBuffer
+    {
+        uint4 g_VertCounts[(SKIN_IN_PLACE_BATCH_SIZE + 3) / 4];
+        uint4 g_BatchOffsets[(SKIN_IN_PLACE_BATCH_SIZE + 3) / 4];
+        uint4 g_PoseOffsets[(SKIN_IN_PLACE_BATCH_SIZE + 3) / 4];
+    }
+    SKINNING_GENERIC_SKIN_BUFFER inSkin0;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin1;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin2;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin3;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin4;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin5;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin6;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin7;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin8;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin9;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin10;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin11;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin12;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin13;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin14;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices0;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices1;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices2;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices3;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices4;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices5;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices6;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices7;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices8;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices9;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices10;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices11;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices12;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices13;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices14;
+    SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices;
+
+    [numthreads(64, 1, 1)]
+    void batchMainInPlace(uint3 threadID : SV_DispatchThreadID)
+    {
+        // A more elegant approach would be to declare uniform arrays of ByteAddressBuffer/StructuredBuffer,
+        // in which case we could process each mesh in a [unroll] loop.
+        // Instead, we must manually unroll the loop due to Unity shader compiler limitations on some platforms.
+
+        #define DO_SKINNING_IN_PLACE(index)                                          \
+            else [branch] if (threadID.x >= g_BatchOffsets[index >> 2][index & 3]) { \
+                DoSkinningInPlace(                                                   \
+                    threadID.x - g_BatchOffsets[index >> 2][index & 3],              \
+                    g_VertCounts[index >> 2][index & 3],                             \
+                    g_PoseOffsets[index >> 2][index & 3],                            \
+                    inSkin ## index,                                                 \
+                    inMatrices,                                                      \
+                    inOutVertices ## index);                                         \
+            }
+
+        if (false) // This statement is intended and allows processing batches in descending order (minimizes number of uniforms uploaded).
+        {}         // Check DO_SKINNING_IN_PLACE() macro to understand the logic.
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 15
+            DO_SKINNING_IN_PLACE(14)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 14
+            DO_SKINNING_IN_PLACE(13)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 13
+            DO_SKINNING_IN_PLACE(12)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 12
+            DO_SKINNING_IN_PLACE(11)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 11
+            DO_SKINNING_IN_PLACE(10)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 10
+            DO_SKINNING_IN_PLACE(9)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 9
+            DO_SKINNING_IN_PLACE(8)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 8
+            DO_SKINNING_IN_PLACE(7)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 7
+            DO_SKINNING_IN_PLACE(6)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 6
+            DO_SKINNING_IN_PLACE(5)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 5
+            DO_SKINNING_IN_PLACE(4)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 4
+            DO_SKINNING_IN_PLACE(3)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 3
+            DO_SKINNING_IN_PLACE(2)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 2
+            DO_SKINNING_IN_PLACE(1)
+        #endif
+        #if SKIN_IN_PLACE_BATCH_SIZE >= 1
+            DO_SKINNING_IN_PLACE(0)
+        #endif
+
+        #undef DO_SKINNING_IN_PLACE
+    }
+
+#else
+    uint g_VertCount;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices;
+    SKINNING_GENERIC_SKIN_BUFFER inSkin;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices;
+    SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices;
+
+    [numthreads(64, 1, 1)]
+    void main(uint3 threadID : SV_DispatchThreadID)
+    {
+        DoSkinning(threadID.x, g_VertCount, 0, inVertices, inSkin, inMatrices, outVertices);
+    }
+
+#endif

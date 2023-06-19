@@ -298,7 +298,7 @@ void SpeedTreeSurf(Input IN, inout SurfaceOutputStandard OUT)
     // extra
     #ifdef EFFECT_EXTRA_TEX
         fixed4 extra = tex2D(_ExtraTex, IN.uv_MainTex);
-        OUT.Smoothness = extra.r;
+        OUT.Smoothness = extra.r; // no slider is exposed when ExtraTex is not available, hence we skip the multiplication here
         OUT.Metallic = extra.g;
         OUT.Occlusion = extra.b * IN.color.r;
     #else

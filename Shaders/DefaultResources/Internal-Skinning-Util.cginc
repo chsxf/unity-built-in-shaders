@@ -235,3 +235,80 @@ void StoreVert(SKINNING_GENERIC_VERTEX_RWBUFFER outVertices, MeshVertex vertex, 
 }
 
 #endif
+
+// Copy mesh vertices.
+void DoCopy(const uint vertexIndex, const uint vertCount, SKINNING_GENERIC_VERTEX_BUFFER inVertices, SKINNING_GENERIC_VERTEX_RWBUFFER outVertices)
+{
+    if (vertexIndex >= vertCount)
+        return;
+
+    MeshVertex vertex = FetchVert(inVertices, vertexIndex);
+    StoreVert(outVertices, vertex, vertexIndex);
+}
+
+// Apply 1 blendshape channel.
+// It assumes the blendshape data is organized per-blendshape.
+void DoBlendShape(const uint vertexIndex, const uint firstVert, const uint vertCount, const float weight, SKINNING_GENERIC_VERTEX_RWBUFFER inOutMeshVertices, SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices)
+{
+    if (vertexIndex >= vertCount)
+        return;
+
+    BlendShapeVertex blendShapeVert = FetchBlendShape(inBlendShapeVertices, vertexIndex + firstVert);
+    const uint blendShapeVertexIndex = blendShapeVert.index;
+    MeshVertex vertex = FetchVert(inOutMeshVertices, blendShapeVertexIndex);
+
+    vertex.pos += blendShapeVert.pos * weight;
+
+    #if SKIN_NORM
+    vertex.norm += blendShapeVert.norm * weight;
+    #endif
+
+    #if SKIN_TANG
+    vertex.tang.xyz += blendShapeVert.tang * weight;
+    #endif
+
+    StoreVert(inOutMeshVertices, vertex, blendShapeVertexIndex);
+}
+
+MeshVertex DoSkinning(MeshVertex vertex, const uint vertexIndex, const uint poseOffset, SKINNING_GENERIC_SKIN_BUFFER inSkin, SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices)
+{
+    SkinInfluence si = FetchSkin(inSkin, vertexIndex);
+
+    #if SKIN_BONESFORVERT == 0 // Variable number of weights
+        uint startIndex = si.index0;
+        uint endIndex = FetchSkin(inSkin, vertexIndex + 1).index0;
+        float4x4 blendedMatrix = 0;
+        for (uint i = startIndex; i < endIndex; i++)
+        {
+            uint weightAndIndex = FetchSkin(inSkin, i).index0;
+            float weight = float(weightAndIndex >> 16) * (1.0f / 65535.0f);
+            uint index = weightAndIndex & 0xFFFF;
+            blendedMatrix += inMatrices[poseOffset + index] * weight;
+        }
+
+    #elif SKIN_BONESFORVERT == 1
+        const float4x4 blendedMatrix = inMatrices[poseOffset + si.index0];
+
+    #elif SKIN_BONESFORVERT == 2
+        const float4x4 blendedMatrix = inMatrices[poseOffset + si.index0] * si.weight0 +
+                                       inMatrices[poseOffset + si.index1] * si.weight1;
+
+    #elif SKIN_BONESFORVERT == 4
+        const float4x4 blendedMatrix = inMatrices[poseOffset + si.index0] * si.weight0 +
+                                       inMatrices[poseOffset + si.index1] * si.weight1 +
+                                       inMatrices[poseOffset + si.index2] * si.weight2 +
+                                       inMatrices[poseOffset + si.index3] * si.weight3;
+    #endif
+
+    vertex.pos = mul(blendedMatrix, float4(vertex.pos.xyz, 1.0)).xyz;
+
+    #if SKIN_NORM
+    vertex.norm = mul(blendedMatrix, float4(vertex.norm.xyz, 0)).xyz;
+    #endif
+
+    #if SKIN_TANG
+    vertex.tang.xyz = mul(blendedMatrix, float4(vertex.tang.xyz, 0)).xyz;
+    #endif
+
+    return vertex;
+}
