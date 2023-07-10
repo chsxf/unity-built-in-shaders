@@ -187,7 +187,7 @@ v2f_customrendertexture CustomRenderTextureVertexShader(appdata_customrendertext
         }
     }
 
-    OUT.vertex = float4(pos, 0.0, 1.0);
+    OUT.vertex = float4(pos, UNITY_NEAR_CLIP_VALUE, 1.0);
     OUT.primitiveID = asuint(CustomRenderTexturePrimitiveIDs[primitiveID]);
     OUT.localTexcoord = float3(texCoords[vertexID], CustomRenderTexture3DTexcoordW);
     OUT.globalTexcoord = float3(pos.xy * 0.5 + 0.5, CustomRenderTexture3DTexcoordW);
