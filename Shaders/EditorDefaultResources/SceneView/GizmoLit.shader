@@ -6,7 +6,7 @@ Shader "Hidden/Editor Gizmo Lit"
     SubShader
     {
         Tags { "ForceSupported" = "True" "Queue" = "Transparent" }
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         ZWrite Off Fog { Mode Off }
 
         CGINCLUDE
