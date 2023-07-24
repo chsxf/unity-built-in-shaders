@@ -10,7 +10,7 @@ Shader "Hidden/Editor Gizmo Text"
     SubShader
     {
         Tags { "ForceSupported" = "True" "Queue" = "Transparent" }
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         ZWrite Off Cull Off Fog { Mode Off }
         Pass // regular pass
         {

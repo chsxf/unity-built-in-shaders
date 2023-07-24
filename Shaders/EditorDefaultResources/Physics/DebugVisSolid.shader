@@ -4,7 +4,7 @@ Shader "Hidden/Physics/DebugVisSolid" {
     SubShader {
         Tags { "RenderType" = "Transparent" "Queue" = "Transparent" }
         Lighting Off
-        Color [_Color] Blend SrcAlpha OneMinusSrcAlpha
+        Color [_Color] Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
             ZTest LEqual ZWrite On
             Offset -0.2, -1
             Pass { Cull Back }
