@@ -9,7 +9,7 @@ Shader "Hidden/SceneView/GridGap" {
 
     SubShader {
         Tags { "ForceSupported" = "True" "Queue" = "Transparent" "IgnoreProjector" = "True" "RenderType" = "Transparent" }
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         ZWrite Off Cull Off Fog { Mode Off }
         Pass {
             CGPROGRAM

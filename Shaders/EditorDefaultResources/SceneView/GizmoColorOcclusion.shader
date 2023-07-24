@@ -6,7 +6,7 @@ Shader "Hidden/Editor Gizmo Color Occlusion"
     SubShader
     {
         Tags { "ForceSupported" = "True" "Queue" = "Transparent" }
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         ZWrite Off Cull Off Fog { Mode Off }
         Pass // regular pass
         {

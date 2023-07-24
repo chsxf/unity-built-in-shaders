@@ -18,7 +18,7 @@ Shader "Hidden/SceneViewWireframe" {
     ENDCG
 
     SubShader {
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         ZTest LEqual ZWrite Off
         Offset -1, -1
 
@@ -53,7 +53,7 @@ Shader "Hidden/SceneViewWireframe" {
     SubShader {
         Tags { "ForceSupported" = "True" }
 
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         ZTest LEqual ZWrite Off
         Offset -1, -1
 

@@ -8,7 +8,7 @@ Shader "Hidden/TimelineDetail" {
     SubShader {
         Tags { "ForceSupported" = "True" }
         Lighting Off
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         Cull Off
         ZWrite Off
         ZTest Always
