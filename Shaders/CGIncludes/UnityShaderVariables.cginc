@@ -157,7 +157,7 @@ CBUFFER_START(UnityShadows)
     float4 _LightSplitsNear;
     float4 _LightSplitsFar;
     float4x4 unity_WorldToShadow[4];
-    half4 _LightShadowData;
+    float4 _LightShadowData;
     float4 unity_ShadowFadeCenterAndType;
 CBUFFER_END
 
