@@ -51,6 +51,7 @@
 * Version 2022.1.2f1: https://download.unity3d.com/download_unity/9427c1534183/builtin_shaders-2022.1.2f1.zip
 * Version 2022.1.1f1: https://download.unity3d.com/download_unity/53d13f540f71/builtin_shaders-2022.1.1f1.zip
 * Version 2022.1.0f1: https://download.unity3d.com/download_unity/369b620af41c/builtin_shaders-2022.1.0f1.zip
+* Version 2021.3.29f1: https://download.unity3d.com/download_unity/204d6dc9ae1c/builtin_shaders-2021.3.29f1.zip
 * Version 2021.3.28f1: https://download.unity3d.com/download_unity/232e59c3f087/builtin_shaders-2021.3.28f1.zip
 * Version 2021.3.27f1: https://download.unity3d.com/download_unity/ca3ffb99bcc6/builtin_shaders-2021.3.27f1.zip
 * Version 2021.3.26f1: https://download.unity3d.com/download_unity/a16dc32e0ff2/builtin_shaders-2021.3.26f1.zip
