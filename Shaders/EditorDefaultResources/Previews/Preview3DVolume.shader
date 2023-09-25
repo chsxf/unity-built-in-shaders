@@ -48,36 +48,37 @@ Shader "Unlit/Preview3DVolume"
             float4x4 _ObjToW;
             float4x4 _WToObj;
 
-            v2f vertMain(appdata v, uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
+            v2f vertMain(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
             {
                 v2f o;
+                float4 v;
                 if (vertexID == 0)
                 {
-                    v.vertex = float4(-1, -1, 0, 1);
+                    v = float4(-1, -1, 0, 1);
                 }
                 else if (vertexID == 1)
                 {
-                    v.vertex = float4(-1, 1, 0, 1);
+                    v = float4(-1, 1, 0, 1);
                 }
                 else if (vertexID == 2)
                 {
-                    v.vertex = float4(1, 1, 0, 1);
+                    v = float4(1, 1, 0, 1);
                 }
                 else if (vertexID == 3)
                 {
-                    v.vertex = float4(1, -1, 0, 1);
+                    v = float4(1, -1, 0, 1);
                 }
 
-                v.vertex.z = ((instanceID * _Quality) * 2 - 1);
-                v.vertex.xyz *= length(_VoxelSize) * length(_GlobalScale.xyz) / 3;
+                v.z = ((instanceID * _Quality) * 2 - 1);
+                v.xyz *= length(_VoxelSize) * length(_GlobalScale.xyz) / 3;
 
-                v.vertex.xyz = mul((float3x3)_CamToW, v.vertex.xyz);
+                v.xyz = mul((float3x3)_CamToW, v.xyz);
 
                 float3 objectWorldPos = float3(_ObjToW._m03, _ObjToW._m13, _ObjToW._m23);
-                v.vertex.xyz += objectWorldPos;
+                v.xyz += objectWorldPos;
 
-                o.samplePos = mul(_WToObj, v.vertex).xyz;
-                o.vertex = mul(UNITY_MATRIX_P, mul(_WToCam, v.vertex));
+                o.samplePos = mul(_WToObj, v).xyz;
+                o.vertex = mul(UNITY_MATRIX_P, mul(_WToCam, v));
 
                 // Cache opacity multiplier with view direction for later use in pixel shader
                 o.alphaMul = saturate(_Alpha * 4 * (_Quality / _InvResolution));
