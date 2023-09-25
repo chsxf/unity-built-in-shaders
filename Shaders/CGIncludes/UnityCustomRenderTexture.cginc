@@ -137,7 +137,7 @@ v2f_customrendertexture CustomRenderTextureVertexShader(appdata_customrendertext
     };
 #endif
 
-    uint primitiveID = IN.vertexID / 6;
+    uint primitiveID = (IN.vertexID / 6) % kCustomTextureBatchSize;
     uint vertexID = IN.vertexID % 6;
     float3 updateZoneCenter = CustomRenderTextureCenters[primitiveID].xyz;
     float3 updateZoneSize = CustomRenderTextureSizesAndRotations[primitiveID].xyz;
