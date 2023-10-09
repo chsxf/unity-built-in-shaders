@@ -632,9 +632,10 @@ v2f uie_std_vert(appdata_t v)
         wFlags += 2.0f; // Poor man's bitset
     OUT.typeTexSettings = half4(renderType, textureSlot, svgSettingIndex, wFlags);
 
-    OUT.uvClip.xy = v.uv;
-    if (isDynamic == 1.0f)
-        OUT.uvClip.xy *= GetTextureInfo(textureSlot).texelSize;
+    // UUM-13134: Driver issue on HD Graphics 3000 (DX10). Do NOT branch this query based on isDynamic.
+    TextureInfo ti = GetTextureInfo(textureSlot);
+    float2 mul = lerp(float2(1, 1), ti.texelSize, isDynamic);
+    OUT.uvClip.xy = v.uv * mul;
 
     half opacity;
     float2 clipRectUVs, opacityUVs;
