@@ -126,6 +126,8 @@
     #define DEFAULT_UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input) unity_StereoEyeIndex = input.stereoTargetEyeIndex;
 #elif defined(UNITY_STEREO_MULTIVIEW_ENABLED)
     #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO uint stereoTargetEyeIndex : BLENDINDICES0;
+    #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX uint stereoTargetEyeIndex : BLENDINDICES0;
+    #define DEFAULT_UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(output) output.stereoTargetEyeIndex = unity_StereoEyeIndex;
     // HACK: Workaround for Mali shader compiler issues with directly using GL_ViewID_OVR (GL_OVR_multiview). This array just contains the values 0 and 1.
     #define DEFAULT_UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output) output.stereoTargetEyeIndex = unity_StereoEyeIndex;
     #define DEFAULT_UNITY_TRANSFER_VERTEX_OUTPUT_STEREO(input, output) output.stereoTargetEyeIndex = input.stereoTargetEyeIndex;
