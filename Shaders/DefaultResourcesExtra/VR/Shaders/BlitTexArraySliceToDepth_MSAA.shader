@@ -38,7 +38,7 @@ Shader "Hidden/VR/BlitTexArraySliceToDepth_MSAA" {
 
             fixed4 frag (v2f i, out float oDepth : SV_Depth) : SV_Target
             {
-#ifdef SHADER_API_D3D11
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_PS5)
                 uint width, height, sampleCount, arraySliceCount;
 
                 _MainTex.GetDimensions(width,height,arraySliceCount,sampleCount);

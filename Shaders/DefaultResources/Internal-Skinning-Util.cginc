@@ -10,7 +10,7 @@
 // GPU skinning code can use either Structured or Raw buffer for the mesh data access; this
 // varies by platform. Choices here should match what's in GraphicsCaps::computeBufferTargetForGeometryBuffer
 // on the C++ side.
-#if defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
+#if defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH) || defined(SHADER_API_WEBGPU)
     #define SKINNING_GENERIC_VERTEX_VIEW_FORMAT SKINNING_GENERIC_VERTEX_USE_STRUCTURED_BUFFER
 #else
     #define SKINNING_GENERIC_VERTEX_VIEW_FORMAT SKINNING_GENERIC_VERTEX_USE_RAW_BUFFER
@@ -270,7 +270,7 @@ void DoBlendShape(const uint vertexIndex, const uint firstVert, const uint vertC
     StoreVert(inOutMeshVertices, vertex, blendShapeVertexIndex);
 }
 
-MeshVertex DoSkinning(MeshVertex vertex, const uint vertexIndex, const uint poseOffset, SKINNING_GENERIC_SKIN_BUFFER inSkin, SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices)
+MeshVertex DoSkinning(MeshVertex vertex, const uint vertexIndex, const uint poseOffset, const uint poseBufferMaxIndex, SKINNING_GENERIC_SKIN_BUFFER inSkin, SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices)
 {
     SkinInfluence si = FetchSkin(inSkin, vertexIndex);
 
@@ -283,21 +283,33 @@ MeshVertex DoSkinning(MeshVertex vertex, const uint vertexIndex, const uint pose
             uint weightAndIndex = FetchSkin(inSkin, i).index0;
             float weight = float(weightAndIndex >> 16) * (1.0f / 65535.0f);
             uint index = weightAndIndex & 0xFFFF;
-            blendedMatrix += inMatrices[poseOffset + index] * weight;
+            uint pose0 = poseOffset + index;
+            blendedMatrix += inMatrices[pose0] * weight;
         }
 
     #elif SKIN_BONESFORVERT == 1
-        const float4x4 blendedMatrix = inMatrices[poseOffset + si.index0];
+        uint pose0 = poseOffset + si.index0;
+        #if defined(SHADER_API_VULKAN) && defined(SHADER_API_MOBILE)
+        // Workaround for https://jira.unity3d.com/browse/UUM-33810
+        pose0 = min(pose0, poseBufferMaxIndex);
+        #endif
+        const float4x4 blendedMatrix = inMatrices[pose0];
 
     #elif SKIN_BONESFORVERT == 2
-        const float4x4 blendedMatrix = inMatrices[poseOffset + si.index0] * si.weight0 +
-                                       inMatrices[poseOffset + si.index1] * si.weight1;
+        uint pose0 = poseOffset + si.index0;
+        uint pose1 = poseOffset + si.index1;
+        const float4x4 blendedMatrix = inMatrices[pose0] * si.weight0 +
+                                       inMatrices[pose1] * si.weight1;
 
     #elif SKIN_BONESFORVERT == 4
-        const float4x4 blendedMatrix = inMatrices[poseOffset + si.index0] * si.weight0 +
-                                       inMatrices[poseOffset + si.index1] * si.weight1 +
-                                       inMatrices[poseOffset + si.index2] * si.weight2 +
-                                       inMatrices[poseOffset + si.index3] * si.weight3;
+        uint pose0 = poseOffset + si.index0;
+        uint pose1 = poseOffset + si.index1;
+        uint pose2 = poseOffset + si.index2;
+        uint pose3 = poseOffset + si.index3;
+        const float4x4 blendedMatrix = inMatrices[pose0] * si.weight0 +
+                                       inMatrices[pose1] * si.weight1 +
+                                       inMatrices[pose2] * si.weight2 +
+                                       inMatrices[pose3] * si.weight3;
     #endif
 
     vertex.pos = mul(blendedMatrix, float4(vertex.pos.xyz, 1.0)).xyz;
