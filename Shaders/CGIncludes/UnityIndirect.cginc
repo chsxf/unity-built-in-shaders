@@ -27,14 +27,14 @@ void GetIndirectDrawArgs(out IndirectDrawArgs args, ByteAddressBuffer argsBuffer
 }
 uint GetIndirectInstanceCount(IndirectDrawArgs args) { return args.instanceCount; }
 uint GetIndirectVertexCount(IndirectDrawArgs args) { return args.vertexCountPerInstance; }
-#if defined(SHADER_API_VULKAN)
+#if defined(SHADER_API_VULKAN) || defined(SHADER_API_WEBGPU)
 uint GetIndirectInstanceID(IndirectDrawArgs args, uint svInstanceID) { return svInstanceID - args.startInstance; }
 uint GetIndirectInstanceID_Base(IndirectDrawArgs args, uint svInstanceID) { return svInstanceID; }
 #else
 uint GetIndirectInstanceID(IndirectDrawArgs args, uint svInstanceID) { return svInstanceID; }
 uint GetIndirectInstanceID_Base(IndirectDrawArgs args, uint svInstanceID) { return svInstanceID + args.startInstance; }
 #endif
-#if defined(SHADER_API_GLCORE) || defined(SHADER_API_VULKAN)
+#if defined(SHADER_API_GLCORE) || defined(SHADER_API_VULKAN) || defined(SHADER_API_WEBGPU)
 uint GetIndirectVertexID(IndirectDrawArgs args, uint svVertexID) { return svVertexID - args.startVertex; }
 uint GetIndirectVertexID_Base(IndirectDrawArgs args, uint svVertexID) { return svVertexID; }
 #else
@@ -63,7 +63,7 @@ void GetIndirectDrawArgs(out IndirectDrawIndexedArgs args, ByteAddressBuffer arg
 }
 uint GetIndirectInstanceCount(IndirectDrawIndexedArgs args) { return args.instanceCount; }
 uint GetIndirectVertexCount(IndirectDrawIndexedArgs args) { return args.indexCountPerInstance; }
-#if defined(SHADER_API_VULKAN)
+#if defined(SHADER_API_VULKAN) || defined(SHADER_API_WEBGPU)
 uint GetIndirectInstanceID(IndirectDrawIndexedArgs args, uint svInstanceID) { return svInstanceID - args.startInstance; }
 uint GetIndirectInstanceID_Base(IndirectDrawIndexedArgs args, uint svInstanceID) { return svInstanceID; }
 #else

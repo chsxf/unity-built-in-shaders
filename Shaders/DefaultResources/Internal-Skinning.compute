@@ -59,6 +59,7 @@
 void DoSkinning(uint vertexIndex,
                 uint vertCount,
                 uint poseOffset,
+                uint poseBufferMaxIndex,
                 SKINNING_GENERIC_VERTEX_BUFFER inVertices,
                 SKINNING_GENERIC_SKIN_BUFFER inSkin,
                 SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices,
@@ -68,13 +69,14 @@ void DoSkinning(uint vertexIndex,
         return;
 
     MeshVertex vertex = FetchVert(inVertices, vertexIndex);
-    vertex = DoSkinning(vertex, vertexIndex, poseOffset, inSkin, inMatrices);
+    vertex = DoSkinning(vertex, vertexIndex, poseOffset, poseBufferMaxIndex, inSkin, inMatrices);
     StoreVert(outVertices, vertex, vertexIndex);
 }
 
 void DoSkinningInPlace(uint vertexIndex,
                        uint vertCount,
                        uint poseOffset,
+                       uint poseBufferMaxIndex,
                        SKINNING_GENERIC_SKIN_BUFFER inSkin,
                        SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices,
                        SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices)
@@ -83,7 +85,7 @@ void DoSkinningInPlace(uint vertexIndex,
         return;
 
     MeshVertex vertex = FetchVert(inOutVertices, vertexIndex);
-    vertex = DoSkinning(vertex, vertexIndex, poseOffset, inSkin, inMatrices);
+    vertex = DoSkinning(vertex, vertexIndex, poseOffset, poseBufferMaxIndex, inSkin, inMatrices);
     StoreVert(inOutVertices, vertex, vertexIndex);
 }
 
@@ -93,6 +95,7 @@ void DoSkinningInPlace(uint vertexIndex,
         uint4 g_VertCounts[(SKIN_BATCH_SIZE + 3) / 4];
         uint4 g_BatchOffsets[(SKIN_BATCH_SIZE + 3) / 4];
         uint4 g_PoseOffsets[(SKIN_BATCH_SIZE + 3) / 4];
+        uint g_poseBufferMaxIndex;
     }
     SKINNING_GENERIC_VERTEX_BUFFER inVertices0;
     SKINNING_GENERIC_VERTEX_BUFFER inVertices1;
@@ -139,6 +142,7 @@ void DoSkinningInPlace(uint vertexIndex,
                     threadID.x - g_BatchOffsets[index >> 2][index & 3],              \
                     g_VertCounts[index >> 2][index & 3],                             \
                     g_PoseOffsets[index >> 2][index & 3],                            \
+                    g_poseBufferMaxIndex,                                            \
                     inVertices ## index,                                             \
                     inSkin ## index,                                                 \
                     inMatrices,                                                      \
@@ -187,6 +191,7 @@ void DoSkinningInPlace(uint vertexIndex,
         uint4 g_VertCounts[(SKIN_IN_PLACE_BATCH_SIZE + 3) / 4];
         uint4 g_BatchOffsets[(SKIN_IN_PLACE_BATCH_SIZE + 3) / 4];
         uint4 g_PoseOffsets[(SKIN_IN_PLACE_BATCH_SIZE + 3) / 4];
+        uint g_poseBufferMaxIndex;
     }
     SKINNING_GENERIC_SKIN_BUFFER inSkin0;
     SKINNING_GENERIC_SKIN_BUFFER inSkin1;
@@ -233,6 +238,7 @@ void DoSkinningInPlace(uint vertexIndex,
                     threadID.x - g_BatchOffsets[index >> 2][index & 3],              \
                     g_VertCounts[index >> 2][index & 3],                             \
                     g_PoseOffsets[index >> 2][index & 3],                            \
+                    g_poseBufferMaxIndex,                                            \
                     inSkin ## index,                                                 \
                     inMatrices,                                                      \
                     inOutVertices ## index);                                         \
@@ -299,7 +305,7 @@ void DoSkinningInPlace(uint vertexIndex,
     [numthreads(64, 1, 1)]
     void main(uint3 threadID : SV_DispatchThreadID)
     {
-        DoSkinning(threadID.x, g_VertCount, 0, inVertices, inSkin, inMatrices, outVertices);
+        DoSkinning(threadID.x, g_VertCount, 0, 0xFFFFFFFF, inVertices, inSkin, inMatrices, outVertices);
     }
 
 #endif

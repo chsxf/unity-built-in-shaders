@@ -43,7 +43,7 @@ Shader "Hidden/BlitToDepth_MSAA" {
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
 
-#ifdef SHADER_API_D3D11
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_PS5)
             uint width, height, sampleCount;
 
             #if defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)

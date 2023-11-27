@@ -17,6 +17,7 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay"
     fixed4 _Channels;
     float _MainTexWidth;
     float _MainTexHeight;
+    uint _StencilMask;
 
     struct appdata
     {
@@ -140,6 +141,29 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay"
 
                 float4 tex = SampleTexture(uv);
                 return ProcessColor(tex);
+            }
+            ENDCG
+        }
+
+        // Stencil Resolve
+        Pass
+        {
+            Stencil {
+                Ref [_StencilMask]
+                ReadMask [_StencilMask]
+                Comp Equal
+            }
+
+            BlendOp Add
+            Blend One One
+
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+
+            float4 frag(v2f i) : SV_Target
+            {
+                return _StencilMask / 255.0f;
             }
             ENDCG
         }
