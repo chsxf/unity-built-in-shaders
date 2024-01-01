@@ -17,6 +17,7 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay"
     fixed4 _Channels;
     float _MainTexWidth;
     float _MainTexHeight;
+    float _MainTexDepth;
     uint _StencilMask;
 
     struct appdata
@@ -95,21 +96,42 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay"
             #endif
 
             #if _TEX2DARRAY
-                UNITY_DECLARE_TEX2DARRAY(_MainTex);
+                #if MSAA_SAMPLES == 1
+                    UNITY_DECLARE_TEX2DARRAY(_MainTex);
+                #else
+                    Texture2DMSArray<float4, MSAA_SAMPLES> _MainTex;
+                #endif
             #elif _CUBEMAP
                 samplerCUBE_float _MainTex;
             #else
                 #if MSAA_SAMPLES == 1
                     Texture2D _MainTex;
                 #else
-                    Texture2DMS<float, MSAA_SAMPLES> _MainTex;
+                    Texture2DMS<float4, MSAA_SAMPLES> _MainTex;
                 #endif
+            #endif
+
+            #if MSAA_SAMPLES > 1
+                float4 ResolveMainTex(int3 coord)
+                {
+                    float4 finalVal = 0;
+                    for (int i = 0; i < MSAA_SAMPLES; ++i)
+                    {
+                        finalVal += _MainTex.Load(coord, i);
+                    }
+                    return finalVal / float(MSAA_SAMPLES);
+                }
             #endif
 
             float4 SampleTexture(float3 uv)
             {
                 #if _TEX2DARRAY
-                    return UNITY_SAMPLE_TEX2DARRAY(_MainTex, uv.xyz);
+                    #if MSAA_SAMPLES == 1
+                        return UNITY_SAMPLE_TEX2DARRAY(_MainTex, uv.xyz);
+                    #else
+                        int3 coord = int3(uv.xyz * float3(_MainTexWidth, _MainTexHeight, _MainTexDepth));
+                        return ResolveMainTex(coord);
+                    #endif
                 #elif _CUBEMAP
                     return texCUBE(_MainTex, uv.xyz);
                 #else
@@ -118,15 +140,7 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay"
                     #if MSAA_SAMPLES == 1
                         return _MainTex.Load(coord);
                     #else
-                        float rcpSampleCount = rcp(MSAA_SAMPLES);
-                        float4 finalVal = 0;
-                        for (int i = 0; i < MSAA_SAMPLES; ++i)
-                        {
-                            float4 currSample = _MainTex.Load(coord, i);
-                            finalVal.rgb += currSample.rgb * rcpSampleCount;
-                            finalVal.a += currSample.a * rcpSampleCount;
-                        }
-                        return finalVal;
+                        return ResolveMainTex(coord);
                     #endif
                 #endif
             }
