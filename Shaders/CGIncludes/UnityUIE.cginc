@@ -9,12 +9,21 @@
     #define UIE_SHADER_INFO_IN_VS 0
 #endif // SHADER_TARGET >= 30
 
+#ifndef UIE_NOINTERPOLATION
+    #ifdef UNITY_PLATFORM_WEBGL
+        // UUM-57628 Safari leaks when using nointerpolation (resulting in flat in glsl)
+        #define UIE_NOINTERPOLATION
+    #else
+        #define UIE_NOINTERPOLATION nointerpolation
+    #endif
+#endif
+
 #if SHADER_TARGET < 35
     #define UIE_TEXTURE_SLOT_COUNT 4
     #define UIE_FLAT_OPTIM
 #else
     #define UIE_TEXTURE_SLOT_COUNT 8
-    #define UIE_FLAT_OPTIM nointerpolation
+    #define UIE_FLAT_OPTIM UIE_NOINTERPOLATION
 #endif // SHADER_TARGET >= 35
 
 #ifndef UIE_TEXTURE_SLOT_SIZE

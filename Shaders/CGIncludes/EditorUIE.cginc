@@ -11,6 +11,7 @@ fixed _EditorColorSpace; // 1 for Linear, 0 for Gamma
 #define UIE_COLORSPACE_GAMMA 1
 // This is to prevent banding in linear
 #define UIE_FRAG_SCALAR_T half
+#define UIE_NOINTERPOLATION nointerpolation
 #include "UnityUIE.cginc"
 
 // The editor shader must ALWAYS return sRGB-encoded colors.

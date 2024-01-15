@@ -427,11 +427,10 @@ VertexOutputForwardBase vertForwardBase (VertexInput v)
 
 half4 fragForwardBaseInternal (VertexOutputForwardBase i)
 {
-    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
-
     FRAGMENT_SETUP(s)
 
     UNITY_SETUP_INSTANCE_ID(i);
+    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
 
     UnityLight mainLight = MainLight ();
@@ -642,10 +641,9 @@ void fragDeferred (
         return;
     #endif
 
-    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
-
     FRAGMENT_SETUP(s)
     UNITY_SETUP_INSTANCE_ID(i);
+    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
 
     // no analytic lights in this pass
     UnityLight dummyLight = DummyLight ();

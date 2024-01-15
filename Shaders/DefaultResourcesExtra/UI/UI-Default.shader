@@ -59,6 +59,7 @@ Shader "UI/Default"
             #pragma multi_compile_local _ UNITY_UI_CLIP_RECT
             #pragma multi_compile_local _ UNITY_UI_ALPHACLIP
 
+
             struct appdata_t
             {
                 float4 vertex   : POSITION;
@@ -84,6 +85,7 @@ Shader "UI/Default"
             float4 _MainTex_ST;
             float _UIMaskSoftnessX;
             float _UIMaskSoftnessY;
+            int _UIVertexColorAlwaysGammaSpace;
 
             v2f vert(appdata_t v)
             {
@@ -101,6 +103,15 @@ Shader "UI/Default"
                 float2 maskUV = (v.vertex.xy - clampedRect.xy) / (clampedRect.zw - clampedRect.xy);
                 OUT.texcoord = TRANSFORM_TEX(v.texcoord.xy, _MainTex);
                 OUT.mask = float4(v.vertex.xy * 2 - clampedRect.xy - clampedRect.zw, 0.25 / (0.25 * half2(_UIMaskSoftnessX, _UIMaskSoftnessY) + abs(pixelSize.xy)));
+
+
+                if (_UIVertexColorAlwaysGammaSpace)
+                {
+                    if(!IsGammaSpace())
+                    {
+                        v.color.rgb = UIGammaToLinear(v.color.rgb);
+                    }
+                }
 
                 OUT.color = v.color * _Color;
                 return OUT;

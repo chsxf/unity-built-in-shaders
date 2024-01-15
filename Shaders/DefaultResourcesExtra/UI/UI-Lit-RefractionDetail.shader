@@ -118,14 +118,23 @@ Shader "UI/Lit/Refraction Detail"
 
             fixed4 _TextureSampleAdd;
             float4 _ClipRect;
+            int _UIVertexColorAlwaysGammaSpace;
 
             void vert (inout appdata_t v, out Input o)
             {
                 UNITY_INITIALIZE_OUTPUT(Input, o);
                 o.worldPosition = v.vertex;
                 v.vertex = o.worldPosition;
-                v.color = v.color * _Color;
 
+                if (_UIVertexColorAlwaysGammaSpace)
+                {
+                    if(!IsGammaSpace())
+                    {
+                        v.color.rgb = UIGammaToLinear(v.color.rgb);
+                    }
+                }
+
+                v.color = v.color * _Color;
                 o.texcoord1.xy  = TRANSFORM_TEX(v.texcoord1, _MainTex);
                 o.texcoord1.zw  = TRANSFORM_TEX(v.texcoord1, _MainBump);
                 o.texcoord2.xy  = TRANSFORM_TEX(v.texcoord2 * _DetailTex_TexelSize.xy, _DetailTex);
