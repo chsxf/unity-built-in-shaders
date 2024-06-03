@@ -49,6 +49,14 @@ curl $URL -o $ZIP_FILENAME
 unzip $ZIP_FILENAME -d Shaders
 rm $ZIP_FILENAME
 
+SECONDARY_ZIP_FILENAME="Shaders/build/BuiltinShaders/builtin_shaders.zip"
+if [ -f "$SECONDARY_ZIP_FILENAME" ]; then
+    mv $SECONDARY_ZIP_FILENAME $ZIP_FILENAME
+	rm -Rf Shaders
+	unzip $ZIP_FILENAME -d Shaders
+	rm $ZIP_FILENAME
+fi
+
 COMMIT_MESSAGE="Version ${VERSION}"
 TAG_MESSAGE="${COMMIT_MESSAGE}"
 
