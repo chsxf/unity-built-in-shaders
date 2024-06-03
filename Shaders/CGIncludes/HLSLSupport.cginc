@@ -29,14 +29,17 @@
     #define UNITY_STEREO_INSTANCING_ENABLED
 #endif
 
-// Is this shader API able to read the current pixel depth value, be it via
-// texture fetch of via renderpass inputs, from the depth buffer while it is
-// simultaneously bound as a z-buffer?
-// On non-renderpass (fallback impl) platforms it's supported on DX11, GL, desktop Metal
+// Is this shader API able to read the current pixel depth value, be it via texture fetch of via renderpass inputs,
+//   from the depth buffer while it is simultaneously bound as a z-buffer?
+// When native renderpass is not supported (using fallback implementation) this generally works on DX11, GL
+//   in this case the temporary copy of depth would be created and bound for reading
 // TODO: Check DX12 and consoles, implement read-only depth if possible
-// With native renderpasses, Vulkan is fine but iOS GPU doesn't have the wires connected to read the data.
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_METAL) && !defined(SHADER_API_MOBILE))
-#define UNITY_SUPPORT_DEPTH_FETCH 1
+// When native renderpass is supported, some platofrms still allow only color readback (Metal)
+//   thus for depth readback temporary RT is needed, which will be bound to "color" attachments and used to store depth data
+// We had UNITY_SUPPORT_DEPTH_FETCH define, which was wrongly set, and set in here
+// We have moved on to set it from the editor, and renamed it; we keep the old define for the sake of backwards compatibility
+#ifdef UNITY_PLATFORM_SUPPORTS_DEPTH_FETCH
+	#define UNITY_SUPPORT_DEPTH_FETCH 1
 #endif
 
 #if !defined(UNITY_COMPILER_DXC)
