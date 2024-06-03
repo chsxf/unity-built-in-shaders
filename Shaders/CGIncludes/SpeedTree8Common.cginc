@@ -8,11 +8,11 @@
 
 #include "UnityCG.cginc"
 #include "UnityPBSLighting.cginc"
+#include "SpeedTreeShaderLibrary.cginc"
 
 #if defined(ENABLE_WIND) && !defined(_WINDQUALITY_NONE)
     #define SPEEDTREE_Y_UP
     #include "SpeedTreeWind.cginc"
-    float _WindEnabled;
     UNITY_INSTANCING_BUFFER_START(STWind)
         UNITY_DEFINE_INSTANCED_PROP(float, _GlobalWindTime)
     UNITY_INSTANCING_BUFFER_END(STWind)
@@ -75,86 +75,83 @@ void OffsetSpeedTreeVertex(inout appdata_full data, float lodValue)
 
     // wind
     #if defined(ENABLE_WIND) && !defined(_WINDQUALITY_NONE)
-        if (_WindEnabled > 0)
+        float3 rotatedWindVector = mul(_ST_WindVector.xyz, (float3x3)unity_ObjectToWorld);
+        float windLength = length(rotatedWindVector);
+        if (windLength < 1e-5)
         {
-            float3 rotatedWindVector = mul(_ST_WindVector.xyz, (float3x3)unity_ObjectToWorld);
-            float windLength = length(rotatedWindVector);
-            if (windLength < 1e-5)
-            {
-                // sanity check that wind data is available
-                return;
-            }
-            rotatedWindVector /= windLength;
-
-            float3 treePos = float3(unity_ObjectToWorld[0].w, unity_ObjectToWorld[1].w, unity_ObjectToWorld[2].w);
-            float3 windyPosition = data.vertex.xyz;
-
-            #ifndef EFFECT_BILLBOARD
-                // geometry type
-                float geometryType = (int)(data.texcoord3.w + 0.25);
-                bool leafTwo = false;
-                if (geometryType > GEOM_TYPE_FACINGLEAF)
-                {
-                    geometryType -= 2;
-                    leafTwo = true;
-                }
-
-                // leaves
-                if (geometryType > GEOM_TYPE_FROND)
-                {
-                    // remove anchor position
-                    float3 anchor = float3(data.texcoord1.zw, data.texcoord2.w);
-                    windyPosition -= anchor;
-
-                    if (geometryType == GEOM_TYPE_FACINGLEAF)
-                    {
-                        // face camera-facing leaf to camera
-                        float offsetLen = length(windyPosition);
-                        windyPosition = mul(windyPosition.xyz, (float3x3)UNITY_MATRIX_IT_MV); // inv(MV) * windyPosition
-                        windyPosition = normalize(windyPosition) * offsetLen; // make sure the offset vector is still scaled
-                    }
-
-                    // leaf wind
-                    #if defined(_WINDQUALITY_FAST) || defined(_WINDQUALITY_BETTER) || defined(_WINDQUALITY_BEST)
-                        #ifdef _WINDQUALITY_BEST
-                            bool bBestWind = true;
-                        #else
-                            bool bBestWind = false;
-                        #endif
-                        float leafWindTrigOffset = anchor.x + anchor.y;
-                        windyPosition = LeafWind(bBestWind, leafTwo, windyPosition, data.normal, data.texcoord3.x, float3(0,0,0), data.texcoord3.y, data.texcoord3.z, leafWindTrigOffset, rotatedWindVector);
-                    #endif
-
-                    // move back out to anchor
-                    windyPosition += anchor;
-                }
-
-                // frond wind
-                bool bPalmWind = false;
-                #ifdef _WINDQUALITY_PALM
-                    bPalmWind = true;
-                    if (geometryType == GEOM_TYPE_FROND)
-                    {
-                        windyPosition = RippleFrond(windyPosition, data.normal, data.texcoord.x, data.texcoord.y, data.texcoord3.x, data.texcoord3.y, data.texcoord3.z);
-                    }
-                #endif
-
-                // branch wind (applies to all 3D geometry)
-                #if defined(_WINDQUALITY_BETTER) || defined(_WINDQUALITY_BEST) || defined(_WINDQUALITY_PALM)
-                    float3 rotatedBranchAnchor = normalize(mul(_ST_WindBranchAnchor.xyz, (float3x3)unity_ObjectToWorld)) * _ST_WindBranchAnchor.w;
-                    windyPosition = BranchWind(bPalmWind, windyPosition, treePos, float4(data.texcoord.zw, 0, 0), rotatedWindVector, rotatedBranchAnchor);
-                #endif
-
-            #endif // !EFFECT_BILLBOARD
-
-            // global wind
-            float globalWindTime = _ST_WindGlobal.x;
-            #if defined(EFFECT_BILLBOARD) && defined(UNITY_INSTANCING_ENABLED)
-                globalWindTime += UNITY_ACCESS_INSTANCED_PROP(STWind, _GlobalWindTime);
-            #endif
-            windyPosition = GlobalWind(windyPosition, treePos, true, rotatedWindVector, globalWindTime);
-            data.vertex.xyz = windyPosition;
+            // sanity check that wind data is available
+            return;
         }
+        rotatedWindVector /= windLength;
+
+        float3 treePos = float3(unity_ObjectToWorld[0].w, unity_ObjectToWorld[1].w, unity_ObjectToWorld[2].w);
+        float3 windyPosition = data.vertex.xyz;
+
+        #ifndef EFFECT_BILLBOARD
+            // geometry type
+            float geometryType = (int)(data.texcoord3.w + 0.25);
+            bool leafTwo = false;
+            if (geometryType > GEOM_TYPE_FACINGLEAF)
+            {
+                geometryType -= 2;
+                leafTwo = true;
+            }
+
+            // leaves
+            if (geometryType > GEOM_TYPE_FROND)
+            {
+                // remove anchor position
+                float3 anchor = float3(data.texcoord1.zw, data.texcoord2.w);
+                windyPosition -= anchor;
+
+                if (geometryType == GEOM_TYPE_FACINGLEAF)
+                {
+                    // face camera-facing leaf to camera
+                    float offsetLen = length(windyPosition);
+                    windyPosition = mul(windyPosition.xyz, (float3x3)UNITY_MATRIX_IT_MV); // inv(MV) * windyPosition
+                    windyPosition = normalize(windyPosition) * offsetLen; // make sure the offset vector is still scaled
+                }
+
+                // leaf wind
+                #if defined(_WINDQUALITY_FAST) || defined(_WINDQUALITY_BETTER) || defined(_WINDQUALITY_BEST)
+                    #ifdef _WINDQUALITY_BEST
+                        bool bBestWind = true;
+                    #else
+                        bool bBestWind = false;
+                    #endif
+                    float leafWindTrigOffset = anchor.x + anchor.y;
+                    windyPosition = LeafWind(bBestWind, leafTwo, windyPosition, data.normal, data.texcoord3.x, float3(0,0,0), data.texcoord3.y, data.texcoord3.z, leafWindTrigOffset, rotatedWindVector);
+                #endif
+
+                // move back out to anchor
+                windyPosition += anchor;
+            }
+
+            // frond wind
+            bool bPalmWind = false;
+            #ifdef _WINDQUALITY_PALM
+                bPalmWind = true;
+                if (geometryType == GEOM_TYPE_FROND)
+                {
+                    windyPosition = RippleFrond(windyPosition, data.normal, data.texcoord.x, data.texcoord.y, data.texcoord3.x, data.texcoord3.y, data.texcoord3.z);
+                }
+            #endif
+
+            // branch wind (applies to all 3D geometry)
+            #if defined(_WINDQUALITY_BETTER) || defined(_WINDQUALITY_BEST) || defined(_WINDQUALITY_PALM)
+                float3 rotatedBranchAnchor = normalize(mul(_ST_WindBranchAnchor.xyz, (float3x3)unity_ObjectToWorld)) * _ST_WindBranchAnchor.w;
+                windyPosition = BranchWind(bPalmWind, windyPosition, treePos, float4(data.texcoord.zw, 0, 0), rotatedWindVector, rotatedBranchAnchor);
+            #endif
+
+        #endif // !EFFECT_BILLBOARD
+
+        // global wind
+        float globalWindTime = _ST_WindGlobal.x;
+        #if defined(EFFECT_BILLBOARD) && defined(UNITY_INSTANCING_ENABLED)
+            globalWindTime += UNITY_ACCESS_INSTANCED_PROP(STWind, _GlobalWindTime);
+        #endif
+        windyPosition = GlobalWind(windyPosition, treePos, true, rotatedWindVector, globalWindTime);
+        data.vertex.xyz = windyPosition;
     #endif
 }
 
@@ -171,34 +168,7 @@ void SpeedTreeVert(inout appdata_full v)
 
     #if defined(EFFECT_BILLBOARD)
 
-        // crossfade faces
-        bool topDown = (v.texcoord.z > 0.5);
-        float3 viewDir = UNITY_MATRIX_IT_MV[2].xyz;
-        float3 cameraDir = normalize(mul((float3x3)unity_WorldToObject, _WorldSpaceCameraPos - treePos));
-        float viewDot = max(dot(viewDir, v.normal), dot(cameraDir, v.normal));
-        viewDot *= viewDot;
-        viewDot *= viewDot;
-        viewDot += topDown ? 0.38 : 0.18; // different scales for horz and vert billboards to fix transition zone
-        v.color = float4(1, 1, 1, clamp(viewDot, 0, 1));
-
-        // if invisible, avoid overdraw
-        if (viewDot < 0.3333)
-        {
-            v.vertex.xyz = float3(0,0,0);
-        }
-
-        // adjust lighting on billboards to prevent seams between the different faces
-        if (topDown)
-        {
-            v.normal += cameraDir;
-        }
-        else
-        {
-            half3 binormal = cross(v.normal, v.tangent.xyz) * v.tangent.w;
-            float3 right = cross(cameraDir, binormal);
-            v.normal = cross(binormal, right);
-        }
-        v.normal = normalize(v.normal);
+    BillboardSeamCrossfade(v, treePos);
 
     #endif
 

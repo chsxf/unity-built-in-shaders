@@ -6,6 +6,7 @@
 #include "Internal-CreateFoveatedShadingRateTexture.cginc"
 
 RWTexture2D<uint> _Result;
+RWTexture2D<uint> _ResultYFlip;
 
 // 1 thread for z because we run both eyes and then combine them with a min operator
 [numthreads(8,8,1)]
@@ -13,5 +14,8 @@ void CreateFoveatedShadingRateTexture(uint3 id : SV_DispatchThreadID)
 {
     uint leftShadingRateLevel = GetShadingRateLevel(uint3(id.xy, kLeftEyeId));
     uint rightShadingRateLevel = GetShadingRateLevel(uint3(id.xy, kRightEyeId));
-    _Result[uint2(id.x, id.y)] = min(rightShadingRateLevel, leftShadingRateLevel);
+    uint shadingRate = min(rightShadingRateLevel, leftShadingRateLevel);
+    _Result[id.xy] = shadingRate;
+    _ResultYFlip[uint2(id.x, (_HalfHeight * 2) - id.y)] = shadingRate;
+
 }

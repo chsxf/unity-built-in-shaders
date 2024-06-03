@@ -1,8 +1,8 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
-const int kLeftEyeId = 0;
-const int kRightEyeId = 1;
-const int kAxisCount = 2;
+#define kLeftEyeId 0
+#define kRightEyeId 1
+#define kAxisCount 2
 
 uint3 _ShadingRateLevels;
 uint _HalfWidth; // half of the texture width so that we do computation before shader.

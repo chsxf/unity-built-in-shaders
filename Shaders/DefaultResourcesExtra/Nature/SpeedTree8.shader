@@ -56,6 +56,7 @@ Shader "Nature/SpeedTree8"
 
             #define ENABLE_WIND
             #define EFFECT_BACKSIDE_NORMALS
+            #define SPEEDTREE_8_WIND 1
             #include "SpeedTree8Common.cginc"
 
         ENDCG

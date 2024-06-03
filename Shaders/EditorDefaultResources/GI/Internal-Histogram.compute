@@ -1,0 +1,50 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
+#pragma kernel histogram
+
+#include "HLSLSupport.cginc"
+
+// Should match constants in ProgressiveRuntimeManager::GeneratePrioritizedLightmapIndices()
+#define HISTOGRAM_BINS 128
+RWStructuredBuffer<uint> _Histogram;
+Texture2D<float4> _AtlasIDTexture;
+
+groupshared uint gs_LocalHistogram[HISTOGRAM_BINS];
+
+[numthreads(32, 32, 1)]
+void histogram(uint groupIndex : SV_GroupIndex, uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint width, height;
+    _AtlasIDTexture.GetDimensions(width, height);
+
+    float texSample = 0.0;
+    bool ignore = dispatchThreadId.x >= width || dispatchThreadId.y >= height;
+    if (!ignore)
+    {
+        texSample = _AtlasIDTexture[dispatchThreadId.xy].r;
+    }
+    ignore = ignore || texSample == 0.0; // Ignore pixels with no atlassed renderer.
+
+    // Initialize local histogram. Groupshared memory is not zero-initialized by default.
+    if (groupIndex < HISTOGRAM_BINS)
+    {
+        gs_LocalHistogram[groupIndex] = 0u;
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    // Accumulate into local histogram
+    if (!ignore)
+    {
+        uint pixel = round(texSample) - 1; // Subtract 1 to account for 0 ie. black meaning no atlas.
+        InterlockedAdd(gs_LocalHistogram[pixel], 1u);
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    // Accumulate local histograms into global histogram
+    if (groupIndex < HISTOGRAM_BINS)
+    {
+        InterlockedAdd(_Histogram[groupIndex], gs_LocalHistogram[groupIndex]);
+    }
+}

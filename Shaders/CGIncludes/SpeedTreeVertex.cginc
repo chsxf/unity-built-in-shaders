@@ -43,8 +43,8 @@ struct SpeedTreeVB
 #define WIND_QUALITY_PALM       5
 
 uniform half _WindQuality;
-uniform half _WindEnabled;
 
+#define SPEEDTREE_8_WIND 1 // v7 and v8 use the same wind
 #include "SpeedTreeWind.cginc"
 
 #endif
@@ -57,7 +57,8 @@ void OffsetSpeedTreeVertex(inout SpeedTreeVB data, float lodValue)
     float3 finalPosition = data.vertex.xyz;
 
     #ifdef ENABLE_WIND
-        half windQuality = _WindQuality * _WindEnabled;
+        float windEnabled = dot(_ST_WindVector.xyz, _ST_WindVector.xyz) > 0.0f ? 1.0f : 0.0f;
+        half windQuality = _WindQuality * windEnabled;
 
         float3 rotatedWindVector, rotatedBranchAnchor;
         if (windQuality <= WIND_QUALITY_NONE)

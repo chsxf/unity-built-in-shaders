@@ -39,6 +39,21 @@ Shader "Hidden/InternalErrorShader"
             }
             ENDCG
         }
+
+        // DepthNormals and DepthOnly are just here to support depth priming
+        Pass
+        {
+            Name "DepthNormalsOnly"
+            Tags { "LightMode" = "DepthNormalsOnly" }
+            ColorMask 0
+        }
+
+        Pass
+        {
+            Name "DepthOnly"
+            Tags { "LightMode" = "DepthOnly" }
+            ColorMask 0
+        }
     }
     Fallback Off
 }

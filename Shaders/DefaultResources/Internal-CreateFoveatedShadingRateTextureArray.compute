@@ -6,10 +6,16 @@
 #include "Internal-CreateFoveatedShadingRateTexture.cginc"
 
 RWTexture2DArray<uint> _Result;
+RWTexture2DArray<uint> _ResultYFlip;
 
 // 2 threads for z because we parralelize the algorithm on the z
 [numthreads(8,8,2)]
 void CreateFoveatedShadingRateTexture(uint3 id : SV_DispatchThreadID)
 {
-    _Result[id] = GetShadingRateLevel(id);
+    uint shadingRate = GetShadingRateLevel(id);
+    _Result[id] = shadingRate;
+
+    uint3 idYFlip = id;
+    idYFlip.y = (_HalfHeight * 2) - idYFlip.y;
+    _ResultYFlip[idYFlip] = shadingRate;
 }

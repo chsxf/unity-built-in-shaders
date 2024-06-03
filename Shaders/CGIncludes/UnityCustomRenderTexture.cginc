@@ -9,6 +9,8 @@
 // Keep in sync with CustomRenderTexture.h
 #define kCustomTextureBatchSize 16
 
+#define customTextureVertexNum 6
+
 struct appdata_customrendertexture
 {
     uint    vertexID    : SV_VertexID;
@@ -96,7 +98,7 @@ v2f_customrendertexture CustomRenderTextureVertexShader(appdata_customrendertext
     v2f_customrendertexture OUT;
 
 #if UNITY_UV_STARTS_AT_TOP
-    const float2 vertexPositions[6] =
+    const float2 vertexPositions[customTextureVertexNum] =
     {
         { -1.0f,  1.0f },
         { -1.0f, -1.0f },
@@ -106,7 +108,7 @@ v2f_customrendertexture CustomRenderTextureVertexShader(appdata_customrendertext
         {  1.0f, -1.0f }
     };
 
-    const float2 texCoords[6] =
+    const float2 texCoords[customTextureVertexNum] =
     {
         { 0.0f, 0.0f },
         { 0.0f, 1.0f },
@@ -116,7 +118,7 @@ v2f_customrendertexture CustomRenderTextureVertexShader(appdata_customrendertext
         { 1.0f, 1.0f }
     };
 #else
-    const float2 vertexPositions[6] =
+    const float2 vertexPositions[customTextureVertexNum] =
     {
         {  1.0f,  1.0f },
         { -1.0f, -1.0f },
@@ -126,7 +128,7 @@ v2f_customrendertexture CustomRenderTextureVertexShader(appdata_customrendertext
         {  1.0f, -1.0f }
     };
 
-    const float2 texCoords[6] =
+    const float2 texCoords[customTextureVertexNum] =
     {
         { 1.0f, 1.0f },
         { 0.0f, 0.0f },
@@ -137,8 +139,8 @@ v2f_customrendertexture CustomRenderTextureVertexShader(appdata_customrendertext
     };
 #endif
 
-    uint primitiveID = (IN.vertexID / 6) % kCustomTextureBatchSize;
-    uint vertexID = IN.vertexID % 6;
+    uint primitiveID = (IN.vertexID / customTextureVertexNum) % kCustomTextureBatchSize;
+    uint vertexID = IN.vertexID % customTextureVertexNum;
     float3 updateZoneCenter = CustomRenderTextureCenters[primitiveID].xyz;
     float3 updateZoneSize = CustomRenderTextureSizesAndRotations[primitiveID].xyz;
     float rotation = CustomRenderTextureSizesAndRotations[primitiveID].w * UNITY_PI / 180.0f;
