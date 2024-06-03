@@ -23,7 +23,7 @@ for (let i = 2; i < process.argv.length; i++) {
 			break;
 
 		case '--version':
-			let parameterVersionRE = /^(\d+)\.(\d+)\.(\d+)$/
+			let parameterVersionRE = /^(\d+)\.(\d+)\.(\d+f\d+)$/
 			let versionParameterIndex = (i + 1);
 			let potentialSpecificVersion = process.argv[versionParameterIndex];
 			if (specificVersion != undefined || process.argv.length < versionParameterIndex + 1 || !parameterVersionRE.test(potentialSpecificVersion)) {
@@ -140,42 +140,52 @@ function addNextMissingBranch() {
 	}
 }
 
-var versionRegex = /\<div class="release-title"\>Unity (.+)\<\/div\>/g;
-var urlRegex = /\<a href="((?:.+)builtin_shaders(?:.+))"\>/g;
+const downloadBaseURL = 'https://download.unity3d.com/download_unity/[SLUG]/builtin_shaders-[VERSION].zip';
+const versionRegex = /f\d+$/;
+const urlRegex = /\/([^/]+)$/;
 function parsePage(_pageContent) {
-	let result = versionRegex.exec(_pageContent);
-	if (result !== null) {
-		let version = result[1];
+	const needle = 'self.__next_f.push';
 
-		const considerVersion = (!specificVersion || specificVersion == version);
-		if (considerVersion) {
-			let versionChunks = version.split('.');
-			let mainBranch = versionChunks[0] + '.' + versionChunks[1];
-			let subBranch = parseInt(versionChunks[2]);
+	const lastIndexOf = _pageContent.lastIndexOf(needle);
+	let dataToParse = _pageContent.substring(lastIndexOf + needle.length + 1).trim();
+	dataToParse = dataToParse.replace(/\)<\/script><\/body><\/html>$/, '');
+	
+	const data = JSON.parse(dataToParse);
+	let subDataToParse = data[1].replace(/^\d+:/, '');
+	const subData = JSON.parse(subDataToParse);
+	
+	const majorVersionsRoot = subData[3]['children'][3]['versions'];
+	for (const majorVersionData of majorVersionsRoot) {
+		for (const minorVersionData of majorVersionData['releases']['all']) {
+			if (['TECH', 'LTS'].indexOf(minorVersionData['stream']) >= 0 && versionRegex.test(minorVersionData['version'])) {
+				const considerVersion = (!specificVersion || specificVersion == minorVersionData['version']);
+				if (considerVersion) {
+					let versionChunks = minorVersionData['version'].split('.');
+					let mainBranch = versionChunks[0] + '.' + versionChunks[1];
+					let subBranch = parseInt(versionChunks[2]);
 
-			let hasNoBranch = false;
-			if (!branches[mainBranch]) {
-				branches[mainBranch] = { maxVersion: 0 };
-				hasNoBranch = true;
-			}
+					let hasNoBranch = false;
+					if (!branches[mainBranch]) {
+						branches[mainBranch] = { maxVersion: 0 };
+						hasNoBranch = true;
+					}
 
-			let currentMaxSubBranch = branches[mainBranch].maxVersion;
-			if (currentMaxSubBranch < subBranch || hasNoBranch) {
-				branches[mainBranch] = { maxVersion: Math.max(currentMaxSubBranch, subBranch) };
+					let currentMaxSubBranch = branches[mainBranch].maxVersion;
+					if (currentMaxSubBranch < subBranch || hasNoBranch) {
+						branches[mainBranch] = { maxVersion: Math.max(currentMaxSubBranch, subBranch) };
 
-				urlRegex.lastIndex = versionRegex.lastIndex;
-				result = urlRegex.exec(_pageContent);
-				if (result !== null) {
-					branches[mainBranch].url = result[1];
+						const urlResult = urlRegex.exec(minorVersionData['unityHubDeepLink'])
+						if (urlResult !== null) {
+							let url = downloadBaseURL.replace('[SLUG]', urlResult[1]).replace('[VERSION]', minorVersionData['version']);
+							branches[mainBranch].url = url;
+						}
+					}
 				}
 			}
 		}
+	}
 
-		parsePage(_pageContent);
-	}
-	else {
-		parseBranches();
-	}
+	parseBranches();
 }
 
 let options = {
