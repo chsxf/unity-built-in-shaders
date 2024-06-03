@@ -2,11 +2,11 @@
 
 Shader "Hidden/GIDebug/TextureUV" {
     Properties {
-        _MainTex ("Base (RGB)", 2D) = "white" {}
+        _MainTex("Base (RGB)", 2D) = "white" {}
     }
     SubShader {
         Pass {
-            Tags { "RenderType"="Opaque" }
+            Tags { "RenderType" = "Opaque" }
             LOD 200
 
             CGPROGRAM
@@ -19,6 +19,8 @@ Shader "Hidden/GIDebug/TextureUV" {
             {
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                float3 normal : NORMAL;
+                float3 posWorld : TEXCOORD1;
             };
 
             sampler2D _MainTex;
@@ -27,11 +29,15 @@ Shader "Hidden/GIDebug/TextureUV" {
             float _StaticUV1;
             float _Exposure;
             float _HighlightAlpha;
+            float4 _Tint;
+            float _Lit;
 
-            v2f_surf vert_surf (appdata_full v)
+            v2f_surf vert_surf(appdata_full v)
             {
                 v2f_surf o;
                 o.pos = UnityObjectToClipPos(v.vertex);
+                o.normal = UnityObjectToWorldNormal(v.normal);
+                o.posWorld = mul(unity_ObjectToWorld, v.vertex).xyz;
 
                 if (_StaticUV1)
                     o.uv.xy = v.texcoord1.xy * unity_LightmapST.xy + unity_LightmapST.zw;
@@ -41,9 +47,9 @@ Shader "Hidden/GIDebug/TextureUV" {
                 return o;
             }
 
-            float4 frag_surf (v2f_surf IN) : SV_Target
+            float4 frag_surf(v2f_surf IN) : SV_Target
             {
-                float4 mainTexSampled = tex2D (_MainTex, IN.uv.xy);
+                float4 mainTexSampled = tex2D(_MainTex, IN.uv.xy);
                 float3 result;
 
                 if (_Decode_HDR.x > 0)
@@ -52,11 +58,20 @@ Shader "Hidden/GIDebug/TextureUV" {
                     result = mainTexSampled.rgb;
 
                 if (_ConvertToLinearSpace)
-                    result = LinearToGammaSpace (result);
+                    result = LinearToGammaSpace(result);
 
                 // currently used to highlight the alpha channel when viewing shadowmask textures
                 if (_HighlightAlpha)
                     result.rgb += (mainTexSampled.a * 0.5);
+
+                result *= _Tint;
+
+                if (_Lit)
+                {
+                    float3 viewDir = normalize(IN.posWorld - _WorldSpaceCameraPos);
+                    float rimLight = clamp(dot(IN.normal, -viewDir), 0.2, 1);
+                    result.rgb *= rimLight;
+                }
 
                 return float4 (result * exp2(_Exposure), 1);
             }
