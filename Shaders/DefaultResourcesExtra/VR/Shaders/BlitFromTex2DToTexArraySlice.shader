@@ -14,7 +14,7 @@ Shader "Hidden/VR/BlitFromTex2DToTexArraySlice"
             #pragma fragment frag
             #pragma target 3.5
             #pragma require setrtarrayindexfromanyshader
-            #pragma exclude_renderers vulkan metal
+            #pragma exclude_renderers vulkan
 
             #include "UnityCG.cginc"
 
