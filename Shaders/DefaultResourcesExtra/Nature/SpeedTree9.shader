@@ -68,6 +68,8 @@ Shader"Nature/SpeedTree9"
             #pragma shader_feature_local_fragment EFFECT_BUMP
             #pragma shader_feature_local_fragment EFFECT_EXTRA_TEX
 
+            //#pragma enable_d3d11_debug_symbols
+
             #define ENABLE_WIND 1
             #define EFFECT_BACKSIDE_NORMALS
             #define SPEEDTREE_Y_UP
@@ -99,12 +101,19 @@ void Wind9(inout appdata_full sIn, bool bHistory /*must be compile-time constant
     #if WIND_RIPPLE
     {
         float fRippleWeight = sIn.texcoord1.w;
-        float3 vMotion = RippleWindMotion_cb(
+        float3 vMotion = RippleWindMotion(
             vUp,
+            cb.m_vWindDirection,
             vWindyPosition,
             vGlobalNoisePosition,
             fRippleWeight,
-            cb
+            cb.m_sRipple.m_vNoisePosTurbulence,
+            cb.m_sRipple.m_fIndependence,
+            cb.m_sRipple.m_fFlexibility,
+            cb.m_sRipple.m_fDirectional,
+            cb.m_sRipple.m_fPlanar,
+            cb.m_vTreeExtents.y, // y-up = height
+            cb.m_fImportScaling
         );
         vWindyPosition += vMotion;
 
@@ -119,16 +128,23 @@ void Wind9(inout appdata_full sIn, bool bHistory /*must be compile-time constant
         float fBranch2Weight = sIn.texcoord2.z;
         float fPackedBranch2Dir = sIn.texcoord2.y;
         float fPackedBranch2NoiseOffset = sIn.texcoord2.x;
-        vWindyPosition = BranchWindPosition_cb(
+        vWindyPosition = BranchWindPosition(
             vUp,
-            vGlobalNoisePosition,
+            cb.m_vWindDirection,
             vWindyPosition,
-
-            fBranch2Weight,
+            vGlobalNoisePosition,
             fPackedBranch2Dir,
             fPackedBranch2NoiseOffset,
-            cb,
-            2
+            fBranch2Weight,
+            cb.m_fBranch2StretchLimit,
+            cb.m_sBranch2.m_vNoisePosTurbulence,
+            cb.m_sBranch2.m_fIndependence,
+            cb.m_sBranch2.m_fTurbulence,
+            cb.m_sBranch2.m_fOscillation,
+            cb.m_sBranch2.m_fBend,
+            cb.m_sBranch2.m_fFlexibility,
+            cb.m_vTreeExtents.y, // y-up = height
+            cb.m_fImportScaling
         );
     }
     #endif
@@ -138,27 +154,42 @@ void Wind9(inout appdata_full sIn, bool bHistory /*must be compile-time constant
         float fBranch1Weight = sIn.texcoord1.z;
         float fPackedBranch1Dir = sIn.texcoord.w;
         float fPackedBranch1NoiseOffset = sIn.texcoord.z;
-        vWindyPosition = BranchWindPosition_cb(
+        vWindyPosition = BranchWindPosition(
             vUp,
-            vGlobalNoisePosition,
+            cb.m_vWindDirection,
             vWindyPosition,
-
-            fBranch1Weight,
+            vGlobalNoisePosition,
             fPackedBranch1Dir,
             fPackedBranch1NoiseOffset,
-            cb,
-            1
+            fBranch1Weight,
+            cb.m_fBranch1StretchLimit,
+            cb.m_sBranch1.m_vNoisePosTurbulence,
+            cb.m_sBranch1.m_fIndependence,
+            cb.m_sBranch1.m_fTurbulence,
+            cb.m_sBranch1.m_fOscillation,
+            cb.m_sBranch1.m_fBend,
+            cb.m_sBranch1.m_fFlexibility,
+            cb.m_vTreeExtents.y, // y-up = height
+            cb.m_fImportScaling
         );
     }
     #endif
 
     #if WIND_SHARED
     {
-        vWindyPosition = SharedWindPosition_cb(
+        vWindyPosition = SharedWindPosition(
             vUp,
+            cb.m_vWindDirection,
             vWindyPosition,
             vGlobalNoisePosition,
-            cb
+            cb.m_vTreeExtents.y, // y-up = height
+            cb.m_fSharedHeightStart,
+            cb.m_sShared.m_vNoisePosTurbulence,
+            cb.m_sShared.m_fTurbulence,
+            cb.m_sShared.m_fOscillation,
+            cb.m_sShared.m_fBend,
+            cb.m_sShared.m_fFlexibility,
+            cb.m_fImportScaling
         );
     }
     #endif
@@ -169,18 +200,16 @@ void Wind9(inout appdata_full sIn, bool bHistory /*must be compile-time constant
 
 void SpeedTreeVert9(inout appdata_full v)
 {
-    float3 vVertexObjectSpacePosition = v.vertex;
-    
-#if defined(EFFECT_LEAF_FACING)
-    #if WIND_BRANCH2
-    float4 vAnchorPosAndFlag = v.texcoord3;
-    #else
-    float4 vAnchorPosAndFlag = v.texcoord2;
-    #endif
-
-    DoLeafFacing(v.vertex, vAnchorPosAndFlag.xyz);
+#if defined(EFFECT_LEAF_FACING) && !defined(EFFECT_BILLBOARD)
+    const bool bHasCameraFacingLeaf = v.texcoord3.a > 0.0f || v.texcoord2.a > 0.0f;
+    if(bHasCameraFacingLeaf)
+    {
+        float3 vAnchorPos = v.texcoord3.a > 0.0f ? v.texcoord3.xyz : v.texcoord2.xyz;
+        v.vertex.xyz = DoLeafFacing(v.vertex.xyz, vAnchorPos);
+    }
 #endif // EFFECT_LEAF_FACING
     
+    float3 vVertexObjectSpacePosition = v.vertex;
 #if ENABLE_WIND
     const bool bHistory = false; // must be compile time constant
     Wind9(v, bHistory);
@@ -192,7 +221,6 @@ void SpeedTreeVert9(inout appdata_full v)
     float3 treePos = float3(unity_ObjectToWorld[0].w, unity_ObjectToWorld[1].w, unity_ObjectToWorld[2].w);
     BillboardSeamCrossfade(v, treePos);
 #endif // EFFECT_BILLBOARD
-    
 }
 
 
@@ -286,21 +314,21 @@ void SpeedTreeSurf(Input IN, inout SurfaceOutputStandard OUT)
 
     // hue variation
 #ifdef EFFECT_HUE_VARIATION
-        half3 shiftedColor = lerp(OUT.Albedo, _HueVariationColor.rgb, IN.color.g);
+    half3 shiftedColor = lerp(OUT.Albedo, _HueVariationColor.rgb, IN.color.g);
 
-        // preserve vibrance
-        half maxBase = max(OUT.Albedo.r, max(OUT.Albedo.g, OUT.Albedo.b));
-        half newMaxBase = max(shiftedColor.r, max(shiftedColor.g, shiftedColor.b));
-        maxBase /= newMaxBase;
-        maxBase = maxBase * 0.5f + 0.5f;
-        shiftedColor.rgb *= maxBase;
+    // preserve vibrance
+    half maxBase = max(OUT.Albedo.r, max(OUT.Albedo.g, OUT.Albedo.b));
+    half newMaxBase = max(shiftedColor.r, max(shiftedColor.g, shiftedColor.b));
+    maxBase /= newMaxBase;
+    maxBase = maxBase * 0.5f + 0.5f;
+    shiftedColor.rgb *= maxBase;
 
-        OUT.Albedo = saturate(shiftedColor);
+    OUT.Albedo = saturate(shiftedColor);
 #endif
 
     // normal
 #ifdef EFFECT_BUMP
-        OUT.Normal = UnpackNormal(tex2D(_NormalMap, IN.uv_MainTex));
+    OUT.Normal = UnpackNormal(tex2D(_NormalMap, IN.uv_MainTex));
 #elif defined(EFFECT_BACKSIDE_NORMALS) || defined(EFFECT_BILLBOARD)
     OUT.Normal = float3(0, 0, 1);
 #endif
@@ -321,10 +349,10 @@ void SpeedTreeSurf(Input IN, inout SurfaceOutputStandard OUT)
 
     // extra
 #ifdef EFFECT_EXTRA_TEX
-        fixed4 extra = tex2D(_ExtraTex, IN.uv_MainTex);
-        OUT.Smoothness = extra.r; // no slider is exposed when ExtraTex is not available, hence we skip the multiplication here
-        OUT.Metallic = extra.g;
-        OUT.Occlusion = extra.b * IN.color.r;
+    fixed4 extra = tex2D(_ExtraTex, IN.uv_MainTex);
+    OUT.Smoothness = extra.r; // no slider is exposed when ExtraTex is not available, hence we skip the multiplication here
+    OUT.Metallic = extra.g;
+    OUT.Occlusion = extra.b * IN.color.r;
 #else
     OUT.Smoothness = _Glossiness;
     OUT.Metallic = _Metallic;
@@ -333,7 +361,7 @@ void SpeedTreeSurf(Input IN, inout SurfaceOutputStandard OUT)
 
     // subsurface (hijack emissive)
 #ifdef EFFECT_SUBSURFACE
-        OUT.Emission = tex2D(_SubsurfaceTex, IN.uv_MainTex) * _SubsurfaceColor;
+    OUT.Emission = tex2D(_SubsurfaceTex, IN.uv_MainTex) * _SubsurfaceColor;
 #endif
 }
 

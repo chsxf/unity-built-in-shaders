@@ -73,58 +73,48 @@ void OffsetSpeedTreeVertex(inout appdata_full data, float lodValue)
         data.vertex.xyz = lerp(data.vertex.xyz, data.texcoord2.xyz, lodValue);
     #endif
 
+    // determine vertex geom type
+    float geometryType = (int)(data.texcoord3.w + 0.25);
+    bool leafTwo = false;
+    if (geometryType > GEOM_TYPE_FACINGLEAF)
+    {
+        geometryType -= 2;
+        leafTwo = true;
+    }
+
+    // camera facing leaves
+    #if !defined(EFFECT_BILLBOARD)
+    if (geometryType == GEOM_TYPE_FACINGLEAF)
+    {
+        float3 anchor = float3(data.texcoord1.zw, data.texcoord2.w);
+        data.vertex.xyz = DoLeafFacing(data.vertex.xyz, anchor);
+    }
+    #endif
+
     // wind
     #if defined(ENABLE_WIND) && !defined(_WINDQUALITY_NONE)
-        float3 rotatedWindVector = mul(_ST_WindVector.xyz, (float3x3)unity_ObjectToWorld);
-        float windLength = length(rotatedWindVector);
-        if (windLength < 1e-5)
+        float3 rotatedWindVector = TransformWindVectorFromWorldToLocalSpace(_ST_WindVector.xyz);
+        if(dot(rotatedWindVector,rotatedWindVector) < 1e-4)
         {
-            // sanity check that wind data is available
-            return;
+            return; // bail out if no wind data
         }
-        rotatedWindVector /= windLength;
-
         float3 treePos = float3(unity_ObjectToWorld[0].w, unity_ObjectToWorld[1].w, unity_ObjectToWorld[2].w);
         float3 windyPosition = data.vertex.xyz;
 
         #ifndef EFFECT_BILLBOARD
-            // geometry type
-            float geometryType = (int)(data.texcoord3.w + 0.25);
-            bool leafTwo = false;
-            if (geometryType > GEOM_TYPE_FACINGLEAF)
-            {
-                geometryType -= 2;
-                leafTwo = true;
-            }
-
             // leaves
             if (geometryType > GEOM_TYPE_FROND)
             {
-                // remove anchor position
-                float3 anchor = float3(data.texcoord1.zw, data.texcoord2.w);
-                windyPosition -= anchor;
-
-                if (geometryType == GEOM_TYPE_FACINGLEAF)
-                {
-                    // face camera-facing leaf to camera
-                    float offsetLen = length(windyPosition);
-                    windyPosition = mul(windyPosition.xyz, (float3x3)UNITY_MATRIX_IT_MV); // inv(MV) * windyPosition
-                    windyPosition = normalize(windyPosition) * offsetLen; // make sure the offset vector is still scaled
-                }
-
-                // leaf wind
                 #if defined(_WINDQUALITY_FAST) || defined(_WINDQUALITY_BETTER) || defined(_WINDQUALITY_BEST)
+                    float3 anchor = float3(data.texcoord1.zw, data.texcoord2.w);
                     #ifdef _WINDQUALITY_BEST
                         bool bBestWind = true;
                     #else
                         bool bBestWind = false;
                     #endif
                     float leafWindTrigOffset = anchor.x + anchor.y;
-                    windyPosition = LeafWind(bBestWind, leafTwo, windyPosition, data.normal, data.texcoord3.x, float3(0,0,0), data.texcoord3.y, data.texcoord3.z, leafWindTrigOffset, rotatedWindVector);
+                    windyPosition = LeafWind(bBestWind, leafTwo, windyPosition, data.normal, data.texcoord3.x, anchor, data.texcoord3.y, data.texcoord3.z, leafWindTrigOffset, rotatedWindVector);
                 #endif
-
-                // move back out to anchor
-                windyPosition += anchor;
             }
 
             // frond wind
