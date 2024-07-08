@@ -1,0 +1,15 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
+#pragma kernel CreateFoveatedShadingRateTexture
+#pragma only_renderers vulkan
+
+#include "Internal-CreateFoveatedShadingRateTexture.cginc"
+
+RWTexture2DArray<uint> _Result;
+
+// 2 threads for z because we parralelize the algorithm on the z
+[numthreads(8,8,2)]
+void CreateFoveatedShadingRateTexture(uint3 id : SV_DispatchThreadID)
+{
+    _Result[id] = GetShadingRateLevel(id);
+}
