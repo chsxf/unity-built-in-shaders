@@ -156,7 +156,8 @@ function parsePage(_pageContent) {
 	
 	const majorVersionsRoot = subData[3]['children'][3]['versions'];
 	for (const majorVersionData of majorVersionsRoot) {
-		for (const minorVersionData of majorVersionData['releases']['all']) {
+		const allVersions = majorVersionData['releases']['tech'].concat(majorVersionData['releases']['lts'])
+		for (const minorVersionData of allVersions) {
 			if (['TECH', 'LTS'].indexOf(minorVersionData['stream']) >= 0 && versionRegex.test(minorVersionData['version'])) {
 				const considerVersion = (!specificVersion || specificVersion == minorVersionData['version']);
 				if (considerVersion) {
