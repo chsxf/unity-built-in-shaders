@@ -8,11 +8,11 @@
 
 #include "UnityCG.cginc"
 #include "UnityPBSLighting.cginc"
-#include "SpeedTreeShaderLibrary.cginc"
 
 #if defined(ENABLE_WIND) && !defined(_WINDQUALITY_NONE)
     #define SPEEDTREE_Y_UP
     #include "SpeedTreeWind.cginc"
+    float _WindEnabled;
     UNITY_INSTANCING_BUFFER_START(STWind)
         UNITY_DEFINE_INSTANCED_PROP(float, _GlobalWindTime)
     UNITY_INSTANCING_BUFFER_END(STWind)
@@ -61,15 +61,46 @@ int _TwoSided;
 #define GEOM_TYPE_FROND 1
 #define GEOM_TYPE_LEAF 2
 #define GEOM_TYPE_FACINGLEAF 3
+float3 DoLeafFacing(float3 vPos, float3 anchor)
+{
+    float3 facingPosition = vPos - anchor; // move to origin
+    float offsetLen = length(facingPosition);
 
+    // rotate X -90deg: normals keep looking 'up' while cards/leaves now 'stand up' and face the view plane
+    facingPosition = float3(facingPosition.x, -facingPosition.z, facingPosition.y);
+
+    // extract scale from model matrix
+    float3 scale = float3(
+        length(float3(UNITY_MATRIX_M[0][0], UNITY_MATRIX_M[1][0], UNITY_MATRIX_M[2][0])),
+        length(float3(UNITY_MATRIX_M[0][1], UNITY_MATRIX_M[1][1], UNITY_MATRIX_M[2][1])),
+        length(float3(UNITY_MATRIX_M[0][2], UNITY_MATRIX_M[1][2], UNITY_MATRIX_M[2][2]))
+    );
+
+    // inverse of model : discards object rotations & scale
+    // inverse of view  : discards camera rotations
+    float3x3 matCardFacingTransform = mul((float3x3) unity_WorldToObject, (float3x3) UNITY_MATRIX_I_V);
+
+    // re-encode the scale into the final transformation (otherwise cards would look small if tree is scaled up via world transform)
+    matCardFacingTransform[0] *= scale.x;
+    matCardFacingTransform[1] *= scale.y;
+    matCardFacingTransform[2] *= scale.z;
+
+    // make the leaves/cards face the camera
+    facingPosition = mul(matCardFacingTransform, facingPosition.xyz);
+    facingPosition = normalize(facingPosition) * offsetLen; // make sure the offset vector is still scaled
+
+    return facingPosition + anchor; // move back to branch
+}
 
 ///////////////////////////////////////////////////////////////////////
 //  OffsetSpeedTreeVertex
 
 void OffsetSpeedTreeVertex(inout appdata_full data, float lodValue)
 {
+    #if !defined(EFFECT_BILLBOARD) // 3D geometry FX
+
     // smooth LOD
-    #if defined(LOD_FADE_PERCENTAGE) && !defined(EFFECT_BILLBOARD)
+    #if defined(LOD_FADE_PERCENTAGE)
         data.vertex.xyz = lerp(data.vertex.xyz, data.texcoord2.xyz, lodValue);
     #endif
 
@@ -81,23 +112,30 @@ void OffsetSpeedTreeVertex(inout appdata_full data, float lodValue)
         geometryType -= 2;
         leafTwo = true;
     }
-
+    
     // camera facing leaves
-    #if !defined(EFFECT_BILLBOARD)
     if (geometryType == GEOM_TYPE_FACINGLEAF)
     {
         float3 anchor = float3(data.texcoord1.zw, data.texcoord2.w);
         data.vertex.xyz = DoLeafFacing(data.vertex.xyz, anchor);
     }
-    #endif
-
+    #endif // !defined(EFFECT_BILLBOARD)
+    
     // wind
     #if defined(ENABLE_WIND) && !defined(_WINDQUALITY_NONE)
-        float3 rotatedWindVector = TransformWindVectorFromWorldToLocalSpace(_ST_WindVector.xyz);
-        if(dot(rotatedWindVector,rotatedWindVector) < 1e-4)
+        if (_WindEnabled <= 0)
         {
-            return; // bail out if no wind data
+            return;
         }
+        float3 rotatedWindVector = mul(_ST_WindVector.xyz, (float3x3)unity_ObjectToWorld);
+        float windLength = length(rotatedWindVector);
+        if (windLength < 1e-5)
+        {
+            // sanity check that wind data is available
+            return;
+        }
+        rotatedWindVector /= windLength;
+
         float3 treePos = float3(unity_ObjectToWorld[0].w, unity_ObjectToWorld[1].w, unity_ObjectToWorld[2].w);
         float3 windyPosition = data.vertex.xyz;
 
@@ -105,13 +143,14 @@ void OffsetSpeedTreeVertex(inout appdata_full data, float lodValue)
             // leaves
             if (geometryType > GEOM_TYPE_FROND)
             {
+                // leaf wind
                 #if defined(_WINDQUALITY_FAST) || defined(_WINDQUALITY_BETTER) || defined(_WINDQUALITY_BEST)
-                    float3 anchor = float3(data.texcoord1.zw, data.texcoord2.w);
                     #ifdef _WINDQUALITY_BEST
                         bool bBestWind = true;
                     #else
                         bool bBestWind = false;
                     #endif
+                    float3 anchor = float3(data.texcoord1.zw, data.texcoord2.w);
                     float leafWindTrigOffset = anchor.x + anchor.y;
                     windyPosition = LeafWind(bBestWind, leafTwo, windyPosition, data.normal, data.texcoord3.x, anchor, data.texcoord3.y, data.texcoord3.z, leafWindTrigOffset, rotatedWindVector);
                 #endif
@@ -142,7 +181,8 @@ void OffsetSpeedTreeVertex(inout appdata_full data, float lodValue)
         #endif
         windyPosition = GlobalWind(windyPosition, treePos, true, rotatedWindVector, globalWindTime);
         data.vertex.xyz = windyPosition;
-    #endif
+
+    #endif // defined(ENABLE_WIND) && !defined(_WINDQUALITY_NONE)
 }
 
 
@@ -158,7 +198,34 @@ void SpeedTreeVert(inout appdata_full v)
 
     #if defined(EFFECT_BILLBOARD)
 
-    BillboardSeamCrossfade(v, treePos);
+        // crossfade faces
+        bool topDown = (v.texcoord.z > 0.5);
+        float3 viewDir = UNITY_MATRIX_IT_MV[2].xyz;
+        float3 cameraDir = normalize(mul((float3x3)unity_WorldToObject, _WorldSpaceCameraPos - treePos));
+        float viewDot = max(dot(viewDir, v.normal), dot(cameraDir, v.normal));
+        viewDot *= viewDot;
+        viewDot *= viewDot;
+        viewDot += topDown ? 0.38 : 0.18; // different scales for horz and vert billboards to fix transition zone
+        v.color = float4(1, 1, 1, clamp(viewDot, 0, 1));
+
+        // if invisible, avoid overdraw
+        if (viewDot < 0.3333)
+        {
+            v.vertex.xyz = float3(0,0,0);
+        }
+
+        // adjust lighting on billboards to prevent seams between the different faces
+        if (topDown)
+        {
+            v.normal += cameraDir;
+        }
+        else
+        {
+            half3 binormal = cross(v.normal, v.tangent.xyz) * v.tangent.w;
+            float3 right = cross(cameraDir, binormal);
+            v.normal = cross(binormal, right);
+        }
+        v.normal = normalize(v.normal);
 
     #endif
 
@@ -258,7 +325,7 @@ void SpeedTreeSurf(Input IN, inout SurfaceOutputStandard OUT)
     // extra
     #ifdef EFFECT_EXTRA_TEX
         fixed4 extra = tex2D(_ExtraTex, IN.uv_MainTex);
-        OUT.Smoothness = extra.r; // no slider is exposed when ExtraTex is not available, hence we skip the multiplication here
+        OUT.Smoothness = extra.r;
         OUT.Metallic = extra.g;
         OUT.Occlusion = extra.b * IN.color.r;
     #else

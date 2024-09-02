@@ -45,7 +45,7 @@ function verboseLog(message, ...params) {
 }
 
 function getCommitHash(ref) {
-	var result = spawnSync('git', ['rev-parse', ref])
+	var result = spawnSync('git', ['rev-parse', ref], { encoding: 'utf8' })
 	if (result.status != 0) {
 		process.stderr.write(`Unable to get commit hash for ref ${ref}\n`)
 		process.exit();
