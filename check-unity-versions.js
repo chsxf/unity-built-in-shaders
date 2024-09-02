@@ -14,10 +14,15 @@ function dieWithUsage() {
 }
 
 let applyUpdate = false;
+let verboseMode = false;
 let specificVersion = undefined;
 for (let i = 2; i < process.argv.length; i++) {
 	const arg = process.argv[i];
 	switch (arg) {
+		case '--verbose':
+			verboseMode = true;
+			break;
+
 		case '--update':
 			applyUpdate = true;
 			break;
@@ -35,9 +40,34 @@ for (let i = 2; i < process.argv.length; i++) {
 	}
 }
 
-process.stdout.write('Updating repository... ');
+function verboseLog(message, ...params) {
+	console.log(message, ...params);
+}
+
+function getCommitHash(ref) {
+	var result = spawnSync('git', ['rev-parse', ref])
+	if (result.status != 0) {
+		process.stderr.write(`Unable to get commit hash for ref ${ref}\n`)
+		process.exit();
+	}
+	return result.stdout.trim();
+}
+
+process.stdout.write('Updating repository...\n');
 spawnSync('git', [ 'fetch', '--all' ]);
-spawnSync('git', [ 'pull ']);
+
+var localCommitHash = getCommitHash('master');
+verboseLog('Local commit hash: %s', localCommitHash);
+var remoteCommitHash = getCommitHash('origin/master');
+verboseLog('Remote commit hash: %s', remoteCommitHash);
+
+if (localCommitHash != remoteCommitHash) {
+	process.stdout.write(`The local repository is not up-to-date with the remote one.\n(${localCommitHash} vs ${remoteCommitHash})\nPulling the master branch...\n`)
+	spawnSync('git', ['pull'])
+	process.stdout.write('Done.\n\nPlease restart the script\n');
+	process.exit();
+}
+
 process.stdout.write('Done\n\n');
 
 if (specificVersion) {
