@@ -129,7 +129,8 @@ struct VertexOutputStereoShadowCaster
 // some platforms, and then things don't go well.
 
 
-VertexOutput vertShadowCaster (VertexInput v
+void vertShadowCaster (VertexInput v
+    , out VertexOutput output
     #ifdef UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT
     , out VertexOutputShadowCaster o
     #endif
@@ -138,7 +139,6 @@ VertexOutput vertShadowCaster (VertexInput v
     #endif
 )
 {
-    VertexOutput output;
     UNITY_SETUP_INSTANCE_ID(v);
     UNITY_TRANSFER_INSTANCE_ID(v, output);
 
@@ -154,8 +154,6 @@ VertexOutput vertShadowCaster (VertexInput v
             o.viewDirForParallax = mul (rotation, ObjSpaceViewDir(v.vertex));
         #endif
     #endif
-
-    return output;
 }
 
 half4 fragShadowCaster (VertexOutput input
