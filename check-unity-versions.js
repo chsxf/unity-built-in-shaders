@@ -196,7 +196,7 @@ function parseVersions(versionList) {
   for (const entry of versionList) {
     var versionNode = entry.node;
     if (
-      ["LTS", "TECH"].indexOf(versionNode.stream) < 0 ||
+      ["LTS", "TECH", "SUPPORTED"].indexOf(versionNode.stream) < 0 ||
       !versionRegex.test(versionNode.version)
     ) {
       continue;
