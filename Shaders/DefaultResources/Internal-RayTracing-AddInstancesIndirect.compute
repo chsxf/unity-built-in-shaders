@@ -1,0 +1,127 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
+#pragma kernel main
+
+#pragma only_renderers d3d11 xboxseries ps5
+
+#if defined(SHADER_API_PS5)
+struct InstanceDesc
+{
+    uint2 BVH;
+    uint InstanceFlagsAndMask;
+    uint InstanceID;
+    uint HitGroupIndex;
+    float4x4 Transform;
+    uint Padding0;
+    uint Kind;
+    uint Padding1;
+};
+
+cbuffer InstanceDescTemplate
+{
+    uint2 BVH;
+    uint InstanceFlagsAndMask;
+    uint InstanceID;
+    uint HitGroupIndex;
+};
+#else
+struct InstanceDesc
+{
+    float4x3 Transform;
+    uint InstanceIDAndMask;
+    uint HitGroupIndexAndFlags;
+    uint2 AccelerationStructureGPUVA;
+};
+
+cbuffer InstanceDescTemplate
+{
+    uint InstanceIDAndMask;
+    uint HitGroupIndexAndFlags;
+    uint2 AccelerationStructureGPUVA;
+};
+#endif
+
+cbuffer IndirectInstaceParams
+{
+    float4 RelativeOrigin;
+    uint MaxInstanceCount;
+    uint InstanceDescsOffset;
+    uint ArgsOffset;
+};
+
+ByteAddressBuffer IndirectArgsBuffer;
+StructuredBuffer<float4x4> InstanceMatricesBuffer;
+
+RWStructuredBuffer<InstanceDesc> InstanceDescs;
+
+[numthreads(64, 1, 1)]
+void main(uint3 threadID : SV_DispatchThreadID)
+{
+    if (threadID.x >= MaxInstanceCount)
+        return;
+
+    uint matrixCount, stride;
+    InstanceMatricesBuffer.GetDimensions(matrixCount, stride);
+
+    InstanceDesc instanceDesc;
+
+    uint2 indirectArgs = IndirectArgsBuffer.Load2(ArgsOffset);
+    uint indirectStartInstance = indirectArgs.x;
+    uint indirectInstanceCount = indirectArgs.y;
+
+#if defined(SHADER_API_PS5)
+    if ((threadID.x < indirectInstanceCount) && (indirectStartInstance + threadID.x < matrixCount))
+    {
+        // The OpenGL style column-major matrix is used on PS5 where the position is on the 3rd column.
+        float4x4 dstInstanceMatrix = InstanceMatricesBuffer[indirectStartInstance + threadID.x];
+        dstInstanceMatrix[0].w = dstInstanceMatrix[0].w - RelativeOrigin.x;
+        dstInstanceMatrix[1].w = dstInstanceMatrix[1].w - RelativeOrigin.y;
+        dstInstanceMatrix[2].w = dstInstanceMatrix[2].w - RelativeOrigin.z;
+    
+        instanceDesc.Transform = dstInstanceMatrix;
+        instanceDesc.InstanceFlagsAndMask = InstanceFlagsAndMask;
+        instanceDesc.InstanceID = InstanceID + threadID.x;
+        instanceDesc.HitGroupIndex = HitGroupIndex;
+        instanceDesc.BVH = BVH;
+        instanceDesc.Padding0 = 0;
+        instanceDesc.Kind = 0;
+        instanceDesc.Padding1 = 0;
+    }
+    else
+    {
+        instanceDesc.Transform = 0;
+        instanceDesc.InstanceFlagsAndMask = 0;
+        instanceDesc.InstanceID = 0;
+        instanceDesc.HitGroupIndex = 0;
+        instanceDesc.BVH = uint2(0, 0);
+        instanceDesc.Padding0 = 0;
+        instanceDesc.Kind = 0;
+        instanceDesc.Padding1 = 0;
+    }
+#else
+    if ((threadID.x < indirectInstanceCount) && (indirectStartInstance + threadID.x < matrixCount))
+    {
+        float4x4 srcInstanceMatrix = InstanceMatricesBuffer[indirectStartInstance + threadID.x];
+
+        float4x3 dstInstanceMatrix = (float4x3)transpose(srcInstanceMatrix);
+        dstInstanceMatrix[3].xyz = dstInstanceMatrix[3].xyz - RelativeOrigin.xyz;
+
+        // InstanceID and Mask are packed together into 32 bits - first 24 bits for InstanceID and last 8 bits for Mask.
+        uint instanceID = (InstanceIDAndMask + threadID.x) & 0xFFFFFF;
+
+        instanceDesc.Transform = dstInstanceMatrix;
+        instanceDesc.InstanceIDAndMask = (InstanceIDAndMask & 0xFF000000) | instanceID;
+        instanceDesc.HitGroupIndexAndFlags = HitGroupIndexAndFlags;
+        instanceDesc.AccelerationStructureGPUVA = AccelerationStructureGPUVA;
+    }
+    else
+    {
+        instanceDesc.Transform = 0;
+        instanceDesc.InstanceIDAndMask = 0;
+        instanceDesc.HitGroupIndexAndFlags = 0;
+        instanceDesc.AccelerationStructureGPUVA = uint2(0, 0);
+    }
+#endif
+
+    InstanceDescs[InstanceDescsOffset + threadID.x] = instanceDesc;
+}

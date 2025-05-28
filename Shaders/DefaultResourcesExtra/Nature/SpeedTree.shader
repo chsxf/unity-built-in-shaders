@@ -31,7 +31,7 @@ Shader "Nature/SpeedTree"
             #pragma surface surf Lambert vertex:SpeedTreeVert nodirlightmap nodynlightmap dithercrossfade fullforwardshadows
             #pragma target 3.0
             #pragma instancing_options assumeuniformscaling maxcount:50
-            #pragma multi_compile_vertex LOD_FADE_PERCENTAGE
+            #define LOD_FADE_PERCENTAGE 1
             #pragma shader_feature_local GEOM_TYPE_BRANCH GEOM_TYPE_BRANCH_DETAIL GEOM_TYPE_FROND GEOM_TYPE_LEAF GEOM_TYPE_MESH
             #pragma shader_feature_local EFFECT_BUMP
             #pragma shader_feature_local EFFECT_HUE_VARIATION
@@ -55,8 +55,12 @@ Shader "Nature/SpeedTree"
                 #pragma fragment frag
                 #pragma target 3.0
                 #pragma instancing_options assumeuniformscaling maxcount:50
-                #pragma multi_compile_vertex LOD_FADE_PERCENTAGE LOD_FADE_CROSSFADE
-                #pragma multi_compile_fragment __ LOD_FADE_CROSSFADE
+                #pragma multi_compile _ LOD_FADE_CROSSFADE
+
+                #ifndef FOD_FADE_CROSSFADE
+                #define LOD_FADE_PERCENTAGE 1
+                #endif
+
                 #pragma multi_compile_instancing
                 #pragma shader_feature_local GEOM_TYPE_BRANCH GEOM_TYPE_BRANCH_DETAIL GEOM_TYPE_FROND GEOM_TYPE_LEAF GEOM_TYPE_MESH
                 #pragma multi_compile_shadowcaster
@@ -110,8 +114,12 @@ Shader "Nature/SpeedTree"
                 #pragma target 3.0
                 #pragma instancing_options assumeuniformscaling maxcount:50
                 #pragma multi_compile_fog
-                #pragma multi_compile_vertex LOD_FADE_PERCENTAGE LOD_FADE_CROSSFADE
-                #pragma multi_compile_fragment __ LOD_FADE_CROSSFADE
+                #pragma multi_compile _ LOD_FADE_CROSSFADE
+
+                #ifndef LOD_FADE_CROSSFADE
+                #define LOD_FADE_PERCENTAGE 1
+                #endif
+
                 #pragma multi_compile_instancing
                 #pragma shader_feature_local GEOM_TYPE_BRANCH GEOM_TYPE_BRANCH_DETAIL GEOM_TYPE_FROND GEOM_TYPE_LEAF GEOM_TYPE_MESH
                 #pragma shader_feature_local EFFECT_HUE_VARIATION
@@ -169,7 +177,7 @@ Shader "Nature/SpeedTree"
 
         CGPROGRAM
             #pragma surface surf Lambert vertex:SpeedTreeVert nodirlightmap nodynlightmap fullforwardshadows noinstancing
-            #pragma multi_compile_vertex LOD_FADE_PERCENTAGE
+            #define LOD_FADE_PERCENTAGE 1
             #pragma shader_feature_local GEOM_TYPE_BRANCH GEOM_TYPE_BRANCH_DETAIL GEOM_TYPE_FROND GEOM_TYPE_LEAF GEOM_TYPE_MESH
             #include "SpeedTreeCommon.cginc"
 
@@ -188,7 +196,7 @@ Shader "Nature/SpeedTree"
             CGPROGRAM
                 #pragma vertex vert
                 #pragma fragment frag
-                #pragma multi_compile_vertex LOD_FADE_PERCENTAGE
+                #define LOD_FADE_PERCENTAGE 1
                 #pragma shader_feature_local GEOM_TYPE_BRANCH GEOM_TYPE_BRANCH_DETAIL GEOM_TYPE_FROND GEOM_TYPE_LEAF GEOM_TYPE_MESH
                 #pragma multi_compile_shadowcaster
                 #include "SpeedTreeCommon.cginc"
@@ -230,7 +238,7 @@ Shader "Nature/SpeedTree"
                 #pragma vertex vert
                 #pragma fragment frag
                 #pragma multi_compile_fog
-                #pragma multi_compile_vertex LOD_FADE_PERCENTAGE
+                #define LOD_FADE_PERCENTAGE 1
                 #pragma shader_feature_local GEOM_TYPE_BRANCH GEOM_TYPE_BRANCH_DETAIL GEOM_TYPE_FROND GEOM_TYPE_LEAF GEOM_TYPE_MESH
                 #include "SpeedTreeCommon.cginc"
 

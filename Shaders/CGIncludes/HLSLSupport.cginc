@@ -12,7 +12,7 @@
     // Neither of these compilers are "Cg", but we used to use Cg in the past for this; keep the macro
     // name intact in case some user-written shaders depend on it being that.
     #define UNITY_COMPILER_CG
-#elif defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH) || defined(SHADER_API_GLES)
+#elif defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH) || defined(SHADER_API_GLES) || defined(SHADER_API_WEBGPU)
     #define UNITY_COMPILER_HLSL
     #define UNITY_COMPILER_HLSLCC
 #elif defined(SHADER_API_D3D11)
@@ -29,14 +29,17 @@
     #define UNITY_STEREO_INSTANCING_ENABLED
 #endif
 
-// Is this shader API able to read the current pixel depth value, be it via
-// texture fetch of via renderpass inputs, from the depth buffer while it is
-// simultaneously bound as a z-buffer?
-// On non-renderpass (fallback impl) platforms it's supported on DX11, GL, desktop Metal
+// Is this shader API able to read the current pixel depth value, be it via texture fetch of via renderpass inputs,
+//   from the depth buffer while it is simultaneously bound as a z-buffer?
+// When native renderpass is not supported (using fallback implementation) this generally works on DX11, GL
+//   in this case the temporary copy of depth would be created and bound for reading
 // TODO: Check DX12 and consoles, implement read-only depth if possible
-// With native renderpasses, Vulkan is fine but iOS GPU doesn't have the wires connected to read the data.
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_METAL) && !defined(SHADER_API_MOBILE))
-#define UNITY_SUPPORT_DEPTH_FETCH 1
+// When native renderpass is supported, some platofrms still allow only color readback (Metal)
+//   thus for depth readback temporary RT is needed, which will be bound to "color" attachments and used to store depth data
+// We had UNITY_SUPPORT_DEPTH_FETCH define, which was wrongly set, and set in here
+// We have moved on to set it from the editor, and renamed it; we keep the old define for the sake of backwards compatibility
+#ifdef UNITY_PLATFORM_SUPPORTS_DEPTH_FETCH
+	#define UNITY_SUPPORT_DEPTH_FETCH 1
 #endif
 
 #if !defined(UNITY_COMPILER_DXC)
@@ -132,7 +135,7 @@
 #define DXC_SAMPLER_COMPATIBILITY 1
 
 // On DXC platforms which don't care about explicit sampler precison we want the emulated types to work directly e.g without needing to redefine 'sampler2D' to 'sampler2D_f'
-#if !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_SWITCH)
+#if !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_SWITCH) && !defined(SHADER_API_WEBGPU)
     #define sampler1D_f sampler1D
     #define sampler2D_f sampler2D
     #define sampler3D_f sampler3D
@@ -229,7 +232,7 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 
 // Define "fixed" precision to be half on non-GLSL platforms,
 // and sampler*_prec to be just simple samplers.
-#if !defined(SHADER_API_GLES) && !defined(SHADER_API_PSSL) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_SWITCH)
+#if !defined(SHADER_API_GLES) && !defined(SHADER_API_PSSL) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_SWITCH) && !defined(SHADER_API_WEBGPU)
 #define UNITY_FIXED_IS_HALF 1
 #define sampler1D_half sampler1D
 #define sampler1D_float sampler1D
@@ -253,7 +256,7 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 #define Texture3D_half Texture3D
 #endif
 
-#if !defined(UNITY_UNIFIED_SHADER_PRECISION_MODEL) && (defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || (defined(SHADER_API_MOBILE) && (defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN))) || defined(SHADER_API_SWITCH))
+#if !defined(UNITY_UNIFIED_SHADER_PRECISION_MODEL) && (defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || (defined(SHADER_API_MOBILE) && (defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_WEBGPU))) || defined(SHADER_API_SWITCH))
 // with HLSLcc, use DX11.1 partial precision for translation
 // we specifically define fixed to be float16 (same as half) as all new GPUs seems to agree on float16 being minimal precision float
 #define UNITY_FIXED_IS_HALF 1
@@ -266,7 +269,7 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 #define half4x4 min16float4x4
 #endif
 
-#if !defined(UNITY_UNIFIED_SHADER_PRECISION_MODEL) && ((!defined(SHADER_API_MOBILE) && (defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN))))
+#if !defined(UNITY_UNIFIED_SHADER_PRECISION_MODEL) && ((!defined(SHADER_API_MOBILE) && (defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_WEBGPU))))
 #define fixed float
 #define fixed2 float2
 #define fixed3 float3
@@ -297,7 +300,7 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 // This allows people to use min16float and friends in their shader code if they
 // really want to (making that will make shaders not load before DX11.1, e.g. on Win7,
 // but if they target WSA/WP exclusively that's fine).
-#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_GLES) && !defined(SHADER_API_SWITCH)
+#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_GLES) && !defined(SHADER_API_SWITCH) && !defined(SHADER_API_PSSL) && !defined(SHADER_API_WEBGPU)
 #define min16float half
 #define min16float2 half2
 #define min16float3 half3
@@ -349,16 +352,16 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 #define SAMPLER_UNIFORM
 #endif
 
-#if defined(SHADER_API_D3D11) || defined(UNITY_ENABLE_CBUFFER) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D11) || defined(UNITY_ENABLE_CBUFFER) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL)
 #define CBUFFER_START(name) cbuffer name {
 #define CBUFFER_END };
 #else
-// On specific platforms, like OpenGL, GLES3 and Metal, constant buffers may still be used for instancing
+// On specific platforms, like OpenGL and GLES3, constant buffers may still be used for instancing
 #define CBUFFER_START(name)
 #define CBUFFER_END
 #endif
 
-#if defined(UNITY_STEREO_MULTIVIEW_ENABLED) || ((defined(UNITY_SINGLE_PASS_STEREO) || defined(UNITY_STEREO_INSTANCING_ENABLED)) && (defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL)))
+#if defined(UNITY_STEREO_MULTIVIEW_ENABLED) || ((defined(UNITY_SINGLE_PASS_STEREO) || defined(UNITY_STEREO_INSTANCING_ENABLED)) && (defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_WEBGPU)))
     #define GLOBAL_CBUFFER_START(name)    cbuffer name {
     #define GLOBAL_CBUFFER_END            }
 #else
@@ -422,7 +425,7 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) TextureCube_float tex; SamplerComparisonState sampler##tex
     #define UNITY_SAMPLE_SHADOW(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy,(coord).z)
     #define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
-    #if defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
+    #if defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH) || defined(SHADER_API_WEBGPU)
         // GLSL does not have textureLod(samplerCubeShadow, ...) support. GLES2 does not have core support for samplerCubeShadow, so we ignore it.
         #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) tex.SampleCmp (sampler##tex,(coord).xyz,(coord).w)
     #else
@@ -467,10 +470,10 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     #define UNITY_SAMPLE_TEX2D_SAMPLER_LOD(tex, samplertex, coord, lod) tex.SampleLevel (sampler##samplertex, coord, lod)
 
 #if defined(UNITY_COMPILER_HLSLCC) && (!defined(SHADER_API_GLCORE) || defined(SHADER_API_SWITCH)) // GL Core doesn't have the _half mangling, the rest of them do. Workaround for Nintendo Switch.
-    #define UNITY_DECLARE_TEX2D_HALF(tex) Texture2D_half tex; SamplerState sampler##tex
-    #define UNITY_DECLARE_TEX2D_FLOAT(tex) Texture2D_float tex; SamplerState sampler##tex
-    #define UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(tex) Texture2D_half tex
-    #define UNITY_DECLARE_TEX2D_NOSAMPLER_FLOAT(tex) Texture2D_float tex
+    #define UNITY_DECLARE_TEX2D_HALF(tex) Texture2D<half4> tex; SamplerState sampler##tex
+    #define UNITY_DECLARE_TEX2D_FLOAT(tex) Texture2D<float4> tex; SamplerState sampler##tex
+    #define UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(tex) Texture2D<half4> tex
+    #define UNITY_DECLARE_TEX2D_NOSAMPLER_FLOAT(tex) Texture2D<float4> tex
 #else
     #define UNITY_DECLARE_TEX2D_HALF(tex) Texture2D tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX2D_FLOAT(tex) Texture2D tex; SamplerState sampler##tex
@@ -502,8 +505,8 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     #define UNITY_SAMPLE_TEX3D_SAMPLER_LOD(tex, samplertex, coord, lod) tex.SampleLevel(sampler##samplertex, coord, lod)
 
 #if defined(UNITY_COMPILER_HLSLCC) && !defined(SHADER_API_GLCORE) // GL Core doesn't have the _half mangling, the rest of them do.
-    #define UNITY_DECLARE_TEX3D_FLOAT(tex) Texture3D_float tex; SamplerState sampler##tex
-    #define UNITY_DECLARE_TEX3D_HALF(tex) Texture3D_half tex; SamplerState sampler##tex
+    #define UNITY_DECLARE_TEX3D_FLOAT(tex) Texture3D<float4> tex; SamplerState sampler##tex
+    #define UNITY_DECLARE_TEX3D_HALF(tex) Texture3D<half4> tex; SamplerState sampler##tex
 #else
     #define UNITY_DECLARE_TEX3D_FLOAT(tex) Texture3D tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX3D_HALF(tex) Texture3D tex; SamplerState sampler##tex
@@ -662,11 +665,11 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 // Kept for backwards-compatibility
 #define UNITY_ATTEN_CHANNEL r
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH) || defined(SHADER_API_WEBGPU)
 #define UNITY_UV_STARTS_AT_TOP 1
 #endif
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH) || defined(SHADER_API_WEBGPU)
 // D3D style platforms where clip space z is [0, 1].
 #define UNITY_REVERSED_Z 1
 #endif
@@ -744,7 +747,7 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 #define UNITY_SM40_PLUS_PLATFORM (!((SHADER_TARGET < 30) || defined (SHADER_API_MOBILE) || defined(SHADER_API_GLES)))
 
 // Ability to manually set descriptor set and binding numbers (Vulkan only)
-#if defined(SHADER_API_VULKAN)
+#if defined(SHADER_API_VULKAN) || defined(SHADER_API_WEBGPU)
     #define CBUFFER_START_WITH_BINDING(Name, Set, Binding) CBUFFER_START(Name##Xhlslcc_set_##Set##_bind_##Binding##X)
     // Sampler / image declaration with set/binding decoration
     #define DECL_WITH_BINDING(Type, Name, Set, Binding) Type Name##hlslcc_set_##Set##_bind_##Binding
@@ -754,7 +757,7 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 #endif
 
 // TODO: Really need a better define for iOS Metal than the framebuffer fetch one, that's also enabled on android and webgl (???)
-#if defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL)
+#if defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL) || defined(SHADER_API_WEBGPU)
 
     #if defined(UNITY_COMPILER_DXC)
 
@@ -971,7 +974,11 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 #define UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_270 3
 
 #ifdef UNITY_PRETRANSFORM_TO_DISPLAY_ORIENTATION
-    cbuffer UnityDisplayOrientationPreTransformData { int UnityDisplayOrientationPreTransform; };
+#   ifdef UNITY_COMPILER_DXC
+        [[vk::constant_id(1)]] const int UnityDisplayOrientationPreTransform = 0;
+#   else
+        cbuffer UnityDisplayOrientationPreTransformData { int UnityDisplayOrientationPreTransform; };
+#   endif
 #   define UNITY_DISPLAY_ORIENTATION_PRETRANSFORM UnityDisplayOrientationPreTransform
 #else
 #   define UNITY_DISPLAY_ORIENTATION_PRETRANSFORM UNITY_DISPLAY_ORIENTATION_PRETRANSFORM_0

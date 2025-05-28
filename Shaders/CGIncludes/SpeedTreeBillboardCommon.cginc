@@ -61,7 +61,8 @@ void SpeedTreeBillboardVert(inout SpeedTreeBillboardData IN, out Input OUT)
     billboardPos.y += (percent.y * unity_BillboardSize.y + unity_BillboardSize.z) * heightScale;
 
 #ifdef ENABLE_WIND
-    if (_WindQuality * _WindEnabled > 0)
+    float windEnabled = dot(_ST_WindVector.xyz, _ST_WindVector.xyz);
+    if (_WindQuality * windEnabled)
         billboardPos = GlobalWind(billboardPos, worldPos, true, _ST_WindVector.xyz, IN.texcoord1.w);
 #endif
 

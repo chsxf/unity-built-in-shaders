@@ -4,40 +4,257 @@
 #pragma kernel main SKIN_NORM
 #pragma kernel main SKIN_NORM SKIN_TANG
 
+#pragma kernel batchCopy                     BATCH_COPY
+#pragma kernel batchCopy SKIN_NORM           BATCH_COPY
+#pragma kernel batchCopy SKIN_NORM SKIN_TANG BATCH_COPY
+
+#pragma kernel batchMain                     BATCH_BLENDSHAPE
+#pragma kernel batchMain SKIN_NORM           BATCH_BLENDSHAPE
+#pragma kernel batchMain SKIN_NORM SKIN_TANG BATCH_BLENDSHAPE
+
 #include "HLSLSupport.cginc"
 #include "Internal-Skinning-Util.cginc"
 
+#define COPY_BATCH_SIZE 8
+#define BLENDSHAPE_BATCH_SIZE 8
 
-uint g_FirstVert; // First vertex from blend shape buffer to use
-uint g_VertCount; // Sparse vertex count, not the full amount of vertices in mesh
-float g_Weight;
+#if BATCH_COPY
 
-SKINNING_GENERIC_VERTEX_RWBUFFER inOutMeshVertices;
-SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices;
-
-[numthreads(64, 1, 1)]
-void main(uint3 threadID : SV_DispatchThreadID)
-{
-    const uint t = threadID.x;
-
-    if (t >= g_VertCount)
+    cbuffer ComputeCopyCBuffer
     {
-        return;
+        uint4 g_VertCounts[(COPY_BATCH_SIZE + 3) / 4];
+        uint4 g_BatchOffsets[(COPY_BATCH_SIZE + 3) / 4];
     }
 
-    BlendShapeVertex blendShapeVert = FetchBlendShape(inBlendShapeVertices, t + g_FirstVert);
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices0;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices1;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices2;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices3;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices4;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices5;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices6;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices7;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices8;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices9;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices10;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices11;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices12;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices13;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices14;
+    SKINNING_GENERIC_VERTEX_BUFFER inVertices15;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices0;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices1;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices2;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices3;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices4;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices5;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices6;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices7;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices8;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices9;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices10;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices11;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices12;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices13;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices14;
+    SKINNING_GENERIC_VERTEX_RWBUFFER outVertices15;
 
-    const uint vertIndex = blendShapeVert.index;
+[numthreads(64, 1, 1)]
+void batchCopy(uint3 threadID : SV_DispatchThreadID)
+{
+    // A more elegant approach would be to declare uniform arrays of ByteAddressBuffer/StructuredBuffer,
+    // in which case we could process each mesh in a [unroll] loop.
+    // Instead, we must manually unroll the loop due to Unity shader compiler limitations on some platforms.
 
-    MeshVertex vertex = FetchVert(inOutMeshVertices, vertIndex);
+    #define DO_COPY(index)                                                       \
+        else [branch] if (threadID.x >= g_BatchOffsets[index >> 2][index & 3]) { \
+            DoCopy(                                                              \
+                threadID.x - g_BatchOffsets[index >> 2][index & 3],              \
+                g_VertCounts[index >> 2][index & 3],                             \
+                inVertices ## index,                                             \
+                outVertices ## index);                                           \
+        }
 
-    vertex.pos += blendShapeVert.pos * g_Weight;
-#if SKIN_NORM
-    vertex.norm += blendShapeVert.norm * g_Weight;
-#endif
-#if SKIN_TANG
-    vertex.tang.xyz += blendShapeVert.tang * g_Weight;
-#endif
+    if (false) // This statement is intended and allows processing batches in descending order (minimizes number of uniforms uploaded).
+    {}         // Check DO_COPY() macro to understand the logic.
+    #if COPY_BATCH_SIZE >= 16
+        DO_COPY(15)
+    #endif
+    #if COPY_BATCH_SIZE >= 15
+        DO_COPY(14)
+    #endif
+    #if COPY_BATCH_SIZE >= 14
+        DO_COPY(13)
+    #endif
+    #if COPY_BATCH_SIZE >= 13
+        DO_COPY(12)
+    #endif
+    #if COPY_BATCH_SIZE >= 12
+        DO_COPY(11)
+    #endif
+    #if COPY_BATCH_SIZE >= 11
+        DO_COPY(10)
+    #endif
+    #if COPY_BATCH_SIZE >= 10
+        DO_COPY(9)
+    #endif
+    #if COPY_BATCH_SIZE >= 9
+        DO_COPY(8)
+    #endif
+    #if COPY_BATCH_SIZE >= 8
+        DO_COPY(7)
+    #endif
+    #if COPY_BATCH_SIZE >= 7
+        DO_COPY(6)
+    #endif
+    #if COPY_BATCH_SIZE >= 6
+        DO_COPY(5)
+    #endif
+    #if COPY_BATCH_SIZE >= 5
+        DO_COPY(4)
+    #endif
+    #if COPY_BATCH_SIZE >= 4
+        DO_COPY(3)
+    #endif
+    #if COPY_BATCH_SIZE >= 3
+        DO_COPY(2)
+    #endif
+    #if COPY_BATCH_SIZE >= 2
+        DO_COPY(1)
+    #endif
+    #if COPY_BATCH_SIZE >= 1
+        DO_COPY(0)
+    #endif
 
-    StoreVert(inOutMeshVertices, vertex, vertIndex);
+    #undef DO_COPY
 }
+
+#elif BATCH_BLENDSHAPE
+
+    cbuffer ComputeBlendShapeCBuffer
+    {
+        uint4 g_VertCounts[(BLENDSHAPE_BATCH_SIZE + 3) / 4]; // not the number of vertices in mesh but the number of delta in the blendshape
+        uint4 g_BatchOffsets[(BLENDSHAPE_BATCH_SIZE + 3) / 4];
+        uint4 g_FirstVerts[(BLENDSHAPE_BATCH_SIZE + 3) / 4]; // First vertex from blend shape buffer to use
+        float4 g_Weights[(BLENDSHAPE_BATCH_SIZE + 3) / 4];
+    }
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices0;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices1;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices2;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices3;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices4;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices5;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices6;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices7;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices8;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices9;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices10;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices11;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices12;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices13;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices14;
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutVertices15;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices0;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices1;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices2;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices3;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices4;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices5;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices6;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices7;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices8;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices9;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices10;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices11;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices12;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices13;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices14;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices15;
+
+[numthreads(64, 1, 1)]
+void batchMain(uint3 threadID : SV_DispatchThreadID)
+{
+    // A more elegant approach would be to declare uniform arrays of ByteAddressBuffer/StructuredBuffer,
+    // in which case we could process each mesh in a [unroll] loop.
+    // Instead, we must manually unroll the loop due to Unity shader compiler limitations on some platforms.
+
+    #define DO_BLENDSHAPE(index)                                                 \
+        else [branch] if (threadID.x >= g_BatchOffsets[index >> 2][index & 3]) { \
+            DoBlendShape(                                                        \
+                threadID.x - g_BatchOffsets[index >> 2][index & 3],              \
+                g_FirstVerts[index >> 2][index & 3],                             \
+                g_VertCounts[index >> 2][index & 3],                             \
+                g_Weights[index >> 2][index & 3],                                \
+                inOutVertices ## index,                                          \
+                inBlendShapeVertices ## index);                                  \
+        }
+
+    if (false) // This statement is intended and allows processing batches in descending order (minimizes number of uniforms uploaded).
+    {}         // Check DO_BLENDSHAPE() macro to understand the logic.
+    #if BLENDSHAPE_BATCH_SIZE >= 16
+        DO_BLENDSHAPE(15)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 15
+        DO_BLENDSHAPE(14)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 14
+        DO_BLENDSHAPE(13)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 13
+        DO_BLENDSHAPE(12)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 12
+        DO_BLENDSHAPE(11)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 11
+        DO_BLENDSHAPE(10)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 10
+        DO_BLENDSHAPE(9)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 9
+        DO_BLENDSHAPE(8)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 8
+        DO_BLENDSHAPE(7)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 7
+        DO_BLENDSHAPE(6)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 6
+        DO_BLENDSHAPE(5)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 5
+        DO_BLENDSHAPE(4)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 4
+        DO_BLENDSHAPE(3)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 3
+        DO_BLENDSHAPE(2)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 2
+        DO_BLENDSHAPE(1)
+    #endif
+    #if BLENDSHAPE_BATCH_SIZE >= 1
+        DO_BLENDSHAPE(0)
+    #endif
+
+    #undef DO_BLENDSHAPE
+}
+
+#else
+    uint g_FirstVert; // First vertex from blend shape buffer to use
+    uint g_VertCount; // Sparse vertex count, not the full amount of vertices in mesh
+    float g_Weight;
+
+    SKINNING_GENERIC_VERTEX_RWBUFFER inOutMeshVertices;
+    SKINNING_GENERIC_SKIN_BUFFER_BLENDSHAPE inBlendShapeVertices;
+
+    [numthreads(64, 1, 1)]
+    void main(uint3 threadID : SV_DispatchThreadID)
+    {
+        DoBlendShape(threadID.x, g_FirstVert, g_VertCount, g_Weight, inOutMeshVertices, inBlendShapeVertices);
+    }
+
+#endif
