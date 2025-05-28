@@ -3,6 +3,13 @@
 #ifndef SPEEDTREE_WIND_INCLUDED
 #define SPEEDTREE_WIND_INCLUDED
 
+#if !defined(SPEEDTREE_8_WIND) && !defined(SPEEDTREE_9_WIND)
+#define SPEEDTREE_8_WIND 0
+#define SPEEDTREE_9_WIND 1
+#endif
+
+#if SPEEDTREE_8_WIND
+
 ///////////////////////////////////////////////////////////////////////
 //  Wind Info
 
@@ -24,7 +31,6 @@ CBUFFER_START(SpeedTreeWind)
     float4 _ST_WindFrondRipple;
     float4 _ST_WindAnimation;
 CBUFFER_END
-
 
 ///////////////////////////////////////////////////////////////////////
 //  UnpackNormalFromFloat
@@ -119,7 +125,6 @@ float3 mul_float3x3_float3(float3x3 mMatrix, float3 vVector)
 //  cross()'s parameters are backwards in GLSL
 
 #define wind_cross(a, b) cross((a), (b))
-
 
 ///////////////////////////////////////////////////////////////////////
 //  Roll
@@ -634,6 +639,7 @@ float3 RippleFrondTwoSided(float3 vPos,
 
     float3 vRippleDir = UnpackNormalFromFloat(fPackedRippleDir);
 
+
     float fAmount = fRippleScale * vOscillations.x * _ST_WindFrondRipple.y;
     float3 vOffset = fAmount * vRippleDir;
 
@@ -678,5 +684,333 @@ float3 RippleFrond(float3 vPos,
                             #endif
                                 );
 }
+
+#endif // SPEEDTREE_8_WIND
+
+
+#if SPEEDTREE_9_WIND
+//
+// DATA DEFINITIONS
+//
+struct WindBranchState // 8 floats | 32B
+{
+    float3 m_vNoisePosTurbulence;
+    float m_fIndependence;
+    float m_fBend;
+    float m_fOscillation;
+    float m_fTurbulence;
+    float m_fFlexibility;
+};
+struct WindRippleState // 8 floats | 32B
+{
+    float3 m_vNoisePosTurbulence;
+    float m_fIndependence;
+    float m_fPlanar;
+    float m_fDirectional;
+    float m_fFlexibility;
+    float m_fShimmer;
+};
+struct CBufferSpeedTree9 // 44 floats | 176B
+{
+    float3 m_vWindDirection;
+    float  m_fWindStrength;
+
+    float3 m_vTreeExtents;
+    float  m_fSharedHeightStart;
+
+    float m_fBranch1StretchLimit;
+    float m_fBranch2StretchLimit;
+    float m_fWindIndependence; 
+    float m_fImportScaling;
+
+    WindBranchState m_sShared;
+    WindBranchState m_sBranch1;
+    WindBranchState m_sBranch2;
+    WindRippleState m_sRipple;
+};
+
+
+#include "SpeedTreeShaderLibrary.cginc"
+
+//
+// CONSTANT BUFFER
+//
+CBUFFER_START(SpeedTreeWind)
+    float4 _ST_WindVector;
+    float4 _ST_TreeExtents_SharedHeightStart;
+    float4 _ST_BranchStretchLimits;
+    float4 _ST_Shared_NoisePosTurbulence_Independence;
+    float4 _ST_Shared_Bend_Oscillation_Turbulence_Flexibility;
+    float4 _ST_Branch1_NoisePosTurbulence_Independence;
+    float4 _ST_Branch1_Bend_Oscillation_Turbulence_Flexibility;
+    float4 _ST_Branch2_NoisePosTurbulence_Independence;
+    float4 _ST_Branch2_Bend_Oscillation_Turbulence_Flexibility;
+    float4 _ST_Ripple_NoisePosTurbulence_Independence;
+    float4 _ST_Ripple_Planar_Directional_Flexibility_Shimmer;
+
+    float4 _ST_HistoryWindVector;
+    float4 _ST_HistoryTreeExtents_SharedHeightStart;
+    float4 _ST_HistoryBranchStretchLimits;
+    float4 _ST_HistoryShared_NoisePosTurbulence_Independence;
+    float4 _ST_HistoryShared_Bend_Oscillation_Turbulence_Flexibility;
+    float4 _ST_HistoryBranch1_NoisePosTurbulence_Independence;
+    float4 _ST_HistoryBranch1_Bend_Oscillation_Turbulence_Flexibility;
+    float4 _ST_HistoryBranch2_NoisePosTurbulence_Independence;
+    float4 _ST_HistoryBranch2_Bend_Oscillation_Turbulence_Flexibility;
+    float4 _ST_HistoryRipple_NoisePosTurbulence_Independence;
+    float4 _ST_HistoryRipple_Planar_Directional_Flexibility_Shimmer;
+CBUFFER_END
+
+CBufferSpeedTree9 ReadCBuffer(bool bHistory /*must be known compile-time*/)
+{
+    CBufferSpeedTree9 cb;
+    cb.m_vWindDirection                 = bHistory ? _ST_HistoryWindVector.xyz                    : _ST_WindVector.xyz;
+    cb.m_fWindStrength                  = bHistory ? _ST_HistoryWindVector.w                      : _ST_WindVector.w;
+    cb.m_vTreeExtents                   = bHistory ? _ST_HistoryTreeExtents_SharedHeightStart.xyz : _ST_TreeExtents_SharedHeightStart.xyz;
+    cb.m_fSharedHeightStart             = bHistory ? _ST_HistoryTreeExtents_SharedHeightStart.w   : _ST_TreeExtents_SharedHeightStart.w;
+    cb.m_fBranch1StretchLimit           = bHistory ? _ST_HistoryBranchStretchLimits.x             : _ST_BranchStretchLimits.x;
+    cb.m_fBranch2StretchLimit           = bHistory ? _ST_HistoryBranchStretchLimits.y             : _ST_BranchStretchLimits.y;
+    cb.m_fWindIndependence              = bHistory ? _ST_HistoryBranchStretchLimits.z             : _ST_BranchStretchLimits.z;
+    cb.m_fImportScaling                 = bHistory ? _ST_HistoryBranchStretchLimits.w             : _ST_BranchStretchLimits.w;
+
+    // Shared Wind State
+    cb.m_sShared.m_vNoisePosTurbulence  = bHistory ? _ST_HistoryShared_NoisePosTurbulence_Independence.xyz       : _ST_Shared_NoisePosTurbulence_Independence.xyz;
+    cb.m_sShared.m_fIndependence        = bHistory ? _ST_HistoryShared_NoisePosTurbulence_Independence.w         : _ST_Shared_NoisePosTurbulence_Independence.w;
+    cb.m_sShared.m_fBend                = bHistory ? _ST_HistoryShared_Bend_Oscillation_Turbulence_Flexibility.x : _ST_Shared_Bend_Oscillation_Turbulence_Flexibility.x;
+    cb.m_sShared.m_fOscillation         = bHistory ? _ST_HistoryShared_Bend_Oscillation_Turbulence_Flexibility.y : _ST_Shared_Bend_Oscillation_Turbulence_Flexibility.y;
+    cb.m_sShared.m_fTurbulence          = bHistory ? _ST_HistoryShared_Bend_Oscillation_Turbulence_Flexibility.z : _ST_Shared_Bend_Oscillation_Turbulence_Flexibility.z;
+    cb.m_sShared.m_fFlexibility         = bHistory ? _ST_HistoryShared_Bend_Oscillation_Turbulence_Flexibility.w : _ST_Shared_Bend_Oscillation_Turbulence_Flexibility.w;
+
+    // Branch1 Wind State
+    cb.m_sBranch1.m_vNoisePosTurbulence  = bHistory ? _ST_HistoryBranch1_NoisePosTurbulence_Independence.xyz       : _ST_Branch1_NoisePosTurbulence_Independence.xyz;
+    cb.m_sBranch1.m_fIndependence        = bHistory ? _ST_HistoryBranch1_NoisePosTurbulence_Independence.w         : _ST_Branch1_NoisePosTurbulence_Independence.w;
+    cb.m_sBranch1.m_fBend                = bHistory ? _ST_HistoryBranch1_Bend_Oscillation_Turbulence_Flexibility.x : _ST_Branch1_Bend_Oscillation_Turbulence_Flexibility.x;
+    cb.m_sBranch1.m_fOscillation         = bHistory ? _ST_HistoryBranch1_Bend_Oscillation_Turbulence_Flexibility.y : _ST_Branch1_Bend_Oscillation_Turbulence_Flexibility.y;
+    cb.m_sBranch1.m_fTurbulence          = bHistory ? _ST_HistoryBranch1_Bend_Oscillation_Turbulence_Flexibility.z : _ST_Branch1_Bend_Oscillation_Turbulence_Flexibility.z;
+    cb.m_sBranch1.m_fFlexibility         = bHistory ? _ST_HistoryBranch1_Bend_Oscillation_Turbulence_Flexibility.w : _ST_Branch1_Bend_Oscillation_Turbulence_Flexibility.w;
+
+    // Branch2 Wind State
+    cb.m_sBranch2.m_vNoisePosTurbulence  = bHistory ? _ST_HistoryBranch2_NoisePosTurbulence_Independence.xyz       : _ST_Branch2_NoisePosTurbulence_Independence.xyz;
+    cb.m_sBranch2.m_fIndependence        = bHistory ? _ST_HistoryBranch2_NoisePosTurbulence_Independence.w         : _ST_Branch2_NoisePosTurbulence_Independence.w;
+    cb.m_sBranch2.m_fBend                = bHistory ? _ST_HistoryBranch2_Bend_Oscillation_Turbulence_Flexibility.x : _ST_Branch2_Bend_Oscillation_Turbulence_Flexibility.x;
+    cb.m_sBranch2.m_fOscillation         = bHistory ? _ST_HistoryBranch2_Bend_Oscillation_Turbulence_Flexibility.y : _ST_Branch2_Bend_Oscillation_Turbulence_Flexibility.y;
+    cb.m_sBranch2.m_fTurbulence          = bHistory ? _ST_HistoryBranch2_Bend_Oscillation_Turbulence_Flexibility.z : _ST_Branch2_Bend_Oscillation_Turbulence_Flexibility.z;
+    cb.m_sBranch2.m_fFlexibility         = bHistory ? _ST_HistoryBranch2_Bend_Oscillation_Turbulence_Flexibility.w : _ST_Branch2_Bend_Oscillation_Turbulence_Flexibility.w;
+
+    // Ripple Wind State
+    cb.m_sRipple.m_vNoisePosTurbulence   = bHistory ? _ST_HistoryRipple_NoisePosTurbulence_Independence.xyz      : _ST_Ripple_NoisePosTurbulence_Independence.xyz;
+    cb.m_sRipple.m_fIndependence         = bHistory ? _ST_HistoryRipple_NoisePosTurbulence_Independence.w        : _ST_Ripple_NoisePosTurbulence_Independence.w;
+    cb.m_sRipple.m_fPlanar               = bHistory ? _ST_HistoryRipple_Planar_Directional_Flexibility_Shimmer.x : _ST_Ripple_Planar_Directional_Flexibility_Shimmer.x;
+    cb.m_sRipple.m_fDirectional          = bHistory ? _ST_HistoryRipple_Planar_Directional_Flexibility_Shimmer.y : _ST_Ripple_Planar_Directional_Flexibility_Shimmer.y;
+    cb.m_sRipple.m_fFlexibility          = bHistory ? _ST_HistoryRipple_Planar_Directional_Flexibility_Shimmer.z : _ST_Ripple_Planar_Directional_Flexibility_Shimmer.z;
+    cb.m_sRipple.m_fShimmer              = bHistory ? _ST_HistoryRipple_Planar_Directional_Flexibility_Shimmer.w : _ST_Ripple_Planar_Directional_Flexibility_Shimmer.w;
+
+    cb.m_vWindDirection = TransformWindVectorFromWorldToLocalSpace(cb.m_vWindDirection);
+    return cb;
+}
+
+
+//
+// UTILS
+//
+float NoiseHash(float n) { return frac(sin(n) * 1e4); }
+float NoiseHash(float2 p){ return frac(1e4 * sin(17.0f * p.x + p.y * 0.1f) * (0.1f + abs(sin(p.y * 13.0f + p.x)))); }
+float QNoise(float2 x)
+{
+    float2 i = floor(x);
+    float2 f = frac(x);
+    
+    // four corners in 2D of a tile
+    float a = NoiseHash(i);
+    float b = NoiseHash(i + float2(1.0, 0.0));
+    float c = NoiseHash(i + float2(0.0, 1.0));
+    float d = NoiseHash(i + float2(1.0, 1.0));
+    
+    // same code, with the clamps in smoothstep and common subexpressions optimized away.
+    float2 u = f * f * (float2(3.0, 3.0) - float2(2.0, 2.0) * f);
+    
+    return lerp(a, b, u.x) + (c - a) * u.y * (1.0f - u.x) + (d - b) * u.x * u.y;
+}
+float4 RuntimeSdkNoise2DFlat(float3 vNoisePos3d)
+{
+    float2 vNoisePos = vNoisePos3d.xz;
+
+#ifdef USE_ST_NOISE_TEXTURE // test this toggle during shader perf tuning
+    return texture2D(g_samNoiseKernel, vNoisePos.xy) - float4(0.5f, 0.5f, 0.5f, 0.5f);
+#else
+        // fallback, slower noise lookup method
+        const float c_fFrequecyScale = 20.0f;
+        const float c_fAmplitudeScale = 1.0f;
+        const float	c_fAmplitueShift = 0.0f;
+
+        float fNoiseX = (QNoise(vNoisePos           * c_fFrequecyScale) + c_fAmplitueShift) * c_fAmplitudeScale;
+        float fNoiseY = (QNoise(vNoisePos.yx * 0.5f * c_fFrequecyScale) + c_fAmplitueShift) * c_fAmplitudeScale;
+        return float4(fNoiseX, fNoiseY, fNoiseX+fNoiseY, 0.0f) - 0.5f.xxxx;
+#endif
+}
+float  WindUtil_Square(float  fValue) { return fValue * fValue; }
+float2 WindUtil_Square(float2 fValue) { return fValue * fValue; }
+float3 WindUtil_Square(float3 fValue) { return fValue * fValue; }
+float4 WindUtil_Square(float4 fValue) { return fValue * fValue; }
+
+float3 WindUtil_UnpackNormalizedFloat(float fValue)
+{
+    float3 vReturn = frac(float3(fValue * 0.01f, fValue, fValue * 100.0f));
+
+    vReturn -= 0.5f;
+    vReturn *= 2.0f;
+    vReturn = normalize(vReturn);
+    return vReturn;
+}
+
+
+//
+// SPEEDTREE WIND 9
+//
+// returns position offset (caller must apply to the vertex position)
+float3 RippleWindMotion(
+    float3 vUp,
+    float3 vWindDirection,
+    float3 vVertexPositionIn,
+    float3 vGlobalNoisePosition,
+
+    float  fRippleWeight,
+    float3 vRippleNoisePosTurbulence,
+    float  fRippleIndependence,
+    float  fRippleFlexibility,
+    float  fRippleDirectional,
+    float  fRipplePlanar,
+    float  fTreeHeight,
+    float  fImportScaling
+)
+{
+    float fImportScalingInv = (1.0f / fImportScaling);
+    
+    float3 vNoisePosition = vGlobalNoisePosition
+                          + vRippleNoisePosTurbulence
+                          + (vVertexPositionIn * fImportScalingInv) * fRippleIndependence
+                          + vWindDirection * fRippleFlexibility * fRippleWeight;
+
+    float2 vNoise = RuntimeSdkNoise2DFlat(vNoisePosition);
+    vNoise.r += 0.25f;
+    
+    float3 vMotion = vWindDirection * vNoise.r * fRippleDirectional
+                   + vUp * (vNoise.g * fRipplePlanar)
+    ;
+    vMotion *= fRippleWeight;
+    
+    return vMotion;
+}
+
+// returns updated position
+float3 BranchWindPosition(
+    float3 vUp,
+    float3 vWindDirection,
+    float3 vVertexPositionIn,
+    float3 vGlobalNoisePosition,
+    float  fPackedBranchDir,
+    float  fPackedBranchNoiseOffset,
+    float  fBranchWeight,
+    float  fBranchStretchLimit,
+    float3 vBranchNoisePosTurbulence,
+    float  fBranchIndependence,
+    float  fBranchTurbulence,
+    float  fBranchOscillation,
+    float  fBranchBend,
+    float  fBranchFlexibility,
+    float  fTreeHeight,
+    float  fImportScaling
+)
+{
+    float fImportScalingInv = (1.0f / fImportScaling);
+    float fLength = fBranchWeight * fBranchStretchLimit;
+    if (fBranchWeight * fBranchStretchLimit <= 0.0f)
+    {
+        return vVertexPositionIn;
+    }
+    
+    float3 vBranchDir = WindUtil_UnpackNormalizedFloat(fPackedBranchDir);
+    float3 vBranchNoiseOffset = WindUtil_UnpackNormalizedFloat(fPackedBranchNoiseOffset);
+
+    // SpeedTree Modeler packs Z up, rotate around X for -90deg
+    vBranchDir = float3(vBranchDir.x, -vBranchDir.z, vBranchDir.y); 
+    vBranchNoiseOffset = float3(vBranchNoiseOffset.x, -vBranchNoiseOffset.z, vBranchNoiseOffset.y);
+    
+    float3 vAnchor = vVertexPositionIn - vBranchDir * fLength;
+    vVertexPositionIn -= vAnchor;
+
+    float fBranchDotWindSq = WindUtil_Square(dot(vBranchDir, vWindDirection));
+    float3 vWind = normalize(vWindDirection + vUp * fBranchDotWindSq);
+    
+    // Undo modifications to fBranchIndependence:
+    // (1) Modeler divides fBranchIndependence by fTreeHeight before export
+    // (2) Importer scales fTreeHeight by fImportScaling during import
+    fBranchIndependence *= (fTreeHeight * fImportScalingInv);
+    
+    float3 vNoisePosition = vGlobalNoisePosition
+                            + vBranchNoisePosTurbulence
+                            + vBranchNoiseOffset * fBranchIndependence
+                            + vWind * (fBranchFlexibility * fBranchWeight);
+    
+    float4 vNoise = RuntimeSdkNoise2DFlat(vNoisePosition);
+    vNoise.r *= 0.65; // tune down the 'flexy' branches
+    vNoise.g *= 0.50; // tune down the 'flexy' branches
+    
+    float3 vOscillationTurbulent = vUp * fBranchTurbulence;
+    
+    float3 vMotion = (vWind * vNoise.r + vOscillationTurbulent * vNoise.g) * fBranchOscillation;
+    vMotion += vWind * (fBranchBend * (1.0f - vNoise.b));
+    vMotion *= fBranchWeight;
+
+    return normalize(vVertexPositionIn + vMotion) * fLength + vAnchor;
+}
+
+// returns updated position
+float3 SharedWindPosition(
+    float3 vUp,
+    float3 vWindDirection,
+    float3 vVertexPositionIn,
+    float3 vGlobalNoisePosition,
+
+    float  fTreeHeight,
+    float  fSharedHeightStart,
+    float3 vSharedNoisePosTurbulence,
+    float  fSharedTurbulence,
+    float  fSharedOscillation,
+    float  fSharedBend,
+    float  fSharedFlexibility,
+    float  fImportScaling
+)
+{
+    float fImportScalingInv = (1.0f / fImportScaling);
+    float fLengthSq = dot(vVertexPositionIn, vVertexPositionIn);
+    if (fLengthSq == 0.0f)
+    {
+        return vVertexPositionIn;
+    }
+    float fLength = sqrt(fLengthSq);
+
+    float fHeight = vVertexPositionIn.y;  // y-up
+    float fMaxHeight = fTreeHeight;
+
+    float fWeight = WindUtil_Square(max(fHeight - (fMaxHeight * fSharedHeightStart), 0.0f) / fMaxHeight);
+
+    float3 vNoisePosition = vGlobalNoisePosition
+                            + vSharedNoisePosTurbulence;
+                            + vWindDirection * (fSharedFlexibility * fWeight);
+    
+    float4 vNoise = RuntimeSdkNoise2DFlat(vNoisePosition);
+
+    float3 vOscillationTurbulent = cross(vWindDirection, vUp) * fSharedTurbulence;
+    
+    float3 vMotion = (vWindDirection * vNoise.r + vOscillationTurbulent * vNoise.g) * fSharedOscillation
+                   + vWindDirection * (fSharedBend * (1.0f - vNoise.b));
+    ;
+    vMotion *= fWeight;
+
+    return normalize(vVertexPositionIn + vMotion) * fLength;
+}
+
+#endif // SPEEDTREE_9_WIND
 
 #endif // SPEEDTREE_WIND_INCLUDED

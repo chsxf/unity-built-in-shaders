@@ -44,7 +44,7 @@ Shader "Nature/SpeedTree8"
         CGPROGRAM
             #pragma surface SpeedTreeSurf SpeedTreeSubsurface vertex:SpeedTreeVert dithercrossfade addshadow
             #pragma target 3.0
-            #pragma multi_compile_vertex LOD_FADE_PERCENTAGE
+            #define LOD_FADE_PERCENTAGE 1
             #pragma instancing_options assumeuniformscaling maxcount:50
 
             #pragma shader_feature_local _WINDQUALITY_NONE _WINDQUALITY_FASTEST _WINDQUALITY_FAST _WINDQUALITY_BETTER _WINDQUALITY_BEST _WINDQUALITY_PALM
@@ -54,8 +54,11 @@ Shader "Nature/SpeedTree8"
             #pragma shader_feature_local EFFECT_BUMP
             #pragma shader_feature_local EFFECT_EXTRA_TEX
 
+            //#pragma enable_d3d11_debug_symbols
+
             #define ENABLE_WIND
             #define EFFECT_BACKSIDE_NORMALS
+            #define SPEEDTREE_8_WIND 1
             #include "SpeedTree8Common.cginc"
 
         ENDCG
@@ -76,7 +79,7 @@ Shader "Nature/SpeedTree8"
 
         CGPROGRAM
             #pragma surface SpeedTreeSurf Standard vertex:SpeedTreeVert addshadow noinstancing
-            #pragma multi_compile_vertex LOD_FADE_PERCENTAGE
+            #define LOD_FADE_PERCENTAGE 1
             #pragma shader_feature_local EFFECT_BILLBOARD
             #pragma shader_feature_local EFFECT_EXTRA_TEX
 
