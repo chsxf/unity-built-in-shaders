@@ -19,6 +19,7 @@ Shader "Hidden/TerrainEngine/HeightBlitCopy" {
             uniform float4 _MainTex_ST;
             uniform float _Height_Offset;
             uniform float _Height_Scale;
+            #define kMaxHeight          (32766.0f/65535.0f)
 
             struct appdata_t {
                 float4 vertex : POSITION;
@@ -47,7 +48,7 @@ Shader "Hidden/TerrainEngine/HeightBlitCopy" {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 float height = UnpackHeightmap(UNITY_SAMPLE_SCREENSPACE_TEXTURE(_MainTex, i.texcoord));
                 height = height * _Height_Scale + _Height_Offset;
-                return PackHeightmap(height);
+                return PackHeightmap(clamp(height, 0, kMaxHeight));
             }
             ENDCG
 
