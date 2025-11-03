@@ -179,7 +179,7 @@ void SplatmapMix(Input IN, out half4 splat_control, out half weight, out fixed4 
         mixedNormal += UnpackNormalWithScale(tex2D(_Normal1, uvSplat1), _NormalScale1) * splat_control.g;
         mixedNormal += UnpackNormalWithScale(tex2D(_Normal2, uvSplat2), _NormalScale2) * splat_control.b;
         mixedNormal += UnpackNormalWithScale(tex2D(_Normal3, uvSplat3), _NormalScale3) * splat_control.a;
-#if defined(SHADER_API_SWITCH)
+#if defined(SHADER_API_SWITCH) || defined(SHADER_API_SWITCH2)
         mixedNormal.z += UNITY_HALF_MIN; // to avoid nan after normalizing
 #else
         mixedNormal.z += 1e-5f; // to avoid nan after normalizing
