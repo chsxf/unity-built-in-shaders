@@ -10,7 +10,7 @@
 // GPU skinning code can use either Structured or Raw buffer for the mesh data access; this
 // varies by platform. Choices here should match what's in GraphicsCaps::computeBufferTargetForGeometryBuffer
 // on the C++ side.
-#if defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH) || defined(SHADER_API_WEBGPU)
+#if defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)  || defined(SHADER_API_SWITCH2) || defined(SHADER_API_WEBGPU)
     #define SKINNING_GENERIC_VERTEX_VIEW_FORMAT SKINNING_GENERIC_VERTEX_USE_STRUCTURED_BUFFER
 #else
     #define SKINNING_GENERIC_VERTEX_VIEW_FORMAT SKINNING_GENERIC_VERTEX_USE_RAW_BUFFER

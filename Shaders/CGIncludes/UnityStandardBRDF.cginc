@@ -151,7 +151,7 @@ inline float SmithJointGGXVisibilityTerm (float NdotL, float NdotV, float roughn
     float lambdaV = NdotL * (NdotV * (1 - a) + a);
     float lambdaL = NdotV * (NdotL * (1 - a) + a);
 
-#if defined(SHADER_API_SWITCH)
+#if defined(SHADER_API_SWITCH) || defined(SHADER_API_SWITCH2)
     return 0.5f / (lambdaV + lambdaL + UNITY_HALF_MIN);
 #else
     return 0.5f / (lambdaV + lambdaL + 1e-5f);
