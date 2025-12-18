@@ -1,0 +1,181 @@
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+
+#pragma kernel main
+
+#pragma only_renderers d3d11 xboxseries ps5
+
+#if defined(SHADER_API_PS5)
+struct InstanceDesc
+{
+    uint2 BVH;
+    uint InstanceFlagsAndMask;
+    uint InstanceID;
+    uint HitGroupIndex;
+    float4x4 Transform;
+    uint Padding0;
+    uint Kind;
+    uint Padding1;
+};
+
+cbuffer InstanceDescTemplate
+{
+    uint2 BVH;
+    uint InstanceFlagsAndMask;
+    uint InstanceID;
+    uint HitGroupIndex;
+};
+#else
+struct InstanceDesc
+{
+    float4x3 Transform;
+    uint InstanceIDAndMask;
+    uint HitGroupIndexAndFlags;
+    uint2 AccelerationStructureGPUVA;
+};
+
+cbuffer InstanceDescTemplate
+{
+    uint InstanceIDAndMask;
+    uint HitGroupIndexAndFlags;
+    uint2 AccelerationStructureGPUVA;
+};
+#endif
+
+cbuffer IndirectInstanceParams
+{
+    float4 RelativeOrigin;
+    uint MaxInstanceCount;
+    uint InstanceDescsOffset;
+    uint ArgsOffset;
+    uint InstanceDataInstanceCount;
+    uint InstanceDataByteSize;
+    uint UseInstanceIndices;
+    uint InstanceIndicesCount;
+    uint LocalToWorldByteOffset;
+    uint GeometryIndexByteOffset;
+    uint GeometryCount;
+    uint MaterialIndexByteOffset;
+    uint MaterialCount;
+};
+
+ByteAddressBuffer IndirectArgsBuffer;
+ByteAddressBuffer InstanceData;
+StructuredBuffer<uint> InstanceIndices;
+StructuredBuffer<uint2> BLASes;
+
+RWStructuredBuffer<InstanceDesc> InstanceDescs;
+
+[numthreads(64, 1, 1)]
+void main(uint3 threadID : SV_DispatchThreadID)
+{
+    if (threadID.x >= MaxInstanceCount)
+        return;
+
+    InstanceDesc instanceDesc;
+
+    uint2 indirectArgs = IndirectArgsBuffer.Load2(ArgsOffset);
+    uint indirectStartInstance = indirectArgs.x;
+    uint indirectInstanceCount = indirectArgs.y;
+
+    bool isValidInstance = true;
+    uint instanceIndex = 0;
+
+    if (UseInstanceIndices)
+    {
+        uint index = indirectStartInstance + threadID.x;
+        isValidInstance = index < InstanceIndicesCount;
+        instanceIndex = isValidInstance ? InstanceIndices[index] : 0;
+    }
+    else
+    {
+        instanceIndex = indirectStartInstance + threadID.x;
+    }
+
+    isValidInstance = isValidInstance && (threadID.x < indirectInstanceCount) && (instanceIndex < InstanceDataInstanceCount);
+
+#if defined(SHADER_API_PS5)
+    if (isValidInstance)
+    {
+        uint instanceDataAddress = instanceIndex * InstanceDataByteSize;
+
+        uint instanceMatrixAddress = instanceDataAddress + LocalToWorldByteOffset;
+        uint instanceGeometryIndexAddress = instanceDataAddress + GeometryIndexByteOffset;
+        uint instanceMaterialIndexAddress = instanceDataAddress + MaterialIndexByteOffset;
+
+        float4x4 srcInstanceMatrix;
+        srcInstanceMatrix[0] = asfloat(InstanceData.Load4(instanceMatrixAddress));
+        srcInstanceMatrix[1] = asfloat(InstanceData.Load4(instanceMatrixAddress + 16));
+        srcInstanceMatrix[2] = asfloat(InstanceData.Load4(instanceMatrixAddress + 32));
+        srcInstanceMatrix[3] = asfloat(InstanceData.Load4(instanceMatrixAddress + 48));
+
+        // The OpenGL style column-major matrix is used on PS5 where the position is on the 3rd column.
+        float4x4 dstInstanceMatrix = transpose(srcInstanceMatrix);
+        dstInstanceMatrix[0].w = dstInstanceMatrix[0].w - RelativeOrigin.x;
+        dstInstanceMatrix[1].w = dstInstanceMatrix[1].w - RelativeOrigin.y;
+        dstInstanceMatrix[2].w = dstInstanceMatrix[2].w - RelativeOrigin.z;
+
+        uint blasIndex = min(InstanceData.Load(instanceGeometryIndexAddress), GeometryCount - 1);
+        uint materialIndex = min(InstanceData.Load(instanceMaterialIndexAddress), MaterialCount - 1);
+
+        instanceDesc.Transform = dstInstanceMatrix;
+        instanceDesc.InstanceFlagsAndMask = InstanceFlagsAndMask;
+        instanceDesc.InstanceID = InstanceID + threadID.x;
+        instanceDesc.HitGroupIndex = HitGroupIndex + materialIndex;
+        instanceDesc.BVH = BLASes[blasIndex];
+        instanceDesc.Padding0 = 0;
+        instanceDesc.Kind = 0;
+        instanceDesc.Padding1 = 0;
+    }
+    else
+    {
+        instanceDesc.Transform = 0;
+        instanceDesc.InstanceFlagsAndMask = 0;
+        instanceDesc.InstanceID = 0;
+        instanceDesc.HitGroupIndex = 0;
+        instanceDesc.BVH = uint2(0, 0);
+        instanceDesc.Padding0 = 0;
+        instanceDesc.Kind = 0;
+        instanceDesc.Padding1 = 0;
+    }
+#else
+    if (isValidInstance)
+    {
+        uint instanceDataAddress = instanceIndex * InstanceDataByteSize;
+
+        uint instanceMatrixAddress = instanceDataAddress + LocalToWorldByteOffset;
+        uint instanceGeometryIndexAddress = instanceDataAddress + GeometryIndexByteOffset;
+        uint instanceMaterialIndexAddress = instanceDataAddress + MaterialIndexByteOffset;
+
+        float4x3 instanceMatrix;
+        instanceMatrix[0] = asfloat(InstanceData.Load3(instanceMatrixAddress));
+        instanceMatrix[1] = asfloat(InstanceData.Load3(instanceMatrixAddress + 16));
+        instanceMatrix[2] = asfloat(InstanceData.Load3(instanceMatrixAddress + 32));
+        instanceMatrix[3] = asfloat(InstanceData.Load3(instanceMatrixAddress + 48));
+
+        instanceMatrix[3].xyz = instanceMatrix[3].xyz - RelativeOrigin.xyz;
+
+        uint blasIndex = min(InstanceData.Load(instanceGeometryIndexAddress), GeometryCount - 1);
+        uint materialIndex = min(InstanceData.Load(instanceMaterialIndexAddress), MaterialCount - 1);
+
+        // InstanceID and Mask are packed together into 32 bits - first 24 bits for InstanceID and last 8 bits for Mask.
+        uint instanceID = (InstanceIDAndMask + threadID.x) & 0x00FFFFFF;
+
+        // Start HitGroupIndex and Flags are packed together into 32 bits - first 24 bits for (base) HitGroupIndex and last 8 bits for instance Flags.
+        uint hitGroupIndex = (HitGroupIndexAndFlags + materialIndex) & 0x00FFFFFF;
+
+        instanceDesc.Transform = instanceMatrix;
+        instanceDesc.InstanceIDAndMask = (InstanceIDAndMask & 0xFF000000) | instanceID;
+        instanceDesc.HitGroupIndexAndFlags = (HitGroupIndexAndFlags & 0xFF000000) | hitGroupIndex;
+        instanceDesc.AccelerationStructureGPUVA = BLASes[blasIndex];
+    }
+    else
+    {
+        instanceDesc.Transform = 0;
+        instanceDesc.InstanceIDAndMask = 0;
+        instanceDesc.HitGroupIndexAndFlags = 0;
+        instanceDesc.AccelerationStructureGPUVA = uint2(0, 0);
+    }
+#endif
+
+    InstanceDescs[InstanceDescsOffset + threadID.x] = instanceDesc;
+}

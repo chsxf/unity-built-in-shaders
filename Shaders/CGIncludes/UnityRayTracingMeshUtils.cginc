@@ -110,6 +110,42 @@ static float4 unity_VertexChannelMask_RT[5] =
     float4(1, 1, 1, 1)
 };
 
+#ifdef INSTANCING_ON
+
+ByteAddressBuffer unity_UserInstanceData_RT;
+ByteAddressBuffer unity_IndirectInstanceArgsBuffer_RT;
+StructuredBuffer<uint> unity_UserInstanceDataInstanceIndices_RT;
+
+cbuffer UnityInstancing_RT
+{
+    uint unity_IndirectInstanceArgsBufferOffset_RT;
+    uint unity_UserInstanceDataInstanceSize_RT;
+    uint unity_UserInstanceDataGeometryIndexOffset_RT;
+    uint unity_UserInstanceDataGeometryCount_RT;
+    uint unity_UserInstanceDataBaseInstanceID_RT;
+    bool unity_UserInstanceDataEnabled_RT;
+    bool unity_UserInstanceDataUseInstanceIndices_RT;
+};
+
+#endif
+
+MeshInfo GetMeshInfo()
+{
+#if INSTANCING_ON
+    if (unity_UserInstanceDataEnabled_RT)
+    {
+        uint indirectInstanceStart = unity_IndirectInstanceArgsBuffer_RT.Load(unity_IndirectInstanceArgsBufferOffset_RT);
+        uint instanceIndex0Based = InstanceIndex() - unity_UserInstanceDataBaseInstanceID_RT;
+        uint instanceIndex = unity_UserInstanceDataUseInstanceIndices_RT ? unity_UserInstanceDataInstanceIndices_RT[indirectInstanceStart + instanceIndex0Based] : indirectInstanceStart + instanceIndex0Based;
+        uint instanceDataAddress = instanceIndex * unity_UserInstanceDataInstanceSize_RT;
+        uint geometryIndex = min(unity_UserInstanceData_RT.Load(instanceDataAddress + unity_UserInstanceDataGeometryIndexOffset_RT), unity_UserInstanceDataGeometryCount_RT - 1);
+
+        return unity_MeshInfo_RT[geometryIndex];
+    }
+#endif
+    return unity_MeshInfo_RT[0];
+}
+
 // A normalized short (16-bit signed integer) is encode into data. Returns a float in the range [-1, 1].
 float DecodeSNorm16(uint data)
 {
@@ -126,7 +162,7 @@ uint3 UnityRayTracingFetchTriangleIndices(uint primitiveIndex)
 {
     uint3 indices;
 
-    MeshInfo meshInfo = unity_MeshInfo_RT[0];
+    MeshInfo meshInfo = GetMeshInfo();
 
     if (meshInfo.indexSize == 2)
     {
@@ -182,7 +218,7 @@ float2 UnityRayTracingFetchVertexAttribute2(uint vertexIndex, uint attributeType
         return unity_DefaultVertexAttributes[attributeType].xy;
 
     const uint attributeByteOffset  = vertexDecl.ByteOffset;
-    const uint vertexSize           = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
+    const uint vertexSize           = GetMeshInfo().vertexSize[vertexDecl.Stream];
     const uint vertexAddress        = vertexIndex * vertexSize;
     const uint attributeAddress     = vertexAddress + attributeByteOffset;
     const uint attributeFormat      = vertexDecl.Format;
@@ -229,7 +265,7 @@ float3 UnityRayTracingFetchVertexAttribute3(uint vertexIndex, uint attributeType
         return unity_DefaultVertexAttributes[attributeType].xyz;
 
     const uint attributeByteOffset  = vertexDecl.ByteOffset;
-    const uint vertexSize           = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
+    const uint vertexSize           = GetMeshInfo().vertexSize[vertexDecl.Stream];
     const uint vertexAddress        = vertexIndex * vertexSize;
     const uint attributeAddress     = vertexAddress + attributeByteOffset;
     const uint attributeFormat      = vertexDecl.Format;
@@ -283,7 +319,7 @@ float4 UnityRayTracingFetchVertexAttribute4(uint vertexIndex, uint attributeType
         return unity_DefaultVertexAttributes[attributeType];
 
     const uint attributeByteOffset  = vertexDecl.ByteOffset;
-    const uint vertexSize           = unity_MeshInfo_RT[0].vertexSize[vertexDecl.Stream];
+    const uint vertexSize           = GetMeshInfo().vertexSize[vertexDecl.Stream];
     const uint vertexAddress        = vertexIndex * vertexSize;
     const uint attributeAddress     = vertexAddress + attributeByteOffset;
     const uint attributeFormat      = vertexDecl.Format;
