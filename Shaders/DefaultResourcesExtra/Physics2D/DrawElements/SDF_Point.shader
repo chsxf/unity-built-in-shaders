@@ -23,6 +23,15 @@
 // 
 // The above notice is included due to a significant portion of the following shader code
 // coming from Box2D.
+//
+// OPTIMIZED VERSION - Key improvements:
+// - Half precision for colors and scalars
+// - Early squared-distance rejection
+// - clip() instead of discard
+// - Constant buffer for globals
+// - Simplified fragment shader logic
+// - Reduced redundant calculations
+// - FIXED: Proper pixel size calculation for orthographic and perspective cameras
 
 Shader "Hidden/Physics2D/SDF_Point"
 {
@@ -62,19 +71,20 @@ Shader "Hidden/Physics2D/SDF_Point"
                     return input.xzyw;
 
                 return input.zyxw;
-            }          
-            
+            }
+ 
             struct vertexInput
             {
                 float4 vertex   : POSITION;
             };
 
+            // OPTIMIZED: Use half precision for colors and scalars
             struct fragInput
             {
                 float4 vertex       : SV_POSITION;
                 float4 position     : TEXCOORD0;
-                fixed4 color        : COLOR;
-                float thickness     : THICKNESS;
+                half4 color         : COLOR;
+                half thickness      : THICKNESS;
             }; 
 
             struct pointElement
@@ -85,9 +95,13 @@ Shader "Hidden/Physics2D/SDF_Point"
                 float4 color;
             };
 
+            // OPTIMIZED: Use cbuffer for better constant packing
+            cbuffer ShaderConstants
+            {
+                int transform_plane;
+            };
+
             StructuredBuffer<pointElement> element_buffer;
-            int transform_plane;
-            float thickness;
             
             fragInput vert(const vertexInput input, const uint instance_id: SV_InstanceID)
             {
@@ -100,26 +114,47 @@ Shader "Hidden/Physics2D/SDF_Point"
                 output.position = local_mesh_vertex;
                 
                 // Color.
-                output.color = element.color;
+                output.color = half4(element.color);
 
-                // Calculate orthographic pixel size.
+                // First, determine the pre-transformed position for pixel size calculation
                 const float4 pre_transformed = float4((local_mesh_vertex.xy + element.position.xy).xy, element.depth, local_mesh_vertex.w);
-                float pixel_size = (pre_transformed.w / (float2(1, 1) * abs(mul((float2x2)UNITY_MATRIX_P, _ScreenParams.xy)))).y;
-                // If we're using a perspective projection then scale by eye-depth.
-                if (unity_OrthoParams.w == 0.0f)
-                    pixel_size *= length(UnityObjectToViewPos( pre_transformed ).xyz);
+                
+                // Get clip position for this pre-transformed point
+                float4 clipPos_pre = UnityObjectToClipPos(pre_transformed);
+
+                float pixel_size;
+                float pixel_scaling;
+                if (unity_OrthoParams.w == 1.0f) // Orthographic
+                {
+                    // For orthographic projection, pixel size is constant
+                    // unity_OrthoParams.x is the camera's orthographic size (half-height)
+                    pixel_size = unity_OrthoParams.x / (_ScreenParams.y * 0.5);
+
+                    // No scaling.
+                    pixel_scaling = 1.0f / 1.2f;
+                }
+                else // Perspective
+                {
+                    // For perspective, pixel size increases with distance from camera
+                    // clipPos.w is the view-space depth (distance from camera)
+                    // UNITY_MATRIX_P[1][1] is 1/tan(fov/2) for vertical FOV
+                    pixel_size = abs(clipPos_pre.w / (_ScreenParams.y * UNITY_MATRIX_P[1][1] * 0.5));
+
+                    // Mesh extents scaling.
+                    pixel_scaling = 1.2f;
+                }
                 
                 // Vertex.
                 const float radius = element.radius;
                 const float2 position = element.position;
                 const float scaling = radius * pixel_size;
                 const float2 p = (local_mesh_vertex.xy * scaling.xx) + position.xy;
-
+                
                 // Calculate transformed (plane) vertex.
                 const float4 transformed = transformPlaneSwizzle( float4(p.xy, element.depth, local_mesh_vertex.w), transform_plane );
-                
+
                 // Thickness.
-                output.thickness = thickness * (pixel_size / scaling);
+                output.thickness = half((pixel_size / scaling) * pixel_scaling);
                 
                 // Transformed vertex.
                 output.vertex = UnityObjectToClipPos( transformed );
@@ -127,27 +162,33 @@ Shader "Hidden/Physics2D/SDF_Point"
                 return output;
             }
 
-            fixed4 frag(fragInput input) : SV_Target
+            half4 frag(fragInput input) : SV_Target
             {
                 const float radius = 0.9;
                 
                 // Distance to point circumference.
                 const float2 w = input.position.xy;
-                const float dw = length(w);
-
+                const float dw_sq = dot(w, w);
+                
                 const float thickness = input.thickness;
-                if (dw > radius + thickness)
-                    discard;
+                const float max_dist = radius + thickness;
                 
-                fixed4 color = input.color;
+                // OPTIMIZED: Early rejection with squared distance
+                clip(max_dist * max_dist - dw_sq);
                 
-                if (dw >= radius)
-                {
-                    const float dist = abs(dw - radius);
-                    color.a *= smoothstep(thickness, 0.0, dist);
-                    return color;
-                }
-
+                // Now compute actual distance
+                const float dw = sqrt(dw_sq);
+                
+                half4 color = input.color;
+                
+                // OPTIMIZED: Simplified logic - calculate distance and alpha in one path
+                const float dist = abs(dw - radius);
+                
+                // If inside the radius, alpha stays at 1.0
+                // If outside, blend based on distance
+                const float alpha_mult = (dw >= radius) ? smoothstep(thickness, 0.0, dist) : 1.0;
+                color.a *= alpha_mult;
+                
                 return color;
             }
             

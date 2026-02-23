@@ -23,6 +23,16 @@
 // 
 // The above notice is included due to a significant portion of the following shader code
 // coming from Box2D.
+//
+// OPTIMIZED VERSION - Key improvements:
+// - Half precision for colors and scalars
+// - Early squared-distance rejection
+// - Hardware reciprocal operations
+// - Precomputed constant values
+// - clip() instead of discard
+// - Constant buffer for globals
+// - Simplified distance calculation
+// - FIXED: Proper pixel size calculation for orthographic and perspective cameras
 
 Shader "Hidden/Physics2D/SDF_Line"
 {
@@ -69,13 +79,14 @@ Shader "Hidden/Physics2D/SDF_Line"
                 float4 vertex   : POSITION;
             };
             
+            // OPTIMIZED: Use half precision for colors and scalars
             struct fragInput
             {
                 float4 vertex       : SV_POSITION;
                 float4 position     : TEXCOORD0;
-                fixed4 color        : COLOR;
-                float thickness     : THICKNESS;
-                float ratio         : RATIO;
+                half4 color         : COLOR;
+                half thickness      : THICKNESS;
+                half ratio          : RATIO;
             }; 
 
             struct lineElement
@@ -86,9 +97,14 @@ Shader "Hidden/Physics2D/SDF_Line"
                 float4 color;
             };
 
+            // OPTIMIZED: Use cbuffer for better constant packing
+            cbuffer ShaderConstants
+            {
+                float thickness;
+                int transform_plane;
+            };
+
             StructuredBuffer<lineElement> element_buffer;
-            int transform_plane;
-            float thickness;
             
             fragInput vert(const vertexInput input, const uint instance_id: SV_InstanceID)
             {
@@ -101,11 +117,11 @@ Shader "Hidden/Physics2D/SDF_Line"
                 output.position = local_mesh_vertex;
                 
                 // Color.
-                output.color = element.color;
+                output.color = half4(element.color);
 
                 // Ratio.
                 const float ratio = 0.2;
-                output.ratio = rcp(ratio);
+                output.ratio = half(rcp(ratio));
                 
                 // Scale quad large enough to hold line/radius.
                 const float half_length = 0.5 * element.length;
@@ -120,40 +136,72 @@ Shader "Hidden/Physics2D/SDF_Line"
 
                 // Calculate transformed (plane) vertex.
                 const float4 transformed = transformPlaneSwizzle( float4(p_rot.xy, element.depth, local_mesh_vertex.w), transform_plane );
+                
+                // Get clip position first
+                float4 clipPos = UnityObjectToClipPos(transformed);
+                
+                float pixel_size;
+                float pixel_scaling;
+                if (unity_OrthoParams.w == 1.0f) // Orthographic
+                {
+                    // For orthographic projection, pixel size is constant
+                    // unity_OrthoParams.x is the camera's orthographic size (half-height)
+                    pixel_size = unity_OrthoParams.x / (_ScreenParams.y * 0.5);
 
-                // Calculate orthographic pixel size.
-                float pixel_size = (transformed.w / (float2(1, 1) * abs(mul((float2x2)UNITY_MATRIX_P, _ScreenParams.xy)))).y;
-                // If we're using a perspective projection then scale by eye-depth.
-                if (unity_OrthoParams.w == 0.0f)
-                    pixel_size *= length(UnityObjectToViewPos( transformed ).xyz);
+                    // No scaling.
+                    pixel_scaling = 1.0f / 1.2f;
+                }
+                else // Perspective
+                {
+                    // For perspective, pixel size increases with distance from camera
+                    // clipPos.w is the view-space depth (distance from camera)
+                    // UNITY_MATRIX_P[1][1] is 1/tan(fov/2) for vertical FOV
+                    pixel_size = abs(clipPos.w / (_ScreenParams.y * UNITY_MATRIX_P[1][1] * 0.5));
+
+                    // Mesh extents scaling.
+                    pixel_scaling = 1.2f;
+                }
 
                 // Thickness.
-                output.thickness = thickness * (pixel_size / scale.y);
+                output.thickness = half(thickness * (pixel_size / scale.y) * pixel_scaling);
 
                 // Transformed vertex.
-                output.vertex = UnityObjectToClipPos( transformed );
+                output.vertex = clipPos;
                 
                 return output;
             }
             
-            fixed4 frag(const fragInput input) : SV_Target
+            half4 frag(const fragInput input) : SV_Target
             {
+                // OPTIMIZED: Precompute constant values (v2 - v1 = float2(2, 0))
                 const float2 v1 = float2(-1, 0);
-                const float2 v2 = float2(1, 0);
                 
                 // Distance to line segment.
-                const float2 e = v2 - v1;
+                const float2 e = float2(2, 0);  // v2 - v1
                 const float2 w = input.position - v1;
                 const float we = dot(w, e);
-                const float2 b = w - e * clamp(we / dot(e, e), 0.0, 1.0);
-                const float d = length(b * float2(1 + input.ratio, 1));
-
-                const float thickness = input.thickness;
-                if (d > thickness)
-                    discard;
                 
-                const float4 color = input.color;
-                return fixed4(color.rgb, color.a * smoothstep(thickness, 0.0f, d));
+                // OPTIMIZED: Use hardware reciprocal and precompute ee
+                const float ee = 4.0;  // dot(float2(2, 0), float2(2, 0)) = 4
+                const float inv_ee = 0.25;  // rcp(4.0) = 0.25
+                const float t = clamp(we * inv_ee, 0.0, 1.0);
+                const float2 b = w - e * t;
+                
+                // OPTIMIZED: Calculate with scale factors
+                const float2 scaled_b = b * float2(1.0 + input.ratio, 1.0);
+                const float d_sq = dot(scaled_b, scaled_b);
+                
+                const float thickness = input.thickness;
+                const float thickness_sq = thickness * thickness;
+                
+                // OPTIMIZED: Early rejection with squared distance
+                clip(thickness_sq - d_sq);
+                
+                // Now compute actual distance
+                const float d = sqrt(d_sq);
+                
+                const half4 color = input.color;
+                return half4(color.rgb, color.a * smoothstep(thickness, 0.0, d));
             }
 
             ENDHLSL
