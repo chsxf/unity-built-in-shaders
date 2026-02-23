@@ -23,6 +23,16 @@
 // 
 // The above notice is included due to a significant portion of the following shader code
 // coming from Box2D.
+//
+// OPTIMIZED VERSION - Key improvements:
+// - Packed boolean flags (saves 8-9 bytes interpolators)
+// - Half precision for colors and scalars
+// - Early squared-distance rejection
+// - Hardware reciprocal operations
+// - clip() instead of discard
+// - Constant buffer for globals
+// - Optimized blend function
+// - FIXED: Proper pixel size calculation for orthographic and perspective cameras
 
 Shader "Hidden/Physics2D/SDF_CircleGeometry"
 {
@@ -73,16 +83,15 @@ Shader "Hidden/Physics2D/SDF_CircleGeometry"
                 float4 vertex   : POSITION;
             };
 
+            // OPTIMIZED: Reduced interpolators by packing bools and using half precision
             struct fragInput
             {
                 float4 vertex       : SV_POSITION;
                 float4 position     : TEXCOORD0;
-                fixed4 color        : COLOR;
-                fixed4 fillColor    : FILLCOLOR;
-                float thickness     : THICKNESS;
-                bool drawOutline    : DRAWOUTLINE;
-                bool drawOrientation : DRAWORIENTATION;
-                bool drawInterior    : DRAWINTERIOR;
+                half4 color         : COLOR;
+                half4 fillColor     : FILLCOLOR;
+                half thickness      : THICKNESS;
+                uint flags          : FLAGS;  // drawOutline (bit 0), drawOrientation (bit 1), drawInterior (bit 2)
             }; 
 
             struct circleGeometryElement
@@ -94,10 +103,15 @@ Shader "Hidden/Physics2D/SDF_CircleGeometry"
                 float4 color;
             };
 
+            // OPTIMIZED: Use cbuffer for better constant packing
+            cbuffer ShaderConstants
+            {
+                float thickness;
+                float fillAlpha;
+                int transform_plane;
+            };
+
             StructuredBuffer<circleGeometryElement> element_buffer;
-            int transform_plane;
-            float thickness;
-            float fillAlpha;
             
             fragInput vert(const vertexInput input, const uint instance_id: SV_InstanceID)
             {
@@ -110,18 +124,25 @@ Shader "Hidden/Physics2D/SDF_CircleGeometry"
                 output.position = local_mesh_vertex;
 
                 // Fill flags.
-                output.drawOutline = isOutlineFill(element.fillOptions);
-                output.drawOrientation = isOrientationFill(element.fillOptions);
-                output.drawInterior = isInteriorFill(element.fillOptions);
+                bool drawOutline = isOutlineFill(element.fillOptions);
+                bool drawOrientation = isOrientationFill(element.fillOptions);
+                bool drawInterior = isInteriorFill(element.fillOptions);
+                
+                // OPTIMIZED: Pack flags into single uint
+                output.flags = (drawOutline ? 0x1 : 0) | (drawOrientation ? 0x2 : 0) | (drawInterior ? 0x4 : 0);
                 
                 // Color.
-                output.color = element.color;
-                if (output.drawInterior)
+                output.color = half4(element.color);
+                if (drawInterior)
                 {
-                    if (output.drawOutline)
-                        output.fillColor = fixed4(element.color.rgb, element.color.a * fillAlpha);
+                    if (drawOutline)
+                        output.fillColor = half4(element.color.rgb, element.color.a * fillAlpha);
                     else
-                        output.fillColor = element.color;
+                        output.fillColor = half4(element.color);
+                }
+                else
+                {
+                    output.fillColor = half4(0, 0, 0, 0);
                 }
                 
                 const float4 xf = element.transform;
@@ -135,22 +156,41 @@ Shader "Hidden/Physics2D/SDF_CircleGeometry"
                 // Calculate transformed (plane) vertex.
                 const float4 transformed = transformPlaneSwizzle( float4(p_rot.xy, element.depth, local_mesh_vertex.w), transform_plane );
 
-                // Calculate orthographic pixel size.
-                float pixel_size = (transformed.w / (float2(1, 1) * abs(mul((float2x2)UNITY_MATRIX_P, _ScreenParams.xy)))).y;
-                // If we're using a perspective projection then scale by eye-depth.
-                if (unity_OrthoParams.w == 0.0f)
-                    pixel_size *= length(UnityObjectToViewPos( transformed ).xyz);
+                // Get clip position first
+                float4 clipPos = UnityObjectToClipPos(transformed);
+                
+                float pixel_size;
+                float pixel_scaling;
+                if (unity_OrthoParams.w == 1.0f) // Orthographic
+                {
+                    // For orthographic projection, pixel size is constant
+                    // unity_OrthoParams.x is the camera's orthographic size (half-height)
+                    pixel_size = unity_OrthoParams.x / (_ScreenParams.y * 0.5);
+
+                    // No scaling.
+                    pixel_scaling = 1.0f / 1.2f;
+                }
+                else // Perspective
+                {
+                    // For perspective, pixel size increases with distance from camera
+                    // clipPos.w is the view-space depth (distance from camera)
+                    // UNITY_MATRIX_P[1][1] is 1/tan(fov/2) for vertical FOV
+                    pixel_size = abs(clipPos.w / (_ScreenParams.y * UNITY_MATRIX_P[1][1] * 0.5));
+
+                    // Mesh extents scaling.
+                    pixel_scaling = 1.2f;
+                }
 
                 // Thickness.
-                output.thickness = thickness * (pixel_size / radius);
+                output.thickness = half(thickness * (pixel_size / radius) * pixel_scaling);
 
                 // Transformed vertex.
-                output.vertex = UnityObjectToClipPos( transformed );
+                output.vertex = clipPos;
                 
                 return output;
             }
 
-            // https://en.wikipedia.org/wiki/Alpha_compositing
+            // OPTIMIZED: Use hardware reciprocal
             float4 blend_colors(float4 front, float4 back)
             {
                 const float3 c_src = front.rgb;
@@ -160,46 +200,60 @@ Shader "Hidden/Physics2D/SDF_CircleGeometry"
 
                 float3 c_out = c_src * alpha_src + c_dst * alpha_dst * (1.0 - alpha_src);
                 float alpha_out = alpha_src + alpha_dst * (1.0 - alpha_src);
-                c_out = c_out / alpha_out;
+                
+                const float inv_alpha = rcp(alpha_out);
+                c_out = c_out * inv_alpha;
 
                 return float4(c_out, alpha_out);
             }           
             
-            fixed4 frag(const fragInput input) : SV_Target
+            half4 frag(const fragInput input) : SV_Target
             {
+                // OPTIMIZED: Unpack flags
+                const bool drawOutline = (input.flags & 0x1) != 0;
+                const bool drawOrientation = (input.flags & 0x2) != 0;
+                const bool drawInterior = (input.flags & 0x4) != 0;
+                
                 // Radius in unit quad.
                 const float radius = 1.0;
 
                 // Distance to axis line segment.
                 const float2 w = input.position;
 
-                // Distance to circle.
-                const float dw = length(w);
-
+                // OPTIMIZED: Early rejection with squared distance
+                const float dw_sq = dot(w, w);
                 const float thickness = input.thickness;
-                if (dw > radius + thickness)
-                    discard;
+                const float max_dist = radius + thickness;
+                clip(max_dist * max_dist - dw_sq);
+                
+                // Now compute actual distance
+                const float dw = sqrt(dw_sq);
                 
                 // If filled, roll the fill alpha down at the border.
-                float4 interior = float4(0,0,0,0);
-                if (input.drawInterior)
-                    interior = float4(input.fillColor.rgb, input.fillColor.a * smoothstep(radius + thickness, radius, dw));
+                half4 interior = half4(0, 0, 0, 0);
+                if (drawInterior)
+                    interior = half4(input.fillColor.rgb, input.fillColor.a * smoothstep(radius + thickness, radius, dw));
 
                 // Roll the border alpha down from 1 to 0 across the border thickness.
-                float4 outline = float4(0,0,0,0);
-                if (input.drawOutline)
+                half4 outline = half4(0, 0, 0, 0);
+                if (drawOutline)
                 {
                     // Union of circle and axis.
                     const float2 e = float2(radius, 0.0);
                     const float we = dot(w, e);
-                    const float2 b = w - e * clamp(we / dot(e, e), 0.0, 1.0);
+                    
+                    // OPTIMIZED: Use hardware reciprocal
+                    const float ee = dot(e, e);
+                    const float inv_ee = rcp(ee);
+                    const float t = clamp(we * inv_ee, 0.0, 1.0);
+                    const float2 b = w - e * t;
                     const float da = length(b);
                     const float dc = abs(dw - radius);
 
-                    const float distance = input.drawOrientation ? min(da, dc) : dc;
+                    const float distance = drawOrientation ? min(da, dc) : dc;
                     
-                    const float4 outline_color = input.color;
-                    outline = float4(outline_color.rgb, outline_color.a * smoothstep(thickness, 0.0f, distance));
+                    const half4 outline_color = input.color;
+                    outline = half4(outline_color.rgb, outline_color.a * smoothstep(thickness, 0.0, distance));
                 }
 
                 return blend_colors(outline, interior);
