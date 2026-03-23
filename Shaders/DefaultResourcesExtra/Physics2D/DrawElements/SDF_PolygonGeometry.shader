@@ -44,7 +44,6 @@ Shader "Hidden/Physics2D/SDF_PolygonGeometry"
         Tags { "RenderType"="Transparent" "Queue"="Transparent" }
         LOD 100
             Blend SrcAlpha OneMinusSrcAlpha
-            ZTest Always
             ZWrite Off
             Cull Off
 
