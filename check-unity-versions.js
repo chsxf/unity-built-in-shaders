@@ -234,7 +234,7 @@ function parseVersions(versionList) {
 function processGraphQL(query, variables, callback) {
   let options = {
     host: "services.unity.com",
-    path: "/graphql",
+    path: "/api/live-platform/v1/graphql",
     method: "POST",
     headers: {
       "Content-Type": "application/json",
