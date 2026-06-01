@@ -56,6 +56,7 @@
 * Version 6000.1.3f1: https://download.unity3d.com/download_unity/f34db9734971/builtin_shaders-6000.1.3f1.zip
 * Version 6000.1.2f1: https://download.unity3d.com/download_unity/8e2281df4c52/builtin_shaders-6000.1.2f1.zip
 * Version 6000.1.1f1: https://download.unity3d.com/download_unity/7197418f847b/builtin_shaders-6000.1.1f1.zip
+* Version 6000.0.76f1: https://download.unity3d.com/download_unity/6f7f9e1c9e8a/builtin_shaders-6000.0.76f1.zip
 * Version 6000.0.75f1: https://download.unity3d.com/download_unity/26349cd2a5c8/builtin_shaders-6000.0.75f1.zip
 * Version 6000.0.74f1: https://download.unity3d.com/download_unity/7685f01dc6be/builtin_shaders-6000.0.74f1.zip
 * Version 6000.0.73f1: https://download.unity3d.com/download_unity/a166abc3bf0e/builtin_shaders-6000.0.73f1.zip
