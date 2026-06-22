@@ -64,6 +64,7 @@ Shader "Hidden/Physics2D/SDF_Line"
             // 0 = XY plane with Z rotation.
             // 1 = XZ plane with Y rotation.
             // 2 = ZY plane with X rotation.
+            // 3 = Custom Plane.
             float4 transformPlaneSwizzle(float4 input, int transform_plane)
             {
                 if (transform_plane == 0)
@@ -106,6 +107,7 @@ Shader "Hidden/Physics2D/SDF_Line"
             };
 
             StructuredBuffer<lineElement> element_buffer;
+            float4x4 transform_plane_matrix;
             
             fragInput vert(const vertexInput input, const uint instance_id: SV_InstanceID)
             {
@@ -136,7 +138,11 @@ Shader "Hidden/Physics2D/SDF_Line"
                 const float2 p_rot = float2(c * p.x - s * p.y, s * p.x + c * p.y) + xf.xy;
 
                 // Calculate transformed (plane) vertex.
-                const float4 transformed = transformPlaneSwizzle( float4(p_rot.xy, element.depth, local_mesh_vertex.w), transform_plane );
+                float4 transformed = float4(p_rot.xy, element.depth, local_mesh_vertex.w);
+                if (transform_plane == 3)
+                    transformed = mul(transform_plane_matrix, transformed);
+                else
+                    transformed = transformPlaneSwizzle(transformed, transform_plane);  
                 
                 // Get clip position first
                 float4 clipPos = UnityObjectToClipPos(transformed);
@@ -164,7 +170,13 @@ Shader "Hidden/Physics2D/SDF_Line"
                 }
 
                 // Thickness.
-                output.thickness = half(thickness * (pixel_size / scale.y) * pixel_scaling);
+                // When transform_plane == 3 the matrix may encode a world-space scale that
+                // changes the apparent size of the geometry.  Compensate by dividing it back
+                // out so the normalised-quad thickness stays constant.
+                const float matrix_scale = (transform_plane == 3)
+                    ? 0.5 * (length(transform_plane_matrix[0].xyz) + length(transform_plane_matrix[1].xyz))
+                    : 1.0;
+                output.thickness = half(thickness * (pixel_size / (scale.y * matrix_scale)) * pixel_scaling);
 
                 // Transformed vertex.
                 output.vertex = clipPos;

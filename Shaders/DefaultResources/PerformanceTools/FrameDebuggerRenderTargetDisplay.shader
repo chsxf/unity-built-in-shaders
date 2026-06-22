@@ -82,9 +82,10 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma exclude_renderers webgpu
             #pragma multi_compile_local_fragment _ _TEX2DARRAY _CUBEMAP
             #pragma multi_compile_local_fragment _ _MSAA_2 _MSAA_4 _MSAA_8
-
+            
             #if defined(_MSAA_2)
                 #define MSAA_SAMPLES 2
             #elif defined(_MSAA_4)
@@ -102,7 +103,7 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay"
                     Texture2DMSArray<float4, MSAA_SAMPLES> _MainTex;
                 #endif
             #elif _CUBEMAP
-                samplerCUBE_float _MainTex;
+                UNITY_DECLARE_TEXCUBE(_MainTex);
             #else
                 #if MSAA_SAMPLES == 1
                     Texture2D _MainTex;
@@ -111,7 +112,7 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay"
                 #endif
             #endif
 
-            #if MSAA_SAMPLES > 1
+            #if MSAA_SAMPLES > 1 && !defined(_CUBEMAP)
                 float4 ResolveMainTex(int3 coord)
                 {
                     float4 finalVal = 0;
@@ -133,7 +134,7 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay"
                         return ResolveMainTex(coord);
                     #endif
                 #elif _CUBEMAP
-                    return texCUBE(_MainTex, uv.xyz);
+                    return UNITY_SAMPLE_TEXCUBE(_MainTex, uv.xyz);
                 #else
                     int3 coord = int3(uv.xy * float2(_MainTexWidth, _MainTexHeight), 0);
 

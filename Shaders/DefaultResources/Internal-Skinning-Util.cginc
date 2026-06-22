@@ -18,6 +18,8 @@
 
 #if SKIN_NORM && SKIN_TANG
 #define VERTEX_STRIDE 10
+#elif SKIN_TANG
+#define VERTEX_STRIDE 7
 #elif SKIN_NORM
 #define VERTEX_STRIDE 6
 #else
