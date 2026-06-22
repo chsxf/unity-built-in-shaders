@@ -24,6 +24,7 @@ uniform bool _ManualTex2Linear;
 
 uniform fixed4 _ColorMask;
 float _Exposure;
+uniform bool _Grayscale;
 
 uniform bool _IsPlainNormalmap;
 
@@ -57,6 +58,8 @@ fixed4 frag(v2f i) : SV_Target
 
     if (_Mip >= 0.0) c = cmip;
     c.rgb *= exp2(_Exposure);
+
+    if (_Grayscale) c.rgb = dot(c.rgb, _ColorMask.xyz);
 
     if (_ManualTex2SRGB) c.rgb = LinearToGammaSpace(c.rgb);
 
