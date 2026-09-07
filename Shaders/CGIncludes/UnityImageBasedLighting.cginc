@@ -507,7 +507,8 @@ Unity_GlossyEnvironmentData UnityGlossyEnvironmentSetup(half Smoothness, half3 w
 }
 
 // ----------------------------------------------------------------------------
-half perceptualRoughnessToMipmapLevel(half perceptualRoughness)
+// DXC generates SPIR-V which requires LOD parameter to be 32-bit float
+float perceptualRoughnessToMipmapLevel(float perceptualRoughness)
 {
     return perceptualRoughness * UNITY_SPECCUBE_LOD_STEPS;
 }
@@ -521,7 +522,8 @@ half mipmapLevelToPerceptualRoughness(half mipmapLevel)
 // ----------------------------------------------------------------------------
 half3 Unity_GlossyEnvironment (UNITY_ARGS_TEXCUBE(tex), half4 hdr, Unity_GlossyEnvironmentData glossIn)
 {
-    half perceptualRoughness = glossIn.roughness /* perceptualRoughness */ ;
+    // DXC generates SPIR-V which requires LOD parameter to be 32-bit float
+    float perceptualRoughness = glossIn.roughness;
 
 // TODO: CAUTION: remap from Morten may work only with offline convolution, see impact with runtime convolution!
 // For now disabled
@@ -539,7 +541,9 @@ half3 Unity_GlossyEnvironment (UNITY_ARGS_TEXCUBE(tex), half4 hdr, Unity_GlossyE
 #endif
 
 
-    half mip = perceptualRoughnessToMipmapLevel(perceptualRoughness);
+    // DXC generates SPIR-V which requires LOD parameter to be 32-bit float
+    // perceptualRoughnessToMipmapLevel always returns float
+    float mip = perceptualRoughnessToMipmapLevel(perceptualRoughness);
     half3 R = glossIn.reflUVW;
     half4 rgbm = UNITY_SAMPLE_TEXCUBE_LOD(tex, R, mip);
 

@@ -54,7 +54,7 @@ Shader "Nature/SpeedTree8"
             #pragma shader_feature_local EFFECT_BUMP
             #pragma shader_feature_local EFFECT_EXTRA_TEX
 
-            //#pragma enable_d3d11_debug_symbols
+            //#pragma enable_debug_symbols
 
             #define ENABLE_WIND
             #define EFFECT_BACKSIDE_NORMALS
