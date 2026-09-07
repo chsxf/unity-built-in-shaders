@@ -465,11 +465,12 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     #define UNITY_DECLARE_TEX2D_NOSAMPLER_INT(tex) Texture2D<int4> tex
     #define UNITY_DECLARE_TEX2D_NOSAMPLER_UINT(tex) Texture2D<uint4> tex
     #define UNITY_SAMPLE_TEX2D(tex,coord) tex.Sample (sampler##tex,coord)
-    #define UNITY_SAMPLE_TEX2D_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, lod)
+    // DXC generates SPIR-V which requires LOD parameter to be 32-bit float
+    #define UNITY_SAMPLE_TEX2D_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, float(lod))
+    #define UNITY_SAMPLE_TEX2D_SAMPLER_LOD(tex, samplertex, coord, lod) tex.SampleLevel (sampler##samplertex, coord, float(lod))
     #define UNITY_SAMPLE_TEX2D_SAMPLER(tex,samplertex,coord) tex.Sample (sampler##samplertex,coord)
-    #define UNITY_SAMPLE_TEX2D_SAMPLER_LOD(tex, samplertex, coord, lod) tex.SampleLevel (sampler##samplertex, coord, lod)
 
-#if defined(UNITY_COMPILER_HLSLCC) && (!defined(SHADER_API_GLCORE) || defined(SHADER_API_SWITCH) || defined(SHADER_API_SWITCH2)) // GL Core doesn't have the _half mangling, the rest of them do. Workaround for Nintendo Switch.
+#if defined(UNITY_COMPILER_HLSLCC) && (!defined(SHADER_API_GLCORE) || defined(SHADER_API_SWITCH) || defined(SHADER_API_SWITCH2)) && !defined(UNITY_COMPILER_DXC) // GL Core doesn't have the _half mangling, the rest of them do. Workaround for Nintendo Switch. DXC generates SPIR-V which requires 32-bit sampled types.
     #define UNITY_DECLARE_TEX2D_HALF(tex) Texture2D<half4> tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX2D_FLOAT(tex) Texture2D<float4> tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(tex) Texture2D<half4> tex
@@ -493,16 +494,18 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     #define UNITY_PASS_TEXCUBE_NOSAMPLER(tex) tex
 
     #define UNITY_SAMPLE_TEXCUBE(tex,coord) tex.Sample (sampler##tex,coord)
-    #define UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, lod)
+    // DXC generates SPIR-V which requires LOD parameter to be 32-bit float
+    #define UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, float(lod))
+    #define UNITY_SAMPLE_TEXCUBE_SAMPLER_LOD(tex, samplertex, coord, lod) tex.SampleLevel (sampler##samplertex, coord, float(lod))
     #define UNITY_SAMPLE_TEXCUBE_SAMPLER(tex,samplertex,coord) tex.Sample (sampler##samplertex,coord)
-    #define UNITY_SAMPLE_TEXCUBE_SAMPLER_LOD(tex, samplertex, coord, lod) tex.SampleLevel (sampler##samplertex, coord, lod)
     // 3D textures
     #define UNITY_DECLARE_TEX3D(tex) Texture3D tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX3D_NOSAMPLER(tex) Texture3D tex
     #define UNITY_SAMPLE_TEX3D(tex,coord) tex.Sample (sampler##tex,coord)
-    #define UNITY_SAMPLE_TEX3D_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, lod)
+    // DXC generates SPIR-V which requires LOD parameter to be 32-bit float
+    #define UNITY_SAMPLE_TEX3D_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, float(lod))
+    #define UNITY_SAMPLE_TEX3D_SAMPLER_LOD(tex, samplertex, coord, lod) tex.SampleLevel(sampler##samplertex, coord, float(lod))
     #define UNITY_SAMPLE_TEX3D_SAMPLER(tex,samplertex,coord) tex.Sample (sampler##samplertex,coord)
-    #define UNITY_SAMPLE_TEX3D_SAMPLER_LOD(tex, samplertex, coord, lod) tex.SampleLevel(sampler##samplertex, coord, lod)
 
 #if defined(UNITY_COMPILER_HLSLCC) && !defined(SHADER_API_GLCORE) // GL Core doesn't have the _half mangling, the rest of them do.
     #define UNITY_DECLARE_TEX3D_FLOAT(tex) Texture3D<float4> tex; SamplerState sampler##tex
@@ -524,9 +527,10 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     #define UNITY_PASS_TEX2DARRAY_NOSAMPLER(tex) tex
 
     #define UNITY_SAMPLE_TEX2DARRAY(tex,coord) tex.Sample (sampler##tex,coord)
-    #define UNITY_SAMPLE_TEX2DARRAY_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, lod)
+    // DXC generates SPIR-V which requires LOD parameter to be 32-bit float
+    #define UNITY_SAMPLE_TEX2DARRAY_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, float(lod))
+    #define UNITY_SAMPLE_TEX2DARRAY_SAMPLER_LOD(tex,samplertex,coord,lod) tex.SampleLevel (sampler##samplertex,coord,float(lod))
     #define UNITY_SAMPLE_TEX2DARRAY_SAMPLER(tex,samplertex,coord) tex.Sample (sampler##samplertex,coord)
-    #define UNITY_SAMPLE_TEX2DARRAY_SAMPLER_LOD(tex,samplertex,coord,lod) tex.SampleLevel (sampler##samplertex,coord,lod)
 
     // Cube arrays
     #define UNITY_DECLARE_TEXCUBEARRAY(tex) TextureCubeArray tex; SamplerState sampler##tex
@@ -536,17 +540,18 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
     #define UNITY_PASS_TEXCUBEARRAY(tex) tex, sampler##tex
     #define UNITY_ARGS_TEXCUBEARRAY_NOSAMPLER(tex) TextureCubeArray tex
     #define UNITY_PASS_TEXCUBEARRAY_NOSAMPLER(tex) tex
+// DXC generates SPIR-V which requires LOD parameter to be 32-bit float
 #if defined(SHADER_API_PSSL)
     // round the layer index to get DX11-like behaviour (otherwise fractional indices result in mixed up cubemap faces)
     #define UNITY_SAMPLE_TEXCUBEARRAY(tex,coord) tex.Sample (sampler##tex,float4((coord).xyz, round((coord).w)))
-    #define UNITY_SAMPLE_TEXCUBEARRAY_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,float4((coord).xyz, round((coord).w)), lod)
+    #define UNITY_SAMPLE_TEXCUBEARRAY_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,float4((coord).xyz, round((coord).w)), float(lod))
+    #define UNITY_SAMPLE_TEXCUBEARRAY_SAMPLER_LOD(tex,samplertex,coord,lod) tex.SampleLevel (sampler##samplertex,float4((coord).xyz, round((coord).w)), float(lod))
     #define UNITY_SAMPLE_TEXCUBEARRAY_SAMPLER(tex,samplertex,coord) tex.Sample (sampler##samplertex,float4((coord).xyz, round((coord).w)))
-    #define UNITY_SAMPLE_TEXCUBEARRAY_SAMPLER_LOD(tex,samplertex,coord,lod) tex.SampleLevel (sampler##samplertex,float4((coord).xyz, round((coord).w)), lod)
 #else
     #define UNITY_SAMPLE_TEXCUBEARRAY(tex,coord) tex.Sample (sampler##tex,coord)
-    #define UNITY_SAMPLE_TEXCUBEARRAY_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, lod)
+    #define UNITY_SAMPLE_TEXCUBEARRAY_LOD(tex,coord,lod) tex.SampleLevel (sampler##tex,coord, float(lod))
+    #define UNITY_SAMPLE_TEXCUBEARRAY_SAMPLER_LOD(tex,samplertex,coord,lod) tex.SampleLevel (sampler##samplertex,coord, float(lod))
     #define UNITY_SAMPLE_TEXCUBEARRAY_SAMPLER(tex,samplertex,coord) tex.Sample (sampler##samplertex,coord)
-    #define UNITY_SAMPLE_TEXCUBEARRAY_SAMPLER_LOD(tex,samplertex,coord,lod) tex.SampleLevel (sampler##samplertex,coord,lod)
 #endif
 
 
@@ -705,7 +710,7 @@ min16float4 texCUBEproj(samplerCUBE_h s, in float4 t)   { return texCUBE(s, t.xy
 #define UNITY_INITIALIZE_OUTPUT(type,name)
 #endif
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL) || defined(SHADER_API_PSSL) || defined (SHADER_API_SWITCH) || defined (SHADER_API_SWITCH2)
 #define UNITY_CAN_COMPILE_TESSELLATION 1
 #   define UNITY_domain                 domain
 #   define UNITY_partitioning           partitioning

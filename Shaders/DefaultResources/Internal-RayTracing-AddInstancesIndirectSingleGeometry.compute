@@ -2,7 +2,7 @@
 
 #pragma kernel main
 
-#pragma only_renderers d3d11 xboxseries ps5
+#pragma only_renderers d3d11 xboxseries ps5 vulkan
 
 #if defined(SHADER_API_PS5)
 struct InstanceDesc

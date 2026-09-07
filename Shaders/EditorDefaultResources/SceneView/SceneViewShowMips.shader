@@ -30,7 +30,7 @@ UNITY_DECLARE_TEX2D(_SceneViewMipcolorsTexture);
 
 uint GetMipCount(Texture2D tex)
 {
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D12) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_DX11) || defined(SHADER_API_DX12) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PSSL)
     #define MIP_COUNT_SUPPORTED 1
 #endif
 #if (defined(SHADER_API_OPENGL) || defined(SHADER_API_VULKAN)) && !defined(SHADER_STAGE_COMPUTE)

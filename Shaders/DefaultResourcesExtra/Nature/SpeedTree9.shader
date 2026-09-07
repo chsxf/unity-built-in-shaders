@@ -68,7 +68,7 @@ Shader"Nature/SpeedTree9"
             #pragma shader_feature_local_fragment EFFECT_BUMP
             #pragma shader_feature_local_fragment EFFECT_EXTRA_TEX
 
-            //#pragma enable_d3d11_debug_symbols
+            //#pragma enable_debug_symbols
 
             #define ENABLE_WIND 1
             #define EFFECT_BACKSIDE_NORMALS

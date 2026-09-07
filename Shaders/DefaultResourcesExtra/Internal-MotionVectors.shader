@@ -19,7 +19,6 @@ Shader "Hidden/Internal-MotionVectors"
         float4x4 _PreviousM;
         bool _HasLastPositionData;
         bool _ForceNoMotion;
-        float _MotionVectorDepthBias;
 
         struct MotionVectorData
         {
@@ -42,14 +41,6 @@ Shader "Hidden/Internal-MotionVectors"
             UNITY_SETUP_INSTANCE_ID(v);
             UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
             o.pos = UnityObjectToClipPos(v.vertex);
-
-            // this works around an issue with dynamic batching
-            // potentially remove in 5.4 when we use instancing
-#if defined(UNITY_REVERSED_Z)
-            o.pos.z -= _MotionVectorDepthBias * o.pos.w;
-#else
-            o.pos.z += _MotionVectorDepthBias * o.pos.w;
-#endif
 
 #if defined(USING_STEREO_MATRICES)
             o.transferPos = mul(_StereoNonJitteredVP[unity_StereoEyeIndex], mul(unity_ObjectToWorld, v.vertex));
