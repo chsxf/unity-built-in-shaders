@@ -102,7 +102,7 @@ Shader "UI/Default"
                 float4 clampedRect = clamp(_ClipRect, -2e10, 2e10);
                 float2 maskUV = (v.vertex.xy - clampedRect.xy) / (clampedRect.zw - clampedRect.xy);
                 OUT.texcoord = TRANSFORM_TEX(v.texcoord.xy, _MainTex);
-                OUT.mask = float4(v.vertex.xy * 2 - clampedRect.xy - clampedRect.zw, 0.25 / (0.25 * half2(_UIMaskSoftnessX, _UIMaskSoftnessY) + abs(pixelSize.xy)));
+                OUT.mask = float4(v.vertex.xy * 2 - clampedRect.xy - clampedRect.zw, 0.25 / (0.25 * float2(_UIMaskSoftnessX, _UIMaskSoftnessY) + abs(pixelSize.xy)));
 
 
                 if (_UIVertexColorAlwaysGammaSpace)
@@ -129,7 +129,11 @@ Shader "UI/Default"
                 half4 color = IN.color * (tex2D(_MainTex, IN.texcoord) + _TextureSampleAdd);
 
                 #ifdef UNITY_UI_CLIP_RECT
-                half2 m = saturate((_ClipRect.zw - _ClipRect.xy - abs(IN.mask.xy)) * IN.mask.zw);
+                float2 softness = float2(_UIMaskSoftnessX, _UIMaskSoftnessY);
+                float2 halfPixelBias = 0.5 - 0.5 * softness * IN.mask.zw;
+                half2 m = saturate((_ClipRect.zw - _ClipRect.xy - abs(IN.mask.xy)) * IN.mask.zw + halfPixelBias);
+                half2 hardThreshold = 0.5 + 1e-3 * step(0, IN.mask.xy);
+                m = lerp(m, step(hardThreshold, m), step(softness, 0));
                 color.a *= m.x * m.y;
                 #endif
 
